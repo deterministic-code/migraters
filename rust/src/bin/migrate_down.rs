@@ -9,39 +9,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use sqlx::{Executor, MySqlPool, PgPool, Row, SqlitePool};
 
-const HELP_TEXT: &str = r#"Usage: migrate-down --provider <sqlite|postgres|mysql> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--confirm <TOKEN>]
+const HELP_TEMPLATE: &str = include_str!("../../../templates/help/down.txt");
 
-Rolls back the MOST RECENTLY applied migration (one step). DESTRUCTIVE: prints
-a random 4-letter uppercase token on stderr and refuses to proceed unless the
-operator types it back on stdin (or passes --confirm <TOKEN> matching it).
-
-  --provider          Database dialect. Required.
-  --connection        Connection string. Required.
-  --migrations-path   Full path to the migrations directory.
-  --migrations-root   Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
-                      Defaults to 'sql'. Ignored when --migrations-path is also set.
-  --confirm           Skip the interactive prompt. The TOKEN must match the value
-                      printed on stderr at runtime — there is no fixed bypass value.
-
-Examples:
-  # sqlite — bare path or sqlite:// URL.
-  migrate-down --provider sqlite --connection ./app.sqlite
-  migrate-down --provider sqlite --connection sqlite:///absolute/path/app.sqlite
-
-  # postgres — URL form (libpq keyword form is accepted by sqlx too).
-  migrate-down --provider postgres --connection postgresql://user:pass@host:5432/dbname
-
-  # mysql — URL form.
-  migrate-down --provider mysql --connection mysql://user:pass@host:3306/dbname
-
-  # custom migrations layout (default looks under sql/<dialect>/migrations):
-  migrate-down --provider sqlite --connection ./app.sqlite --migrations-path ./db/changes/sqlite
-
-Note: when --connection is omitted, ./.env is loaded (if present) and the
-runner falls back to per-dialect env vars — sqlite: SQLITE_PATH, DB_PATH;
-postgres: PG_CONNECTION_STRING, DATABASE_URL; mysql: MYSQL_URL, DATABASE_URL.
-The typescript and csharp runners honor the same fallback.
-"#;
+fn help_text() -> String {
+    HELP_TEMPLATE.replace("{{command}}", "migrate-down")
+}
 
 struct Args {
     provider: String,
@@ -84,7 +56,7 @@ fn parse_args() -> Result<Args, String> {
             "--connection" => connection = iter.next(),
             "--confirm" => confirm = iter.next(),
             "-h" | "--help" => {
-                eprint!("{}", HELP_TEXT);
+                eprint!("{}", help_text());
                 process::exit(0);
             }
             other => return Err(format!("unknown arg: {}", other)),

@@ -5,23 +5,11 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-const HELP_TEXT: &str = r#"Usage: migrate-create --provider <sqlite|postgres|mysql|sqlserver|oracle> --name <snake_case_slug> [--migrations-path <dir>]
+const HELP_TEMPLATE: &str = include_str!("../../../templates/help/create.txt");
 
-Creates a new <NNNN>_<name>_up.sql + <NNNN>_<name>_down.sql pair scaffolded
-with TODO placeholders. NNNN is one greater than the highest 1-4-digit
-sequence prefix already present in the migrations directory (starts at 0001).
-Legacy timestamp-prefixed filenames are ignored for numbering.
-
-  --provider          Database dialect. Required.
-  --name              snake_case slug for the new migration. Required. Must
-                      match /^[a-z][a-z0-9_]*$/.
-  --migrations-path   Migrations directory (default: ./sql/<dialect>/migrations).
-                      Created with mkdir -p if it does not exist.
-
-Examples:
-  migrate-create --provider sqlite --name add_users
-  migrate-create --provider postgres --name backfill_email_lower --migrations-path ./db/changes/postgres
-"#;
+fn help_text() -> String {
+    HELP_TEMPLATE.replace("{{command}}", "migrate-create")
+}
 
 struct Args {
     name: String,
@@ -41,7 +29,7 @@ fn parse_args() -> Result<Args, String> {
             "--migrations-path" => migrations_path = iter.next(),
             "--migrate-path" => migrations_path = iter.next(),
             "-h" | "--help" => {
-                eprint!("{}", HELP_TEXT);
+                eprint!("{}", help_text());
                 process::exit(0);
             }
             other => return Err(format!("unknown arg: {}", other)),

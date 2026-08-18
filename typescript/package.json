@@ -11,20 +11,21 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "migrate-up": "./bin/migrate-up.mjs",
-    "migrate-down": "./bin/migrate-down.mjs",
-    "migrate-setup": "./bin/migrate-setup.mjs",
-    "migrate-create": "./bin/migrate-create.mjs"
+    "migrate-up": "./dist/bin/migrate-up.js",
+    "migrate-down": "./dist/bin/migrate-down.js",
+    "migrate-setup": "./dist/bin/migrate-setup.js",
+    "migrate-create": "./dist/bin/migrate-create.js"
   },
   "files": [
     "dist",
-    "bin",
-    "src"
+    "src",
+    "templates"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "prepare": "npm run build",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0"
@@ -48,6 +49,7 @@
     "@types/oracledb": "^6.10.3",
     "@types/pg": "^8.11.10",
     "mysql2": "^3.22.2",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.4"
   }
 }

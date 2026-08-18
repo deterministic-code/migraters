@@ -7,40 +7,11 @@ use std::process;
 
 use sqlx::{Executor, MySqlPool, PgPool, Row, SqlitePool};
 
-const HELP_TEXT: &str = r#"Usage: migrate-up --provider <sqlite|postgres|mysql> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--one]
+const HELP_TEMPLATE: &str = include_str!("../../../templates/help/up.txt");
 
-Applies ALL pending migrations in sequence, each in its own transaction.
-
-  --provider          Database dialect. Required.
-  --connection        Connection string. Required.
-  --migrations-path   Full path to the migrations directory (e.g. sql/sqlite/migrations).
-  --migrations-root   Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
-                      Defaults to 'sql'. Ignored when --migrations-path is also set.
-  --one               Apply only the next pending migration, then exit. Default is to apply all pending migrations.
-
-Examples:
-  # sqlite — bare path or sqlite:// URL; both create a file on disk.
-  migrate-up --provider sqlite --connection ./app.sqlite
-  migrate-up --provider sqlite --connection sqlite:///absolute/path/app.sqlite
-
-  # postgres — URL form (libpq keyword form is accepted by sqlx too).
-  migrate-up --provider postgres --connection postgresql://user:pass@host:5432/dbname
-
-  # mysql — URL form.
-  migrate-up --provider mysql --connection mysql://user:pass@host:3306/dbname
-
-  # custom migrations layout (default looks under sql/<dialect>/migrations):
-  migrate-up --provider sqlite --connection ./app.sqlite --migrations-path ./db/changes/sqlite
-  migrate-up --provider sqlite --connection ./app.sqlite --migrations-root ./db/changes
-
-  # one-shot: apply the next pending migration only, then exit.
-  migrate-up --provider sqlite --connection ./app.sqlite --one
-
-Note: when --connection is omitted, ./.env is loaded (if present) and the
-runner falls back to per-dialect env vars — sqlite: SQLITE_PATH, DB_PATH;
-postgres: PG_CONNECTION_STRING, DATABASE_URL; mysql: MYSQL_URL, DATABASE_URL.
-The typescript and csharp runners honor the same fallback.
-"#;
+fn help_text() -> String {
+    HELP_TEMPLATE.replace("{{command}}", "migrate-up")
+}
 
 struct Args {
     provider: String,
@@ -83,7 +54,7 @@ fn parse_args() -> Result<Args, String> {
             "--connection" => connection = iter.next(),
             "--one" => one = true,
             "-h" | "--help" => {
-                eprint!("{}", HELP_TEXT);
+                eprint!("{}", help_text());
                 process::exit(0);
             }
             other => return Err(format!("unknown arg: {}", other)),

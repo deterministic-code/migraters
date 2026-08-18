@@ -11,40 +11,7 @@ namespace Deterministic.MigrateRunner;
 
 internal static class MigrateDown
 {
-    private const string HelpText = @"Usage: down --provider <sqlite|postgres|mysql> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--confirm <TOKEN>]
-
-Rolls back the MOST RECENTLY applied migration (one step). DESTRUCTIVE: prints
-a random 4-letter uppercase token on stderr and refuses to proceed unless the
-operator types it back on stdin (or passes --confirm <TOKEN> matching it).
-
-  --provider          Database dialect. Required.
-  --connection        Connection string. Falls back to per-dialect env vars (loaded from ./.env when present) if omitted.
-  --migrations-path   Full path to the migrations directory.
-  --migrations-root   Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
-                      Defaults to 'sql'. Ignored when --migrations-path is also set.
-  --confirm           Skip the interactive prompt. The TOKEN must match the value
-                      printed on stderr at runtime — there is no fixed bypass value.
-
-Examples:
-  # sqlite — bare path or sqlite:// URL.
-  down --provider sqlite --connection ./app.sqlite
-  down --provider sqlite --connection sqlite:///absolute/path/app.sqlite
-
-  # postgres — URL or keyword form.
-  down --provider postgres --connection postgresql://user:pass@host:5432/dbname
-  down --provider postgres --connection ""Host=host;Port=5432;Username=user;Password=pass;Database=dbname""
-
-  # mysql — URL or keyword form.
-  down --provider mysql --connection mysql://user:pass@host:3306/dbname
-  down --provider mysql --connection ""Server=host;Port=3306;User Id=user;Password=pass;Database=dbname""
-
-  # custom migrations layout (default looks under sql/<dialect>/migrations):
-  down --provider sqlite --connection ./app.sqlite --migrations-path ./db/changes/sqlite
-
-Note: when --connection is omitted, ./.env is loaded (if present) and the
-runner falls back to per-dialect env vars — sqlite: SQLITE_PATH, DB_PATH;
-postgres: PG_CONNECTION_STRING, DATABASE_URL; mysql: MYSQL_URL, DATABASE_URL.
-";
+    private static readonly string HelpText = HelpTemplates.Read("down");
 
     public static async Task<int> RunAsync(string[] args)
     {

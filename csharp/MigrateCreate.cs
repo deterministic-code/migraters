@@ -7,23 +7,7 @@ namespace Deterministic.MigrateRunner;
 
 internal static class MigrateCreate
 {
-    private const string HelpText = @"Usage: create --provider <sqlite|postgres|mysql|sqlserver|oracle> --name <snake_case_slug> [--migrations-path <dir>]
-
-Creates a new <NNNN>_<name>_up.sql + <NNNN>_<name>_down.sql pair scaffolded
-with TODO placeholders. NNNN is one greater than the highest 1-4-digit
-sequence prefix already present in the migrations directory (starts at 0001).
-Legacy timestamp-prefixed filenames are ignored for numbering.
-
-  --provider          Database dialect. Required.
-  --name              snake_case slug for the new migration. Required. Must
-                      match /^[a-z][a-z0-9_]*$/.
-  --migrations-path   Migrations directory (default: ./sql/<dialect>/migrations).
-                      Created with mkdir -p if it does not exist.
-
-Examples:
-  create --provider sqlite --name add_users
-  create --provider postgres --name backfill_email_lower --migrations-path ./db/changes/postgres
-";
+    private static readonly string HelpText = HelpTemplates.Read("create");
 
     private static readonly Regex NameRe = new("^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
     private static readonly Regex SeqRe = new(@"^(\d{1,4})_.*_up\.sql$", RegexOptions.Compiled);
