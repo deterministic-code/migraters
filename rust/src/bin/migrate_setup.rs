@@ -5,15 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-use sqlx::{MySqlPool, PgPool, SqlitePool};
-
-const SQLITE_MIGRATES_DDL: &str = include_str!("../../../templates/sql/sqlite/migrates.sql");
-const SQLITE_MIGRATE_LOGS_DDL: &str = include_str!("../../../templates/sql/sqlite/migrate_logs.sql");
-const POSTGRES_MIGRATES_DDL: &str = include_str!("../../../templates/sql/postgres/migrates.sql");
-const POSTGRES_MIGRATE_LOGS_DDL: &str =
-    include_str!("../../../templates/sql/postgres/migrate_logs.sql");
-const MYSQL_MIGRATES_DDL: &str = include_str!("../../../templates/sql/mysql/migrates.sql");
-const MYSQL_MIGRATE_LOGS_DDL: &str = include_str!("../../../templates/sql/mysql/migrate_logs.sql");
+use deterministic_migraters::{connection_from_env, try_get, MigrationPool, SqlDialect};
 
 const HELP_TEMPLATE: &str = include_str!("../../../templates/help/setup.txt");
 
@@ -22,26 +14,10 @@ fn help_text() -> String {
 }
 
 struct Args {
-    provider: String,
+    dialect: &'static dyn SqlDialect,
     connection: String,
     migrations_path: String,
     and_up: bool,
-}
-
-// Mirrors the TypeScript runner's per-dialect fallback so both lanes accept the same environment.
-fn connection_env_vars(provider: &str) -> &'static [&'static str] {
-    match provider {
-        "sqlite" => &["SQLITE_PATH", "DB_PATH"],
-        "postgres" => &["PG_CONNECTION_STRING", "DATABASE_URL"],
-        "mysql" => &["MYSQL_URL", "DATABASE_URL"],
-        _ => &[],
-    }
-}
-
-fn connection_from_env(provider: &str) -> Option<String> {
-    connection_env_vars(provider)
-        .iter()
-        .find_map(|name| env::var(name).ok().filter(|v| !v.is_empty()))
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -54,7 +30,6 @@ fn parse_args() -> Result<Args, String> {
         match a.as_str() {
             "--provider" => provider = iter.next(),
             "--connection" => connection = iter.next(),
-            // --migrate-path is a silent alias retained for backward compat.
             "--migrations-path" => migrations_path = iter.next(),
             "--migrate-path" => migrations_path = iter.next(),
             "--and-up" => and_up = true,
@@ -68,49 +43,26 @@ fn parse_args() -> Result<Args, String> {
     let Some(provider) = provider else {
         return Err("missing --provider — pass --provider <sqlite|postgres|mysql>. Run with --help for examples.".to_string());
     };
-    let connection = match connection.or_else(|| connection_from_env(&provider)) {
+    let Some(dialect) = try_get(&provider) else {
+        return Err(format!("unsupported provider: {}", provider));
+    };
+    let connection = match connection.or_else(|| connection_from_env(dialect)) {
         Some(c) => c,
         None => {
             return Err(format!(
                 "missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set one of: {}. Run with --help for examples.",
-                connection_env_vars(&provider).join(", ")
+                dialect.connection_env_vars().join(", ")
             ))
         }
     };
     let migrations_path =
-        migrations_path.unwrap_or_else(|| format!("./sql/{}/migrations", provider));
+        migrations_path.unwrap_or_else(|| format!("./sql/{}/migrations", dialect.name()));
     Ok(Args {
-        provider,
+        dialect,
         connection,
         migrations_path,
         and_up,
     })
-}
-
-fn sqlite_url(connection: &str) -> String {
-    if connection.starts_with("sqlite:") {
-        connection.to_string()
-    } else {
-        format!("sqlite://{}?mode=rwc", connection)
-    }
-}
-
-fn sqlite_filesystem_path(connection: &str) -> Option<PathBuf> {
-    let s = connection.trim();
-    let stripped = if let Some(rest) = s.strip_prefix("sqlite://") {
-        rest
-    } else if let Some(rest) = s.strip_prefix("sqlite:") {
-        rest
-    } else if let Some(rest) = s.strip_prefix("file:") {
-        rest
-    } else {
-        s
-    };
-    if stripped.is_empty() || stripped == ":memory:" {
-        return None;
-    }
-    let without_query = stripped.split('?').next().unwrap_or(stripped);
-    Some(PathBuf::from(without_query))
 }
 
 fn sibling_migrate_up_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -126,7 +78,6 @@ fn sibling_migrate_up_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Missing .env is the normal case (containers set real env vars); a malformed one aborts rather than half-configuring the run.
     match dotenvy::from_path(".env") {
         Ok(()) => {}
         Err(dotenvy::Error::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => {}
@@ -139,41 +90,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             process::exit(2);
         }
     };
-    if args.provider == "sqlite" {
-        if let Some(path) = sqlite_filesystem_path(&args.connection) {
-            if let Some(parent) = path.parent() {
-                if !parent.as_os_str().is_empty() {
-                    fs::create_dir_all(parent)?;
-                }
-            }
-        }
-    }
-    match args.provider.as_str() {
-        // === BEGIN DIALECT_SETUP_DISPATCH_RUST — see PATCH_PLAN in create-migrate-scripts.mjs ===
-        "sqlite" => {
-            let pool = SqlitePool::connect(&sqlite_url(&args.connection)).await?;
-            sqlx::query(SQLITE_MIGRATES_DDL).execute(&pool).await?;
-            sqlx::query(SQLITE_MIGRATE_LOGS_DDL).execute(&pool).await?;
-        }
-        "postgres" => {
-            let pool = PgPool::connect(&args.connection).await?;
-            sqlx::query(POSTGRES_MIGRATES_DDL).execute(&pool).await?;
-            sqlx::query(POSTGRES_MIGRATE_LOGS_DDL)
-                .execute(&pool)
-                .await?;
-        }
-        "mysql" => {
-            let pool = MySqlPool::connect(&args.connection).await?;
-            sqlx::query(MYSQL_MIGRATES_DDL).execute(&pool).await?;
-            sqlx::query(MYSQL_MIGRATE_LOGS_DDL).execute(&pool).await?;
-        }
-        // === END DIALECT_SETUP_DISPATCH_RUST ===
-        other => return Err(format!("unsupported provider: {}", other).into()),
-    }
+    args.dialect.prepare_setup(&args.connection)?;
+    let pool = MigrationPool::connect(args.dialect, &args.connection).await?;
+    pool.execute(args.dialect.migrates_ddl()).await?;
+    pool.execute(args.dialect.migrate_logs_ddl()).await?;
     fs::create_dir_all(PathBuf::from(&args.migrations_path))?;
     println!(
         "Setup complete: migrates and migrate_logs ready ({}).",
-        args.provider
+        args.dialect.name()
     );
     println!("Migrations directory: {}", args.migrations_path);
     if !args.and_up {
@@ -182,20 +106,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  # create a new migration");
         println!(
             "  cargo run --release --bin migrate-create -- --provider {} --name add_users",
-            args.provider,
+            args.dialect.name(),
         );
         println!();
         println!("  # apply pending migrations");
         println!(
             "  cargo run --release --bin migrate-up -- --provider {} --connection {}",
-            args.provider, args.connection,
+            args.dialect.name(),
+            args.connection,
         );
     }
     if args.and_up {
         let up = sibling_migrate_up_binary()?;
         let status = std::process::Command::new(&up)
             .arg("--provider")
-            .arg(&args.provider)
+            .arg(args.dialect.name())
             .arg("--connection")
             .arg(&args.connection)
             .arg("--migrations-path")

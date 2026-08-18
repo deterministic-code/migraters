@@ -1,17 +1,23 @@
 // Idempotent CREATE TABLE IF NOT EXISTS migrates+migrate_logs; DDL constants mirror scripts/lib/datasource-migrate.mjs:setupSql so the csharp + rust + ts runners share one migrates contract.
 
-using System.Data.Common;
-using Microsoft.Data.Sqlite;
-using MySqlConnector;
-using Npgsql;
-
 namespace Deterministic.MigrateRunner;
 
-internal static class MigrateSetup
+internal sealed class MigrateSetup : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("setup");
 
-    public static async Task<int> RunAsync(string[] args)
+    private readonly ISqlDialectFactory _dialects;
+    private readonly IConnectionResolver _connections;
+
+    public MigrateSetup(ISqlDialectFactory dialects, IConnectionResolver connections)
+    {
+        _dialects = dialects;
+        _connections = connections;
+    }
+
+    public string Name => "setup";
+
+    public async Task<int> RunAsync(string[] args)
     {
         if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var showHelp, out var error))
         {
@@ -25,34 +31,20 @@ internal static class MigrateSetup
             return 2;
         }
 
-        var resolvedMigrationsPath = migrationsPath ?? $"./sql/{provider}/migrations";
+        if (!_dialects.TryGet(provider, out var dialect))
+        {
+            Console.Error.WriteLine($"unsupported provider: {provider}");
+            return 2;
+        }
+
+        var resolvedMigrationsPath = migrationsPath ?? $"./sql/{dialect.Name}/migrations";
 
         try
         {
-            switch (provider)
-            {
-                case "sqlite":
-                    await using (var conn = new SqliteConnection(ProviderConnectionString.Sqlite(connection)))
-                    {
-                        await ApplyAsync(conn, SqlTemplates.Read("sqlite", "migrates"), SqlTemplates.Read("sqlite", "migrate_logs")).ConfigureAwait(false);
-                    }
-                    break;
-                case "postgres":
-                    await using (var conn = new NpgsqlConnection(ProviderConnectionString.Postgres(connection!)))
-                    {
-                        await ApplyAsync(conn, SqlTemplates.Read("postgres", "migrates"), SqlTemplates.Read("postgres", "migrate_logs")).ConfigureAwait(false);
-                    }
-                    break;
-                case "mysql":
-                    await using (var conn = new MySqlConnection(ProviderConnectionString.Mysql(connection!)))
-                    {
-                        await ApplyAsync(conn, SqlTemplates.Read("mysql", "migrates"), SqlTemplates.Read("mysql", "migrate_logs")).ConfigureAwait(false);
-                    }
-                    break;
-                default:
-                    Console.Error.WriteLine($"unsupported provider: {provider}");
-                    return 2;
-            }
+            await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(connection!));
+            await conn.OpenAsync().ConfigureAwait(false);
+            await DbExecute.NonQueryAsync(conn, null, dialect.MigratesDdl).ConfigureAwait(false);
+            await DbExecute.NonQueryAsync(conn, null, dialect.MigrateLogsDdl).ConfigureAwait(false);
             Directory.CreateDirectory(resolvedMigrationsPath);
         }
         catch (Exception ex)
@@ -61,33 +53,19 @@ internal static class MigrateSetup
             return 1;
         }
 
-        Console.WriteLine($"Setup complete: migrates and migrate_logs ready ({provider}).");
+        Console.WriteLine($"Setup complete: migrates and migrate_logs ready ({dialect.Name}).");
         Console.WriteLine($"Migrations directory: {resolvedMigrationsPath}");
         Console.WriteLine();
         Console.WriteLine("Next steps:");
         Console.WriteLine("  # create a new migration");
-        Console.WriteLine($"  dotnet run --project MigrateRunner.csproj -- create --provider {provider} --name add_users");
+        Console.WriteLine($"  dotnet run --project MigrateRunner.csproj -- create --provider {dialect.Name} --name add_users");
         Console.WriteLine();
         Console.WriteLine("  # apply pending migrations");
-        Console.WriteLine($"  dotnet run --project MigrateRunner.csproj -- up --provider {provider} --connection {connection}");
+        Console.WriteLine($"  dotnet run --project MigrateRunner.csproj -- up --provider {dialect.Name} --connection {connection}");
         return 0;
     }
 
-    private static async Task ApplyAsync(DbConnection conn, string migratesDdl, string migrateLogsDdl)
-    {
-        await conn.OpenAsync().ConfigureAwait(false);
-        await ExecuteAsync(conn, migratesDdl).ConfigureAwait(false);
-        await ExecuteAsync(conn, migrateLogsDdl).ConfigureAwait(false);
-    }
-
-    private static async Task ExecuteAsync(DbConnection conn, string sql)
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
-        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }
-
-    private static bool TryParse(string[] args, out string provider, out string? connection, out string? migrationsPath, out bool showHelp, out string error)
+    private bool TryParse(string[] args, out string provider, out string? connection, out string? migrationsPath, out bool showHelp, out string error)
     {
         provider = string.Empty;
         connection = null;
@@ -123,13 +101,15 @@ internal static class MigrateSetup
             }
         }
         if (string.IsNullOrEmpty(provider)) { error = "missing --provider"; return false; }
-        if (string.IsNullOrEmpty(connection))
+        _dialects.TryGet(provider, out var dialect);
+        if (string.IsNullOrEmpty(connection) && dialect is not null)
         {
-            connection = ConnectionEnv.For(provider);
+            connection = _connections.FromEnvironment(dialect);
         }
         if (string.IsNullOrEmpty(connection))
         {
-            error = $"missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite, or :memory: for an explicit in-memory sqlite DB) or set one of: {string.Join(", ", ConnectionEnv.VarsFor(provider))}. Run with --help for examples.";
+            var vars = dialect?.ConnectionEnvironmentVariables ?? Array.Empty<string>();
+            error = $"missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite, or :memory: for an explicit in-memory sqlite DB) or set one of: {string.Join(", ", vars)}. Run with --help for examples.";
             return false;
         }
         return true;

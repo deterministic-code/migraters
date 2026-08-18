@@ -6,8 +6,8 @@ import { once } from "node:events";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve as pathResolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ENV_VARS_BY_DIALECT, resolveConn, sqliteFilesystemPath, takeFlag } from "../cli.ts";
-import { createClient, loadHelp, normalizeDialect, setupSql } from "../index.ts";
+import { requireConnection, requireDialect, takeFlag } from "../cli.ts";
+import { loadHelp } from "../index.ts";
 
 const HELP_TEXT = await loadHelp("migrate-setup");
 
@@ -61,36 +61,22 @@ const main = async () => {
     process.stderr.write("missing --provider\n");
     process.exit(2);
   }
-  const dialect = normalizeDialect(args.provider);
-  if (!dialect) {
-    process.stderr.write(`unknown provider: ${args.provider}\n`);
-    process.exit(2);
-  }
-  const connection = resolveConn(dialect, args.connection);
-  if (!connection) {
-    process.stderr.write(
-      `missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set ${(ENV_VARS_BY_DIALECT[dialect] ?? []).join(" / ")}. Run with --help for examples.\n`,
-    );
-    process.exit(2);
-  }
+  const dialect = requireDialect(args.provider);
+  const connection = requireConnection(dialect, args.connection);
 
-  const migrationsPath = args.migrationsPath ?? `./sql/${dialect}/migrations`;
+  const migrationsPath =
+    args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
 
-  if (dialect === "sqlite") {
-    const filePath = sqliteFilesystemPath(connection);
-    if (filePath !== null) {
-      await mkdir(dirname(filePath), { recursive: true });
-    }
-  }
+  await dialect.prepareSetup(connection);
 
-  const client = await createClient({ provider: dialect, connection });
+  const client = await dialect.createClient(connection);
   try {
-    for (const stmt of setupSql(dialect)) {
+    for (const stmt of [dialect.migratesDdl, dialect.migrateLogsDdl]) {
       await client.exec(stmt);
     }
     await mkdir(migrationsPath, { recursive: true });
     process.stdout.write(
-      `Setup complete: migrates and migrate_logs ready (${dialect}).\n` +
+      `Setup complete: migrates and migrate_logs ready (${dialect.name}).\n` +
         `Migrations directory: ${migrationsPath}\n`,
     );
     if (!args.andUp) {
@@ -98,10 +84,10 @@ const main = async () => {
         `\n` +
           `Next steps:\n` +
           `  # create a new migration\n` +
-          `  migrate-create --provider ${dialect} --name add_users\n` +
+          `  migrate-create --provider ${dialect.name} --name add_users\n` +
           `\n` +
           `  # apply pending migrations\n` +
-          `  migrate-up --provider ${dialect} --connection ${connection}\n`,
+          `  migrate-up --provider ${dialect.name} --connection ${connection}\n`,
       );
     }
   } finally {
@@ -116,7 +102,7 @@ const main = async () => {
     const childArgs = [
       upScript,
       "--provider",
-      dialect,
+      dialect.name,
       "--connection",
       connection,
     ];

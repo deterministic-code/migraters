@@ -3,15 +3,8 @@
 
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { ENV_VARS_BY_DIALECT, resolveConn, sqliteFilesystemPath, takeFlag } from "../cli.ts";
-import {
-  createClient,
-  discoverMigrations,
-  loadHelp,
-  normalizeDialect,
-  pathExists,
-  runDown,
-} from "../index.ts";
+import { requireConnection, requireDialect, takeFlag } from "../cli.ts";
+import { discoverMigrations, loadHelp, runDown } from "../index.ts";
 
 const HELP_TEXT = await loadHelp("migrate-down");
 
@@ -106,32 +99,18 @@ const main = async () => {
     process.stderr.write("missing --provider\n");
     process.exit(2);
   }
-  const dialect = normalizeDialect(args.provider);
-  if (!dialect) {
-    process.stderr.write(`unknown provider: ${args.provider}\n`);
-    process.exit(2);
-  }
-  const connection = resolveConn(dialect, args.connection);
-  if (!connection) {
-    process.stderr.write(
-      `missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set ${(ENV_VARS_BY_DIALECT[dialect] ?? []).join(" / ")}. Run with --help for examples.\n`,
-    );
-    process.exit(2);
-  }
+  const dialect = requireDialect(args.provider);
+  const connection = requireConnection(dialect, args.connection);
 
-  if (dialect === "sqlite") {
-    const path = sqliteFilesystemPath(connection);
-    if (path !== null && !(await pathExists(path))) {
-      process.stderr.write(
-        `sqlite file: ${path} does not exist — run 'migrate-setup --provider sqlite --connection ${path}' to create it\n`,
-      );
-      process.exit(2);
-    }
+  const missing = await dialect.prerequisiteError(connection);
+  if (missing !== null) {
+    process.stderr.write(`${missing}\n`);
+    process.exit(2);
   }
 
   const token = randomToken();
   process.stderr.write(
-    `\n⚠ DESTRUCTIVE: this rolls back the most recently applied migration on ${dialect}.\n` +
+    `\n⚠ DESTRUCTIVE: this rolls back the most recently applied migration on ${dialect.name}.\n` +
       `  Confirmation token: ${token}\n\n`,
   );
 
@@ -150,10 +129,13 @@ const main = async () => {
     }
   }
 
-  const migratePath = resolve(resolveMigratePath(args, dialect));
-  const client = await createClient({ provider: dialect, connection });
+  const migratePath = resolve(resolveMigratePath(args, dialect.name));
+  const client = await dialect.createClient(connection);
   try {
-    const migrations = await discoverMigrations({ migratePath, dialect });
+    const migrations = await discoverMigrations({
+      migratePath,
+      dialect: dialect.name,
+    });
     const r = await runDown({ client, migrations });
     if (!r.rolledBack)
       process.stdout.write("No applied migrations to roll back.\n");

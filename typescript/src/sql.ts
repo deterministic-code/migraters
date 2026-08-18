@@ -1,5 +1,3 @@
-import { access } from "node:fs/promises";
-
 export type SqlDialect =
   | "sqlite"
   | "mysql"
@@ -30,17 +28,4 @@ export const normalizeDialect = (
   return DIALECT_ALIASES[key] ?? null;
 };
 
-export const q = (dialect: string, ident: string): string => {
-  if (dialect === "mysql") return `\`${ident}\``;
-  if (dialect === "sqlserver") return `[${ident}]`;
-  return `"${ident}"`;
-};
-
-export const pathExists = async (p: string): Promise<boolean> => {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
-};
+export { pathExists } from "./path-exists.ts";
