@@ -1,0 +1,10 @@
+{
+  "name": "@deterministic-code/migraters",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
+  "scripts": {
+    "build": "npm run build --prefix typescript",
+    "typecheck": "npm run typecheck --prefix typescript"
+  }
+}
