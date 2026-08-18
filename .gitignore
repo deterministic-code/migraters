@@ -24,6 +24,7 @@ Thumbs.db
 # TypeScript / Node
 node_modules/
 dist/
+build/
 *.tsbuildinfo
 coverage/
 .nyc_output/
