@@ -9,96 +9,7 @@ namespace Deterministic.MigrateRunner;
 
 internal static class MigrateSetup
 {
-    private const string SqliteMigratesDdl = @"CREATE TABLE IF NOT EXISTS ""migrates"" (
-      ""id"" INTEGER PRIMARY KEY AUTOINCREMENT,
-      ""name"" VARCHAR(255) NOT NULL UNIQUE,
-      ""checksum"" VARCHAR(64),
-      ""created"" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      ""updated"" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );";
-
-    private const string SqliteMigrateLogsDdl = @"CREATE TABLE IF NOT EXISTS ""migrate_logs"" (
-      ""id"" INTEGER PRIMARY KEY AUTOINCREMENT,
-      ""migrate_name"" VARCHAR(255) NOT NULL,
-      ""direction"" VARCHAR(8) NOT NULL,
-      ""status"" VARCHAR(16) NOT NULL,
-      ""finished_at"" DATETIME,
-      ""duration_ms"" INTEGER,
-      ""error_message"" TEXT,
-      ""created"" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      ""updated"" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );";
-
-    private const string PostgresMigratesDdl = @"CREATE TABLE IF NOT EXISTS ""migrates"" (
-      ""id"" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      ""name"" VARCHAR(255) NOT NULL UNIQUE,
-      ""checksum"" VARCHAR(64),
-      ""created"" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      ""updated"" TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );";
-
-    private const string PostgresMigrateLogsDdl = @"CREATE TABLE IF NOT EXISTS ""migrate_logs"" (
-      ""id"" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      ""migrate_name"" VARCHAR(255) NOT NULL,
-      ""direction"" VARCHAR(8) NOT NULL,
-      ""status"" VARCHAR(16) NOT NULL,
-      ""finished_at"" TIMESTAMPTZ,
-      ""duration_ms"" INTEGER,
-      ""error_message"" TEXT,
-      ""created"" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      ""updated"" TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );";
-
-    private const string MysqlMigratesDdl = @"CREATE TABLE IF NOT EXISTS `migrates` (
-      `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-      `name` VARCHAR(255) NOT NULL UNIQUE,
-      `checksum` VARCHAR(64),
-      `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      `updated` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    );";
-
-    private const string MysqlMigrateLogsDdl = @"CREATE TABLE IF NOT EXISTS `migrate_logs` (
-      `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-      `migrate_name` VARCHAR(255) NOT NULL,
-      `direction` VARCHAR(8) NOT NULL,
-      `status` VARCHAR(16) NOT NULL,
-      `finished_at` TIMESTAMP NULL,
-      `duration_ms` INT,
-      `error_message` TEXT,
-      `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      `updated` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    );";
-
-    private const string HelpText = @"Usage: setup --provider <sqlite|postgres|mysql> --connection <url> [--migrations-path <dir>]
-
-Creates the bookkeeping tables (migrates, migrate_logs) for the chosen dialect
-and the migrations directory (mkdir -p). Idempotent — re-running against an
-already-setup database is a no-op.
-
-  --provider          Database dialect. Required.
-  --connection        Connection string. Falls back to per-dialect env vars (loaded from ./.env when present) if omitted.
-  --migrations-path   Migrations directory (default: ./sql/<dialect>/migrations).
-
-Examples:
-  # sqlite — bare path or sqlite:// URL; both create a file on disk.
-  setup --provider sqlite --connection ./app.sqlite
-  setup --provider sqlite --connection sqlite:///absolute/path/app.sqlite
-
-  # postgres — URL or keyword form.
-  setup --provider postgres --connection postgresql://user:pass@host:5432/dbname
-  setup --provider postgres --connection ""Host=host;Port=5432;Username=user;Password=pass;Database=dbname""
-
-  # mysql — URL or keyword form.
-  setup --provider mysql --connection mysql://user:pass@host:3306/dbname
-  setup --provider mysql --connection ""Server=host;Port=3306;User Id=user;Password=pass;Database=dbname""
-
-  # explicit in-memory sqlite (was previously the silent default — now you must opt in):
-  setup --provider sqlite --connection :memory:
-
-Note: when --connection is omitted, ./.env is loaded (if present) and the
-runner falls back to per-dialect env vars — sqlite: SQLITE_PATH, DB_PATH;
-postgres: PG_CONNECTION_STRING, DATABASE_URL; mysql: MYSQL_URL, DATABASE_URL.
-";
+    private static readonly string HelpText = HelpTemplates.Read("setup");
 
     public static async Task<int> RunAsync(string[] args)
     {
@@ -123,19 +34,19 @@ postgres: PG_CONNECTION_STRING, DATABASE_URL; mysql: MYSQL_URL, DATABASE_URL.
                 case "sqlite":
                     await using (var conn = new SqliteConnection(ProviderConnectionString.Sqlite(connection)))
                     {
-                        await ApplyAsync(conn, SqliteMigratesDdl, SqliteMigrateLogsDdl).ConfigureAwait(false);
+                        await ApplyAsync(conn, SqlTemplates.Read("sqlite", "migrates"), SqlTemplates.Read("sqlite", "migrate_logs")).ConfigureAwait(false);
                     }
                     break;
                 case "postgres":
                     await using (var conn = new NpgsqlConnection(ProviderConnectionString.Postgres(connection!)))
                     {
-                        await ApplyAsync(conn, PostgresMigratesDdl, PostgresMigrateLogsDdl).ConfigureAwait(false);
+                        await ApplyAsync(conn, SqlTemplates.Read("postgres", "migrates"), SqlTemplates.Read("postgres", "migrate_logs")).ConfigureAwait(false);
                     }
                     break;
                 case "mysql":
                     await using (var conn = new MySqlConnection(ProviderConnectionString.Mysql(connection!)))
                     {
-                        await ApplyAsync(conn, MysqlMigratesDdl, MysqlMigrateLogsDdl).ConfigureAwait(false);
+                        await ApplyAsync(conn, SqlTemplates.Read("mysql", "migrates"), SqlTemplates.Read("mysql", "migrate_logs")).ConfigureAwait(false);
                     }
                     break;
                 default:

@@ -7,94 +7,19 @@ use std::process;
 
 use sqlx::{MySqlPool, PgPool, SqlitePool};
 
-const SQLITE_MIGRATES_DDL: &str = r#"CREATE TABLE IF NOT EXISTS "migrates" (
-  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-  "name" VARCHAR(255) NOT NULL UNIQUE,
-  "checksum" VARCHAR(64),
-  "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updated" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);"#;
+const SQLITE_MIGRATES_DDL: &str = include_str!("../../../templates/sql/sqlite/migrates.sql");
+const SQLITE_MIGRATE_LOGS_DDL: &str = include_str!("../../../templates/sql/sqlite/migrate_logs.sql");
+const POSTGRES_MIGRATES_DDL: &str = include_str!("../../../templates/sql/postgres/migrates.sql");
+const POSTGRES_MIGRATE_LOGS_DDL: &str =
+    include_str!("../../../templates/sql/postgres/migrate_logs.sql");
+const MYSQL_MIGRATES_DDL: &str = include_str!("../../../templates/sql/mysql/migrates.sql");
+const MYSQL_MIGRATE_LOGS_DDL: &str = include_str!("../../../templates/sql/mysql/migrate_logs.sql");
 
-const SQLITE_MIGRATE_LOGS_DDL: &str = r#"CREATE TABLE IF NOT EXISTS "migrate_logs" (
-  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-  "migrate_name" VARCHAR(255) NOT NULL,
-  "direction" VARCHAR(8) NOT NULL,
-  "status" VARCHAR(16) NOT NULL,
-  "finished_at" DATETIME,
-  "duration_ms" INTEGER,
-  "error_message" TEXT,
-  "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updated" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);"#;
+const HELP_TEMPLATE: &str = include_str!("../../../templates/help/setup.txt");
 
-const POSTGRES_MIGRATES_DDL: &str = r#"CREATE TABLE IF NOT EXISTS "migrates" (
-  "id" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  "name" VARCHAR(255) NOT NULL UNIQUE,
-  "checksum" VARCHAR(64),
-  "created" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updated" TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);"#;
-
-const POSTGRES_MIGRATE_LOGS_DDL: &str = r#"CREATE TABLE IF NOT EXISTS "migrate_logs" (
-  "id" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  "migrate_name" VARCHAR(255) NOT NULL,
-  "direction" VARCHAR(8) NOT NULL,
-  "status" VARCHAR(16) NOT NULL,
-  "finished_at" TIMESTAMPTZ,
-  "duration_ms" INTEGER,
-  "error_message" TEXT,
-  "created" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updated" TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);"#;
-
-const MYSQL_MIGRATES_DDL: &str = r#"CREATE TABLE IF NOT EXISTS `migrates` (
-  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(255) NOT NULL UNIQUE,
-  `checksum` VARCHAR(64),
-  `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);"#;
-
-const MYSQL_MIGRATE_LOGS_DDL: &str = r#"CREATE TABLE IF NOT EXISTS `migrate_logs` (
-  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-  `migrate_name` VARCHAR(255) NOT NULL,
-  `direction` VARCHAR(8) NOT NULL,
-  `status` VARCHAR(16) NOT NULL,
-  `finished_at` TIMESTAMP NULL,
-  `duration_ms` INT,
-  `error_message` TEXT,
-  `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);"#;
-
-const HELP_TEXT: &str = r#"Usage: migrate-setup --provider <sqlite|postgres|mysql> --connection <url> [--migrations-path <dir>] [--and-up]
-
-Creates the bookkeeping tables (migrates, migrate_logs) for the chosen dialect
-and the migrations directory (mkdir -p). Idempotent — re-running against an
-already-setup database is a no-op. For sqlite, also mkdir -p of the parent
-directory of --connection so a fresh-tree path like ./.test/foo.sqlite works.
-
-  --provider          Database dialect. Required.
-  --connection        Connection string. Required.
-  --migrations-path   Migrations directory (default: ./sql/<dialect>/migrations).
-  --and-up            After setup, immediately invoke migrate-up so the chain is applied in one step.
-
-Examples:
-  # sqlite — bare path or sqlite:// URL; both create a file on disk.
-  migrate-setup --provider sqlite --connection ./app.sqlite
-  migrate-setup --provider sqlite --connection sqlite:///absolute/path/app.sqlite
-
-  # postgres — URL form (libpq keyword form is accepted by sqlx too).
-  migrate-setup --provider postgres --connection postgresql://user:pass@host:5432/dbname
-
-  # mysql — URL form.
-  migrate-setup --provider mysql --connection mysql://user:pass@host:3306/dbname
-
-Note: when --connection is omitted, ./.env is loaded (if present) and the
-runner falls back to per-dialect env vars — sqlite: SQLITE_PATH, DB_PATH;
-postgres: PG_CONNECTION_STRING, DATABASE_URL; mysql: MYSQL_URL, DATABASE_URL.
-The typescript and csharp runners honor the same fallback.
-"#;
+fn help_text() -> String {
+    HELP_TEMPLATE.replace("{{command}}", "migrate-setup")
+}
 
 struct Args {
     provider: String,
@@ -134,7 +59,7 @@ fn parse_args() -> Result<Args, String> {
             "--migrate-path" => migrations_path = iter.next(),
             "--and-up" => and_up = true,
             "-h" | "--help" => {
-                eprint!("{}", HELP_TEXT);
+                eprint!("{}", help_text());
                 process::exit(0);
             }
             other => return Err(format!("unknown arg: {}", other)),

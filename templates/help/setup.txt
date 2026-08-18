@@ -1,0 +1,41 @@
+Usage: {{command}} --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <url> [--migrations-path <dir>] [--and-up]
+
+Creates the bookkeeping tables (migrates, migrate_logs) for the chosen dialect
+and the migrations directory (mkdir -p). Idempotent — re-running against an
+already-setup database is a no-op. For sqlite, also mkdir -p of the parent
+directory of --connection so a fresh-tree path like ./.test/foo.sqlite works.
+
+  --provider          Database dialect. Required.
+  --connection        Connection string. Required (or set the per-dialect env var below).
+  --migrations-path   Migrations directory (default: ./sql/<dialect>/migrations).
+  --and-up            After setup, immediately invoke migrate-up so the chain is applied in one step.
+
+Examples:
+  # sqlite — bare path or sqlite:// URL; both create a file on disk.
+  {{command}} --provider sqlite --connection ./app.sqlite
+  {{command}} --provider sqlite --connection sqlite:///absolute/path/app.sqlite
+
+  # postgres — URL or keyword form.
+  {{command}} --provider postgres --connection postgresql://user:pass@host:5432/dbname
+
+  # mysql — URL form.
+  {{command}} --provider mysql --connection mysql://user:pass@host:3306/dbname
+
+  # sqlserver / oracle — pass a driver-native connection string.
+  {{command}} --provider sqlserver --connection "Server=host;Database=dbname;User Id=user;Password=pass;"
+  {{command}} --provider oracle   --connection "user/pass@host:1521/service"
+
+  # env-var fallback when --connection is omitted:
+  SQLITE_PATH=./app.sqlite       {{command}} --provider sqlite
+  DATABASE_URL=postgresql://...  {{command}} --provider postgres
+  DATABASE_URL=mysql://...       {{command}} --provider mysql
+
+  # explicit in-memory sqlite:
+  {{command}} --provider sqlite --connection :memory:
+
+Per-dialect env vars consulted when --connection is omitted:
+  sqlite     SQLITE_PATH, DB_PATH
+  postgres   PG_CONNECTION_STRING, DATABASE_URL
+  mysql      MYSQL_URL, DATABASE_URL
+  sqlserver  MSSQL_URL, DATABASE_URL
+  oracle     ORACLE_CONNECT_STRING, DATABASE_URL

@@ -13,6 +13,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="..\templates\sql\**\*.sql" Link="templates\sql\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\templates\help\*.txt" Link="templates\help\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <PackageReference Include="Npgsql" Version="9.0.1" />

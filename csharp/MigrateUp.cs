@@ -11,41 +11,7 @@ namespace Deterministic.MigrateRunner;
 
 internal static class MigrateUp
 {
-    private const string HelpText = @"Usage: up --provider <sqlite|postgres|mysql> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--one]
-
-Applies ALL pending migrations in sequence, each in its own transaction.
-
-  --provider          Database dialect. Required.
-  --connection        Connection string. Falls back to per-dialect env vars (loaded from ./.env when present) if omitted.
-  --migrations-path   Full path to the migrations directory (e.g. sql/sqlite/migrations).
-  --migrations-root   Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
-                      Defaults to 'sql'. Ignored when --migrations-path is also set.
-  --one               Apply only the next pending migration, then exit. Default is to apply all pending migrations.
-
-Examples:
-  # sqlite — bare path or sqlite:// URL; both create a file on disk.
-  up --provider sqlite --connection ./app.sqlite
-  up --provider sqlite --connection sqlite:///absolute/path/app.sqlite
-
-  # postgres — URL or keyword form.
-  up --provider postgres --connection postgresql://user:pass@host:5432/dbname
-  up --provider postgres --connection ""Host=host;Port=5432;Username=user;Password=pass;Database=dbname""
-
-  # mysql — URL or keyword form.
-  up --provider mysql --connection mysql://user:pass@host:3306/dbname
-  up --provider mysql --connection ""Server=host;Port=3306;User Id=user;Password=pass;Database=dbname""
-
-  # custom migrations layout (default looks under sql/<dialect>/migrations):
-  up --provider sqlite --connection ./app.sqlite --migrations-path ./db/changes/sqlite
-  up --provider sqlite --connection ./app.sqlite --migrations-root ./db/changes
-
-  # one-shot: apply the next pending migration only, then exit.
-  up --provider sqlite --connection ./app.sqlite --one
-
-Note: when --connection is omitted, ./.env is loaded (if present) and the
-runner falls back to per-dialect env vars — sqlite: SQLITE_PATH, DB_PATH;
-postgres: PG_CONNECTION_STRING, DATABASE_URL; mysql: MYSQL_URL, DATABASE_URL.
-";
+    private static readonly string HelpText = HelpTemplates.Read("up");
 
     public static async Task<int> RunAsync(string[] args)
     {

@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS "migrate_logs" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "migrate_name" VARCHAR(255) NOT NULL,
+  "direction" VARCHAR(8) NOT NULL,
+  "status" VARCHAR(16) NOT NULL,
+  "finished_at" DATETIME,
+  "duration_ms" INTEGER,
+  "error_message" TEXT,
+  "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
