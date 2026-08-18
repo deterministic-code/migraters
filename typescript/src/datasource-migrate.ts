@@ -1,45 +1,22 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import {
-  normalizeDialect,
-  pathExists,
-  q,
-  type SqlDialect,
-} from "./sql.ts";
-import type { Connection as MysqlConnection } from "mysql2/promise";
-import type { Request as MssqlRequest } from "mssql";
+import { defaultDialectFactory } from "./dialects/default-factory.ts";
+import type { ISqlDialect } from "./dialects/sql-dialect.ts";
+import type {
+  MigrationClient,
+  MigrationRowValue,
+} from "./migration-client.ts";
+import { pathExists, type SqlDialect } from "./sql.ts";
 
-export { normalizeDialect };
-
-type MigrationRowValue = string | number | bigint | boolean | Date | null;
-type MigrationRow = Record<string, MigrationRowValue>;
-type MigrationSqlParam = string | number | bigint | boolean | Date | null;
-
-/** The subset of a better-sqlite3 Database that `insertLogStarted` reaches through `_raw` when a caller injects a synchronous handle. */
-interface SqliteRawDatabase {
-  prepare(source: string): {
-    run(...params: MigrationSqlParam[]): { lastInsertRowid: number | bigint };
-  };
-}
-
-/** Provider-agnostic migration client: the exact methods `runUp`/`runDown`/`setupSql` execution paths call, honored identically by every dialect adapter. */
-export interface MigrationClient {
-  dialect: SqlDialect;
-  exec(sql: string): Promise<void>;
-  query(sql: string, params?: MigrationSqlParam[]): Promise<MigrationRow[]>;
-  run(sql: string, params?: MigrationSqlParam[]): Promise<void>;
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
-  close(): Promise<void>;
-  _raw?: SqliteRawDatabase;
-}
-
-/** Programmatic Oracle credentials, the object form `parseOracleConnection` accepts alongside a `user/password@connectString` string. */
-interface OracleConnectionConfig {
-  user: string;
-  password: string;
-  connectString: string;
-}
+export { normalizeDialect } from "./sql.ts";
+export type {
+  MigrationClient,
+  MigrationRow,
+  MigrationSqlParam,
+  SqliteRawDatabase,
+} from "./migration-client.ts";
+export { applyMysqlDdlViaTextProtocol } from "./dialects/mysql-dialect.ts";
 
 /** One discovered migration: its up script and the rollback sibling when present. */
 export interface MigrationDescriptor {
@@ -361,302 +338,7 @@ export async function createClient({
   provider: string;
   connection: string;
 }): Promise<MigrationClient> {
-  const key = requireDialect(provider);
-  switch (key) {
-    case "sqlite":
-      return createSqliteClient(connection);
-    case "postgres":
-      return createPostgresClient(connection);
-    case "mysql":
-      return createMysqlClient(connection);
-    case "sqlserver":
-      return createSqlServerClient(connection);
-    case "oracle":
-      return createOracleClient(connection);
-    default:
-      throw new Error(`Unhandled provider: ${key}`);
-  }
-}
-
-async function createSqliteClient(
-  connection: string,
-): Promise<MigrationClient> {
-  if (!connection) throw new Error("sqlite requires a database file path");
-  const { default: Database } = await import("better-sqlite3");
-  const db = new Database(connection);
-  return {
-    dialect: "sqlite",
-    async exec(sql) {
-      db.exec(sql);
-    },
-    async query(sql, params = []) {
-      const stmt = db.prepare<MigrationSqlParam[], MigrationRow>(sql);
-      try {
-        return stmt.all(...params);
-      } catch {
-        stmt.run(...params);
-        return [];
-      }
-    },
-    async run(sql, params = []) {
-      db.prepare(sql).run(...params);
-    },
-    async transaction(fn) {
-      db.exec("BEGIN");
-      try {
-        const r = await fn();
-        db.exec("COMMIT");
-        return r;
-      } catch (e) {
-        try {
-          db.exec("ROLLBACK");
-        } catch (rollbackErr) {
-          console.warn(
-            "sqlite ROLLBACK failed after transaction error; original error rethrown",
-            rollbackErr,
-          );
-        }
-        throw e;
-      }
-    },
-    async close() {
-      db.close();
-    },
-  };
-}
-
-async function createPostgresClient(
-  connection: string,
-): Promise<MigrationClient> {
-  const { default: pg } = await import("pg");
-  const client = new pg.Client({ connectionString: connection });
-  await client.connect();
-  return {
-    dialect: "postgres",
-    async exec(sql) {
-      await client.query(sql);
-    },
-    async query(sql, params = []) {
-      const r = await client.query(
-        translatePlaceholders("postgres", sql),
-        params,
-      );
-      return r.rows;
-    },
-    async run(sql, params = []) {
-      await client.query(translatePlaceholders("postgres", sql), params);
-    },
-    async transaction(fn) {
-      await client.query("BEGIN");
-      try {
-        const r = await fn();
-        await client.query("COMMIT");
-        return r;
-      } catch (e) {
-        try {
-          await client.query("ROLLBACK");
-        } catch (rollbackErr) {
-          console.warn(
-            "postgres ROLLBACK failed after transaction error; original error rethrown",
-            rollbackErr,
-          );
-        }
-        throw e;
-      }
-    },
-    async close() {
-      await client.end();
-    },
-  };
-}
-
-export async function applyMysqlDdlViaTextProtocol(
-  conn: Pick<MysqlConnection, "query">,
-  sql: string,
-): Promise<void> {
-  // why: DDL statements (DROP/CREATE PROCEDURE) reject prepared-statement protocol (MySQL 1295)
-  await conn.query(sql);
-}
-// TODO(phase-5-followup): Rust sqlx must use Executor::execute_many or query_unprepared for DDL
-
-async function createMysqlClient(connection: string): Promise<MigrationClient> {
-  const mysql = await import("mysql2/promise");
-  const conn = await mysql.createConnection(connection);
-  return {
-    dialect: "mysql",
-    async exec(sql) {
-      await applyMysqlDdlViaTextProtocol(conn, sql);
-    },
-    async query(sql, params = []) {
-      const [rows] = await conn.execute(sql, params);
-      return rows as MigrationRow[];
-    },
-    async run(sql, params = []) {
-      await conn.execute(sql, params);
-    },
-    async transaction(fn) {
-      await conn.beginTransaction();
-      try {
-        const r = await fn();
-        await conn.commit();
-        return r;
-      } catch (e) {
-        try {
-          await conn.rollback();
-        } catch (rollbackErr) {
-          console.warn(
-            "mysql rollback failed after transaction error; original error rethrown",
-            rollbackErr,
-          );
-        }
-        throw e;
-      }
-    },
-    async close() {
-      await conn.end();
-    },
-  };
-}
-
-async function createSqlServerClient(
-  connection: string,
-): Promise<MigrationClient> {
-  const mssql = (await import("mssql")).default ?? (await import("mssql"));
-  const pool = await mssql.connect(connection);
-  return {
-    dialect: "sqlserver",
-    async exec(sql) {
-      await pool.request().batch(sql);
-    },
-    async query(sql, params = []) {
-      const req = pool.request();
-      const translated = bindMssql(req, sql, params);
-      const r = await req.query(translated);
-      return r.recordset ?? [];
-    },
-    async run(sql, params = []) {
-      const req = pool.request();
-      const translated = bindMssql(req, sql, params);
-      await req.query(translated);
-    },
-    async transaction(fn) {
-      const tx = pool.transaction();
-      await tx.begin();
-      try {
-        const r = await fn();
-        await tx.commit();
-        return r;
-      } catch (e) {
-        try {
-          await tx.rollback();
-        } catch (rollbackErr) {
-          console.warn(
-            "sqlserver rollback failed after transaction error; original error rethrown",
-            rollbackErr,
-          );
-        }
-        throw e;
-      }
-    },
-    async close() {
-      await pool.close();
-    },
-  };
-}
-
-async function createOracleClient(
-  connection: string,
-): Promise<MigrationClient> {
-  const oracledb =
-    (await import("oracledb")).default ?? (await import("oracledb"));
-  const conn = await oracledb.getConnection(parseOracleConnection(connection));
-  return {
-    dialect: "oracle",
-    async exec(sql) {
-      await conn.execute(sql, [], { autoCommit: true });
-    },
-    async query(sql, params = []) {
-      const r = await conn.execute<MigrationRow>(
-        translatePlaceholders("oracle", sql),
-        params,
-        {
-          outFormat: oracledb.OUT_FORMAT_OBJECT,
-        },
-      );
-      return (r.rows ?? []).map(lowercaseKeys);
-    },
-    async run(sql, params = []) {
-      await conn.execute(translatePlaceholders("oracle", sql), params, {
-        autoCommit: false,
-      });
-    },
-    async transaction(fn) {
-      try {
-        const r = await fn();
-        await conn.commit();
-        return r;
-      } catch (e) {
-        try {
-          await conn.rollback();
-        } catch (rollbackErr) {
-          console.warn(
-            "oracle rollback failed after transaction error; original error rethrown",
-            rollbackErr,
-          );
-        }
-        throw e;
-      }
-    },
-    async close() {
-      await conn.close();
-    },
-  };
-}
-
-function lowercaseKeys(row: MigrationRow): MigrationRow {
-  const out: MigrationRow = {};
-  for (const [k, v] of Object.entries(row)) out[k.toLowerCase()] = v;
-  return out;
-}
-
-function parseOracleConnection(
-  connection: string | OracleConnectionConfig,
-): OracleConnectionConfig {
-  if (typeof connection === "object" && connection) return connection;
-  const m = /^([^/]+)\/([^@]+)@(.+)$/.exec(String(connection));
-  if (!m) {
-    throw new Error(
-      `Oracle connection must look like user/password@connectString`,
-    );
-  }
-  return { user: m[1], password: m[2], connectString: m[3] };
-}
-
-function translatePlaceholders(dialect: string, sql: string): string {
-  if (dialect === "postgres") {
-    let n = 0;
-    return sql.replace(/\?/g, () => `$${++n}`);
-  }
-  if (dialect === "oracle") {
-    let n = 0;
-    return sql.replace(/\?/g, () => `:${++n}`);
-  }
-  return sql;
-}
-
-function bindMssql(
-  req: Pick<MssqlRequest, "input">,
-  sql: string,
-  params: MigrationSqlParam[],
-): string {
-  let n = 0;
-  const translated = sql.replace(/\?/g, () => {
-    const name = `p${n}`;
-    req.input(name, params[n]);
-    n++;
-    return `@${name}`;
-  });
-  return translated;
+  return defaultDialectFactory.get(provider).createClient(connection);
 }
 
 export async function runUp({
@@ -770,11 +452,17 @@ export async function runDown({
   return { rolledBack: true, name: lastApplied.name };
 }
 
+function dialectOf(client: MigrationClient): ISqlDialect {
+  return defaultDialectFactory.get(client.dialect);
+}
+
 async function appliedRecords(
   client: MigrationClient,
 ): Promise<Map<string, string | null>> {
+  const d = dialectOf(client);
+  const q = (ident: string) => d.quoteIdent(ident);
   const rows = await client.query(
-    `SELECT ${q(client.dialect, "name")} AS name, ${q(client.dialect, "checksum")} AS checksum FROM ${q(client.dialect, "migrates")}`,
+    `SELECT ${q("name")} AS name, ${q("checksum")} AS checksum FROM ${q("migrates")}`,
   );
   return new Map(
     rows.map(
@@ -832,9 +520,10 @@ async function insertMigrate(
   name: string,
   sum: string,
 ): Promise<void> {
-  const t = q(client.dialect, "migrates");
+  const d = dialectOf(client);
+  const t = d.quoteIdent("migrates");
   await client.run(
-    `INSERT INTO ${t} (${q(client.dialect, "name")}, ${q(client.dialect, "checksum")}) VALUES (?, ?)`,
+    `INSERT INTO ${t} (${d.quoteIdent("name")}, ${d.quoteIdent("checksum")}) VALUES (?, ?)`,
     [name, sum],
   );
 }
@@ -843,10 +532,12 @@ async function deleteMigrate(
   client: MigrationClient,
   name: string,
 ): Promise<void> {
-  const t = q(client.dialect, "migrates");
-  await client.run(`DELETE FROM ${t} WHERE ${q(client.dialect, "name")} = ?`, [
-    name,
-  ]);
+  const d = dialectOf(client);
+  const t = d.quoteIdent("migrates");
+  await client.run(
+    `DELETE FROM ${t} WHERE ${d.quoteIdent("name")} = ?`,
+    [name],
+  );
 }
 
 async function insertLogStarted(
@@ -854,9 +545,10 @@ async function insertLogStarted(
   name: string,
   direction: string,
 ): Promise<MigrationRowValue> {
-  const t = q(client.dialect, "migrate_logs");
-  if (client.dialect === "sqlite") {
-    const stmt = `INSERT INTO ${t} (${q("sqlite", "migrate_name")}, ${q("sqlite", "direction")}, ${q("sqlite", "status")}) VALUES (?, ?, 'started')`;
+  const d = dialectOf(client);
+  const t = d.quoteIdent("migrate_logs");
+  if (d.usesLastInsertRowid) {
+    const stmt = `INSERT INTO ${t} (${d.quoteIdent("migrate_name")}, ${d.quoteIdent("direction")}, ${d.quoteIdent("status")}) VALUES (?, ?, 'started')`;
     const db = client._raw;
     if (db) {
       const info = db.prepare(stmt).run(name, direction);
@@ -864,17 +556,17 @@ async function insertLogStarted(
     }
     await client.run(stmt, [name, direction]);
     const rows = await client.query(
-      `SELECT ${q("sqlite", "id")} AS id FROM ${t} WHERE ${q("sqlite", "migrate_name")} = ? AND ${q("sqlite", "direction")} = ? ORDER BY id DESC LIMIT 1`,
+      `SELECT ${d.quoteIdent("id")} AS id FROM ${t} WHERE ${d.quoteIdent("migrate_name")} = ? AND ${d.quoteIdent("direction")} = ? ORDER BY id DESC ${d.limitClause(1)}`,
       [name, direction],
     );
     return rows[0]?.id;
   }
   await client.run(
-    `INSERT INTO ${t} (${q(client.dialect, "migrate_name")}, ${q(client.dialect, "direction")}, ${q(client.dialect, "status")}) VALUES (?, ?, 'started')`,
+    `INSERT INTO ${t} (${d.quoteIdent("migrate_name")}, ${d.quoteIdent("direction")}, ${d.quoteIdent("status")}) VALUES (?, ?, 'started')`,
     [name, direction],
   );
   const rows = await client.query(
-    `SELECT ${q(client.dialect, "id")} AS id FROM ${t} WHERE ${q(client.dialect, "migrate_name")} = ? AND ${q(client.dialect, "direction")} = ? ORDER BY ${q(client.dialect, "id")} DESC ${limitClause(client.dialect, 1)}`,
+    `SELECT ${d.quoteIdent("id")} AS id FROM ${t} WHERE ${d.quoteIdent("migrate_name")} = ? AND ${d.quoteIdent("direction")} = ? ORDER BY ${d.quoteIdent("id")} DESC ${d.limitClause(1)}`,
     [name, direction],
   );
   return rows[0]?.id ?? rows[0]?.ID;
@@ -893,48 +585,15 @@ async function updateLogTerminal({
   durationMs: number;
   errorMessage: string | null;
 }): Promise<void> {
-  const t = q(client.dialect, "migrate_logs");
-  const setNow = nowExpr(client.dialect);
+  const d = dialectOf(client);
+  const t = d.quoteIdent("migrate_logs");
+  const setNow = d.nowExpr();
   await client.run(
-    `UPDATE ${t} SET ${q(client.dialect, "status")} = ?, ${q(client.dialect, "finished_at")} = ${setNow}, ${q(client.dialect, "duration_ms")} = ?, ${q(client.dialect, "error_message")} = ?, ${q(client.dialect, "updated")} = ${setNow} WHERE ${q(client.dialect, "id")} = ?`,
+    `UPDATE ${t} SET ${d.quoteIdent("status")} = ?, ${d.quoteIdent("finished_at")} = ${setNow}, ${d.quoteIdent("duration_ms")} = ?, ${d.quoteIdent("error_message")} = ?, ${d.quoteIdent("updated")} = ${setNow} WHERE ${d.quoteIdent("id")} = ?`,
     [status, durationMs, errorMessage, id],
   );
 }
 
-function nowExpr(dialect: string): string {
-  switch (dialect) {
-    case "sqlite":
-      return "CURRENT_TIMESTAMP";
-    case "postgres":
-      return "NOW()";
-    case "mysql":
-      return "CURRENT_TIMESTAMP";
-    case "sqlserver":
-      return "SYSUTCDATETIME()";
-    case "oracle":
-      return "CURRENT_TIMESTAMP";
-    default:
-      throw new Error(`Unhandled dialect: ${dialect}`);
-  }
-}
-
-function limitClause(dialect: string, n: number): string {
-  switch (dialect) {
-    case "sqlserver":
-      return `OFFSET 0 ROWS FETCH NEXT ${n} ROWS ONLY`;
-    case "oracle":
-      return `FETCH FIRST ${n} ROWS ONLY`;
-    default:
-      return `LIMIT ${n}`;
-  }
-}
-
 function requireDialect(dialect: string): SqlDialect {
-  const key = normalizeDialect(dialect);
-  if (!key) {
-    throw new Error(
-      `Unknown SQL dialect "${dialect}". Valid: sqlite, mysql, postgres, sqlserver, oracle.`,
-    );
-  }
-  return key;
+  return defaultDialectFactory.get(dialect).name;
 }

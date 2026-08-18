@@ -1,37 +1,50 @@
-export const ENV_VARS_BY_DIALECT: Record<string, string[]> = {
-  sqlite: ["SQLITE_PATH", "DB_PATH"],
-  postgres: ["PG_CONNECTION_STRING", "DATABASE_URL"],
-  mysql: ["MYSQL_URL", "DATABASE_URL"],
-  sqlserver: ["MSSQL_URL", "DATABASE_URL"],
-  oracle: ["ORACLE_CONNECT_STRING", "DATABASE_URL"],
-};
+import { connectionResolver, defaultDialectFactory } from "./dialects/default-factory.ts";
+import type { ISqlDialect } from "./dialects/sql-dialect.ts";
+import { sqliteFilesystemPath } from "./dialects/sqlite-dialect.ts";
+
+export { sqliteFilesystemPath };
+
+export const ENV_VARS_BY_DIALECT: Record<string, string[]> = Object.fromEntries(
+  defaultDialectFactory.all().map((d) => [
+    d.name,
+    [...d.connectionEnvironmentVariables],
+  ]),
+);
 
 export const resolveConn = (
   dialect: string,
   fromFlag: string | null,
 ): string | null => {
-  if (fromFlag) return fromFlag;
-  for (const name of ENV_VARS_BY_DIALECT[dialect] ?? []) {
-    if (process.env[name]) return process.env[name] ?? null;
-  }
-  return null;
+  const d = defaultDialectFactory.tryGet(dialect);
+  if (!d) return fromFlag;
+  return connectionResolver.resolve(d, fromFlag);
 };
 
-/** Filesystem path for a sqlite connection, or null for :memory: (skip existence checks). */
-export const sqliteFilesystemPath = (connection: string): string | null => {
-  let s = connection.trim();
-  const eq = s.indexOf("=");
-  if (eq >= 0 && /data\s*source/i.test(s.slice(0, eq))) {
-    s = s.slice(eq + 1).trim();
-  } else if (/^sqlite:\/\//i.test(s)) {
-    s = s.slice("sqlite://".length);
-  } else if (/^sqlite:/i.test(s)) {
-    s = s.slice("sqlite:".length);
-  } else if (/^file:/i.test(s)) {
-    s = s.slice("file:".length);
+export const requireDialect = (provider: string | null): ISqlDialect => {
+  if (!provider) {
+    process.stderr.write("missing --provider\n");
+    process.exit(2);
   }
-  if (s === ":memory:" || s === "") return null;
-  return s;
+  const dialect = defaultDialectFactory.tryGet(provider);
+  if (!dialect) {
+    process.stderr.write(`unknown provider: ${provider}\n`);
+    process.exit(2);
+  }
+  return dialect;
+};
+
+export const requireConnection = (
+  dialect: ISqlDialect,
+  fromFlag: string | null,
+): string => {
+  const connection = connectionResolver.resolve(dialect, fromFlag);
+  if (!connection) {
+    process.stderr.write(
+      `missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set ${dialect.connectionEnvironmentVariables.join(" / ")}. Run with --help for examples.\n`,
+    );
+    process.exit(2);
+  }
+  return connection;
 };
 
 export const takeFlag = (

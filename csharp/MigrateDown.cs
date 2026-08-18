@@ -1,19 +1,26 @@
 // Rolls back the most recently applied migration (one step). DESTRUCTIVE: prints a random 4-letter uppercase token and refuses to proceed unless the operator types it back on stdin. Pass --confirm <TOKEN> matching the printed token to bypass the prompt (CI / scripted use).
 
 using System.Data.Common;
-using System.Globalization;
 using System.Text;
-using Microsoft.Data.Sqlite;
-using MySqlConnector;
-using Npgsql;
 
 namespace Deterministic.MigrateRunner;
 
-internal static class MigrateDown
+internal sealed class MigrateDown : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("down");
 
-    public static async Task<int> RunAsync(string[] args)
+    private readonly ISqlDialectFactory _dialects;
+    private readonly IConnectionResolver _connections;
+
+    public MigrateDown(ISqlDialectFactory dialects, IConnectionResolver connections)
+    {
+        _dialects = dialects;
+        _connections = connections;
+    }
+
+    public string Name => "down";
+
+    public async Task<int> RunAsync(string[] args)
     {
         if (!TryParse(args, out var provider, out var migratePath, out var connection, out var confirm, out var showHelp, out var error))
         {
@@ -27,15 +34,17 @@ internal static class MigrateDown
             return 2;
         }
 
-        if (provider == "sqlite")
+        if (!_dialects.TryGet(provider, out var dialect))
         {
-            var sqlitePath = ProviderConnectionString.SqliteFilesystemPath(connection);
-            if (sqlitePath is not null && !File.Exists(sqlitePath))
-            {
-                Console.Error.WriteLine(
-                    $"sqlite file: {sqlitePath} does not exist — run 'migrate-setup --provider sqlite --connection {sqlitePath}' to create it");
-                return 2;
-            }
+            Console.Error.WriteLine($"unsupported provider: {provider}");
+            return 2;
+        }
+
+        var prerequisite = dialect.PrerequisiteError(connection!);
+        if (prerequisite is not null)
+        {
+            Console.Error.WriteLine(prerequisite);
+            return 2;
         }
 
         var token = RandomToken();
@@ -46,13 +55,7 @@ internal static class MigrateDown
 
         try
         {
-            return provider switch
-            {
-                "sqlite" => await RollbackSqliteAsync(migratePath, connection!).ConfigureAwait(false),
-                "postgres" => await RollbackPostgresAsync(migratePath, connection!).ConfigureAwait(false),
-                "mysql" => await RollbackMysqlAsync(migratePath, connection!).ConfigureAwait(false),
-                _ => Unsupported(provider),
-            };
+            return await RollbackLastAsync(dialect, migratePath, connection!).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -61,18 +64,12 @@ internal static class MigrateDown
         }
     }
 
-    private static int Unsupported(string provider)
+    private static async Task<int> RollbackLastAsync(ISqlDialect dialect, string migratePath, string connection)
     {
-        Console.Error.WriteLine($"unsupported provider: {provider}");
-        return 2;
-    }
-
-    private static async Task<int> RollbackSqliteAsync(string migratePath, string connection)
-    {
-        await using var conn = new SqliteConnection(ProviderConnectionString.Sqlite(connection));
+        await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(connection));
         await conn.OpenAsync().ConfigureAwait(false);
 
-        var name = await LoadLastAppliedAsync(conn, @"SELECT ""name"" FROM ""migrates"" ORDER BY ""name"" DESC LIMIT 1").ConfigureAwait(false);
+        var name = await LoadLastAppliedAsync(conn, dialect.SelectLastAppliedNameSql).ConfigureAwait(false);
         if (name is null)
         {
             Console.WriteLine("No applied migrations to roll back.");
@@ -82,81 +79,14 @@ internal static class MigrateDown
             ?? throw new FileNotFoundException($"Cannot roll back \"{name}\": no <stem>_down.sql sibling found");
         var sql = await File.ReadAllTextAsync(path).ConfigureAwait(false);
 
-        await using var tx = (SqliteTransaction)await conn.BeginTransactionAsync().ConfigureAwait(false);
-        foreach (var stmt in MigrateUp.SplitStatements(sql))
-        {
-            await ExecuteAsync(conn, tx, stmt).ConfigureAwait(false);
-        }
-        await using (var del = conn.CreateCommand())
-        {
-            del.Transaction = tx;
-            del.CommandText = @"DELETE FROM ""migrates"" WHERE ""name"" = $p1";
-            AddParam(del, "$p1", name);
-            await del.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
-        await tx.CommitAsync().ConfigureAwait(false);
-        Console.WriteLine($"Rolled back: {name}");
-        return 0;
-    }
+        await DbExecute.ApplyStatementsAsync(conn, dialect, sql, tx =>
+            DbExecute.CatalogWriteAsync(
+                conn,
+                tx,
+                dialect,
+                dialect.DeleteAppliedSql,
+                ("p1", name))).ConfigureAwait(false);
 
-    private static async Task<int> RollbackPostgresAsync(string migratePath, string connection)
-    {
-        await using var conn = new NpgsqlConnection(ProviderConnectionString.Postgres(connection));
-        await conn.OpenAsync().ConfigureAwait(false);
-
-        var name = await LoadLastAppliedAsync(conn, @"SELECT ""name"" FROM ""migrates"" ORDER BY ""name"" DESC LIMIT 1").ConfigureAwait(false);
-        if (name is null)
-        {
-            Console.WriteLine("No applied migrations to roll back.");
-            return 0;
-        }
-        var path = FindDownFile(migratePath, name)
-            ?? throw new FileNotFoundException($"Cannot roll back \"{name}\": no <stem>_down.sql sibling found");
-        var sql = await File.ReadAllTextAsync(path).ConfigureAwait(false);
-
-        await using var tx = await conn.BeginTransactionAsync().ConfigureAwait(false);
-        foreach (var stmt in MigrateUp.SplitStatements(sql))
-        {
-            await ExecuteAsync(conn, tx, stmt).ConfigureAwait(false);
-        }
-        await using (var del = conn.CreateCommand())
-        {
-            del.Transaction = tx;
-            del.CommandText = @"DELETE FROM ""migrates"" WHERE ""name"" = @p1";
-            AddParam(del, "p1", name);
-            await del.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
-        await tx.CommitAsync().ConfigureAwait(false);
-        Console.WriteLine($"Rolled back: {name}");
-        return 0;
-    }
-
-    private static async Task<int> RollbackMysqlAsync(string migratePath, string connection)
-    {
-        await using var conn = new MySqlConnection(ProviderConnectionString.Mysql(connection));
-        await conn.OpenAsync().ConfigureAwait(false);
-
-        var name = await LoadLastAppliedAsync(conn, "SELECT `name` FROM `migrates` ORDER BY `name` DESC LIMIT 1").ConfigureAwait(false);
-        if (name is null)
-        {
-            Console.WriteLine("No applied migrations to roll back.");
-            return 0;
-        }
-        var path = FindDownFile(migratePath, name)
-            ?? throw new FileNotFoundException($"Cannot roll back \"{name}\": no <stem>_down.sql sibling found");
-        var sql = await File.ReadAllTextAsync(path).ConfigureAwait(false);
-
-        // why no transaction: MySQL DDL auto-commits, so wrapping apply+DELETE gives no atomicity guarantee — mirror runUp's pattern.
-        foreach (var stmt in MigrateUp.SplitStatements(sql))
-        {
-            await ExecuteAsync(conn, null, stmt).ConfigureAwait(false);
-        }
-        await using (var del = conn.CreateCommand())
-        {
-            del.CommandText = "DELETE FROM `migrates` WHERE `name` = @p1";
-            AddParam(del, "@p1", name);
-            await del.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
         Console.WriteLine($"Rolled back: {name}");
         return 0;
     }
@@ -168,25 +98,6 @@ internal static class MigrateDown
         using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
         if (!await reader.ReadAsync().ConfigureAwait(false)) return null;
         return reader.GetString(0);
-    }
-
-    private static async Task ExecuteAsync(DbConnection conn, DbTransaction? tx, string sql)
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
-        if (tx is not null)
-        {
-            cmd.Transaction = tx;
-        }
-        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }
-
-    private static void AddParam(DbCommand cmd, string name, object value)
-    {
-        var p = cmd.CreateParameter();
-        p.ParameterName = name;
-        p.Value = value;
-        cmd.Parameters.Add(p);
     }
 
     private static string? FindDownFile(string migratePath, string upName)
@@ -243,7 +154,7 @@ internal static class MigrateDown
         return false;
     }
 
-    private static bool TryParse(string[] args, out string provider, out string migratePath, out string? connection, out string? confirm, out bool showHelp, out string error)
+    private bool TryParse(string[] args, out string provider, out string migratePath, out string? connection, out string? confirm, out bool showHelp, out string error)
     {
         provider = string.Empty;
         migratePath = string.Empty;
@@ -295,13 +206,15 @@ internal static class MigrateDown
             var root = migrateRoot ?? "sql";
             migratePath = $"{root}/{provider}/migrations";
         }
-        if (string.IsNullOrEmpty(connection))
+        _dialects.TryGet(provider, out var dialect);
+        if (string.IsNullOrEmpty(connection) && dialect is not null)
         {
-            connection = ConnectionEnv.For(provider);
+            connection = _connections.FromEnvironment(dialect);
         }
         if (string.IsNullOrEmpty(connection))
         {
-            error = $"missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set one of: {string.Join(", ", ConnectionEnv.VarsFor(provider))}. Run with --help for examples.";
+            var vars = dialect?.ConnectionEnvironmentVariables ?? Array.Empty<string>();
+            error = $"missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set one of: {string.Join(", ", vars)}. Run with --help for examples.";
             return false;
         }
         return true;

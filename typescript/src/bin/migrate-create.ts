@@ -2,8 +2,8 @@
 // Scaffolds a new <NNNN>_<name>_{up,down}.sql pair in the migrations directory. Numbering is max(1-4-digit prefix in dir)+1; legacy timestamp prefixes are ignored.
 
 import { mkdir, readdir, writeFile } from "node:fs/promises";
-import { takeFlag } from "../cli.ts";
-import { loadHelp, normalizeDialect } from "../index.ts";
+import { requireDialect, takeFlag } from "../cli.ts";
+import { loadHelp } from "../index.ts";
 
 const NAME_RE = /^[a-z][a-z0-9_]*$/;
 const SEQ_RE = /^(\d{1,4})_.*_up\.sql$/;
@@ -72,11 +72,7 @@ const main = async () => {
     process.stderr.write("missing --provider\n");
     process.exit(2);
   }
-  const dialect = normalizeDialect(args.provider);
-  if (!dialect) {
-    process.stderr.write(`unknown provider: ${args.provider}\n`);
-    process.exit(2);
-  }
+  const dialect = requireDialect(args.provider);
   if (!args.name) {
     process.stderr.write("missing --name\n");
     process.exit(2);
@@ -88,7 +84,8 @@ const main = async () => {
     process.exit(2);
   }
 
-  const migrationsPath = args.migrationsPath ?? `./sql/${dialect}/migrations`;
+  const migrationsPath =
+    args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
   await mkdir(migrationsPath, { recursive: true });
 
   const seq = pad4(await nextSequence(migrationsPath));

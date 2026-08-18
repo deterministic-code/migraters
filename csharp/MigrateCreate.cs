@@ -5,14 +5,23 @@ using System.Text.RegularExpressions;
 
 namespace Deterministic.MigrateRunner;
 
-internal static class MigrateCreate
+internal sealed class MigrateCreate : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("create");
 
     private static readonly Regex NameRe = new("^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
     private static readonly Regex SeqRe = new(@"^(\d{1,4})_.*_up\.sql$", RegexOptions.Compiled);
 
-    public static Task<int> RunAsync(string[] args)
+    private readonly ISqlDialectFactory _dialects;
+
+    public MigrateCreate(ISqlDialectFactory dialects)
+    {
+        _dialects = dialects;
+    }
+
+    public string Name => "create";
+
+    public Task<int> RunAsync(string[] args)
     {
         if (!TryParse(args, out var provider, out var name, out var migrationsPath, out var showHelp, out var error))
         {
@@ -26,7 +35,13 @@ internal static class MigrateCreate
             return Task.FromResult(2);
         }
 
-        var dir = migrationsPath ?? $"./sql/{provider}/migrations";
+        if (!_dialects.TryGet(provider, out var dialect))
+        {
+            Console.Error.WriteLine($"unsupported provider: {provider}");
+            return Task.FromResult(2);
+        }
+
+        var dir = migrationsPath ?? $"./sql/{dialect.Name}/migrations";
         try
         {
             Directory.CreateDirectory(dir);

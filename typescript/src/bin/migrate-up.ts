@@ -2,15 +2,8 @@
 // Default: applies ALL pending migrations in sequence, each in its own transaction. Pass --one to apply only the next pending migration (legacy one-shot behavior; useful when wrapping in an external loop or when you want to inspect state between steps).
 
 import { resolve } from "node:path";
-import { ENV_VARS_BY_DIALECT, resolveConn, sqliteFilesystemPath, takeFlag } from "../cli.ts";
-import {
-  createClient,
-  discoverMigrations,
-  loadHelp,
-  normalizeDialect,
-  pathExists,
-  runUp,
-} from "../index.ts";
+import { requireConnection, requireDialect, takeFlag } from "../cli.ts";
+import { discoverMigrations, loadHelp, runUp } from "../index.ts";
 
 const HELP_TEXT = await loadHelp("migrate-up");
 
@@ -81,33 +74,22 @@ const main = async () => {
     process.stderr.write("missing --provider\n");
     process.exit(2);
   }
-  const dialect = normalizeDialect(args.provider);
-  if (!dialect) {
-    process.stderr.write(`unknown provider: ${args.provider}\n`);
-    process.exit(2);
-  }
-  const connection = resolveConn(dialect, args.connection);
-  if (!connection) {
-    process.stderr.write(
-      `missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set ${(ENV_VARS_BY_DIALECT[dialect] ?? []).join(" / ")}. Run with --help for examples.\n`,
-    );
+  const dialect = requireDialect(args.provider);
+  const connection = requireConnection(dialect, args.connection);
+
+  const missing = await dialect.prerequisiteError(connection);
+  if (missing !== null) {
+    process.stderr.write(`${missing}\n`);
     process.exit(2);
   }
 
-  if (dialect === "sqlite") {
-    const path = sqliteFilesystemPath(connection);
-    if (path !== null && !(await pathExists(path))) {
-      process.stderr.write(
-        `sqlite file: ${path} does not exist — run 'migrate-setup --provider sqlite --connection ${path}' to create it\n`,
-      );
-      process.exit(2);
-    }
-  }
-
-  const migratePath = resolve(resolveMigratePath(args, dialect));
-  const client = await createClient({ provider: dialect, connection });
+  const migratePath = resolve(resolveMigratePath(args, dialect.name));
+  const client = await dialect.createClient(connection);
   try {
-    const migrations = await discoverMigrations({ migratePath, dialect });
+    const migrations = await discoverMigrations({
+      migratePath,
+      dialect: dialect.name,
+    });
     let appliedCount = 0;
     for (;;) {
       const r = await runUp({ client, migrations });

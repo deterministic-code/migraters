@@ -6,4 +6,5 @@ export {
   type MigrateVerb,
 } from "./cli-contract.ts";
 export { loadHelp } from "./help.ts";
-export { normalizeDialect, pathExists, q, type SqlDialect } from "./sql.ts";
+export { normalizeDialect, pathExists, type SqlDialect } from "./sql.ts";
+export { q } from "./q.ts";
