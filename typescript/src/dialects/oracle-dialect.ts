@@ -1,8 +1,12 @@
-import type {
-  MigrationClient,
-  MigrationRow,
-} from "../migration-client.ts";
-import { SqlDialectBase } from "./sql-dialect-base.ts";
+import type { MigrationClient, MigrationRow } from '../migration-client.ts';
+import { interopDefault } from '../infrastructure/interop-default.ts';
+import { readSqlTemplate } from '../infrastructure/sql-templates.ts';
+import { SqlDialectBase } from '../abstractions/sql-dialect-base.ts';
+
+const [migratesDdl, migrateLogsDdl] = await Promise.all([
+  readSqlTemplate('oracle', 'migrates'),
+  readSqlTemplate('oracle', 'migrate_logs'),
+]);
 
 interface OracleConnectionConfig {
   user: string;
@@ -10,15 +14,13 @@ interface OracleConnectionConfig {
   connectString: string;
 }
 
-const parseOracleConnection = (
+export const parseOracleConnection = (
   connection: string | OracleConnectionConfig,
 ): OracleConnectionConfig => {
-  if (typeof connection === "object" && connection) return connection;
+  if (typeof connection === 'object' && connection) return connection;
   const m = /^([^/]+)\/([^@]+)@(.+)$/.exec(String(connection));
   if (!m) {
-    throw new Error(
-      `Oracle connection must look like user/password@connectString`,
-    );
+    throw new Error(`Oracle connection must look like user/password@connectString`);
   }
   return { user: m[1] as string, password: m[2] as string, connectString: m[3] as string };
 };
@@ -30,11 +32,10 @@ const lowercaseKeys = (row: MigrationRow): MigrationRow => {
 };
 
 export class OracleDialect extends SqlDialectBase {
-  readonly name = "oracle" as const;
-  readonly connectionEnvironmentVariables = [
-    "ORACLE_CONNECT_STRING",
-    "DATABASE_URL",
-  ] as const;
+  readonly name = 'oracle' as const;
+  readonly connectionEnvironmentVariables = ['ORACLE_CONNECT_STRING', 'DATABASE_URL'] as const;
+  readonly migratesDdl = migratesDdl;
+  readonly migrateLogsDdl = migrateLogsDdl;
 
   translatePlaceholders(sql: string): string {
     let n = 0;
@@ -46,12 +47,11 @@ export class OracleDialect extends SqlDialectBase {
   }
 
   async createClient(connection: string): Promise<MigrationClient> {
-    const oracledb =
-      (await import("oracledb")).default ?? (await import("oracledb"));
+    const oracledb = interopDefault(await import('oracledb'));
     const conn = await oracledb.getConnection(parseOracleConnection(connection));
     const translate = (sql: string) => this.translatePlaceholders(sql);
     return {
-      dialect: "oracle",
+      dialect: 'oracle',
       async exec(sql) {
         await conn.execute(sql, [], { autoCommit: true });
       },
@@ -76,7 +76,7 @@ export class OracleDialect extends SqlDialectBase {
             await conn.rollback();
           } catch (rollbackErr) {
             console.warn(
-              "oracle rollback failed after transaction error; original error rethrown",
+              'oracle rollback failed after transaction error; original error rethrown',
               rollbackErr,
             );
           }

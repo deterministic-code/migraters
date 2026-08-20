@@ -1,0 +1,1 @@
+No applied migrations to roll back.

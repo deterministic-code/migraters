@@ -1,0 +1,1 @@
+sqlite file: {{path}} does not exist — run 'migrate-setup --provider sqlite --connection {{path}}' to create it

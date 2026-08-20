@@ -1,0 +1,210 @@
+# Source of truth for migrate command names, argv layout, and --help copy.
+# TypeScript, Rust, and C# parsers must match this file.
+# Help templates in shared/templates/help are generated:
+#   npm run generate:help
+# Usage line for each verb: `Usage: migrate-<verb> ` + args in order.
+
+command: migrate-{verb}
+
+providers:
+  - sqlite
+  - postgres
+  - mysql
+  - sqlserver
+  - oracle
+
+help:
+  - -h
+  - --help
+
+# Canonical argv is `--flag value`. `--flag=value` is optional extra syntax.
+aliases:
+  --migrate-path: --migrations-path
+  --migrate-root: --migrations-root
+
+# Documented when a command sets show_connection_env: true.
+connection_environment:
+  sqlite: [SQLITE_PATH, DB_PATH]
+  postgres: [PG_CONNECTION_STRING, DATABASE_URL]
+  mysql: [MYSQL_URL, DATABASE_URL]
+  sqlserver: [MSSQL_URL, DATABASE_URL]
+  oracle: [ORACLE_CONNECT_STRING, DATABASE_URL]
+
+commands:
+  - verb: setup
+    show_connection_env: true
+    summary: |
+      Creates the bookkeeping tables (migrates, migrate_logs) for the chosen dialect
+      and the migrations directory (mkdir -p). Idempotent — re-running against an
+      already-setup database is a no-op. For sqlite, also mkdir -p of the parent
+      directory of --connection so a fresh-tree path like ./.test/foo.sqlite works.
+    examples: |
+      # sqlite — bare path or sqlite:// URL; both create a file on disk.
+      {{command}} --provider sqlite --connection ./app.sqlite
+      {{command}} --provider sqlite --connection sqlite:///absolute/path/app.sqlite
+
+      # postgres — URL or keyword form.
+      {{command}} --provider postgres --connection postgresql://user:pass@host:5432/dbname
+
+      # mysql — URL form.
+      {{command}} --provider mysql --connection mysql://user:pass@host:3306/dbname
+
+      # sqlserver / oracle — pass a driver-native connection string.
+      {{command}} --provider sqlserver --connection "Server=host;Database=dbname;User Id=user;Password=pass;"
+      {{command}} --provider oracle   --connection "user/pass@host:1521/service"
+
+      # env-var fallback when --connection is omitted:
+      SQLITE_PATH=./app.sqlite       {{command}} --provider sqlite
+      DATABASE_URL=postgresql://...  {{command}} --provider postgres
+      DATABASE_URL=mysql://...       {{command}} --provider mysql
+
+      # explicit in-memory sqlite:
+      {{command}} --provider sqlite --connection :memory:
+    args:
+      - flag: --provider
+        placeholder: providers
+        required: true
+        help: "Database dialect. Required."
+      - flag: --connection
+        placeholder: url
+        required: true
+        help: "Connection string. Required (or set the per-dialect env var below)."
+      - flag: --migrations-path
+        placeholder: dir
+        required: false
+        help: "Migrations directory (default: ./sql/<dialect>/migrations)."
+      - flag: --and-up
+        required: false
+        help: "After setup, immediately invoke migrate-up so the chain is applied in one step."
+
+  - verb: up
+    show_connection_env: true
+    summary: |
+      Applies ALL pending migrations in sequence, each in its own transaction.
+    examples: |
+      # sqlite — bare path or sqlite:// URL; both create a file on disk.
+      {{command}} --provider sqlite --connection ./app.sqlite
+      {{command}} --provider sqlite --connection sqlite:///absolute/path/app.sqlite
+
+      # postgres — URL or keyword form.
+      {{command}} --provider postgres --connection postgresql://user:pass@host:5432/dbname
+
+      # mysql — URL form.
+      {{command}} --provider mysql --connection mysql://user:pass@host:3306/dbname
+
+      # sqlserver / oracle — pass a driver-native connection string.
+      {{command}} --provider sqlserver --connection "Server=host;Database=dbname;User Id=user;Password=pass;"
+      {{command}} --provider oracle   --connection "user/pass@host:1521/service"
+
+      # env-var fallback when --connection is omitted:
+      SQLITE_PATH=./app.sqlite       {{command}} --provider sqlite
+      DATABASE_URL=postgresql://...  {{command}} --provider postgres
+
+      # custom migrations layout (default looks under sql/<dialect>/migrations):
+      {{command}} --provider sqlite --connection ./app.sqlite --migrations-path ./db/changes/sqlite
+      {{command}} --provider sqlite --connection ./app.sqlite --migrations-root ./db/changes
+
+      # one-shot: apply the next pending migration only, then exit.
+      {{command}} --provider sqlite --connection ./app.sqlite --one
+    args:
+      - flag: --provider
+        placeholder: providers
+        required: true
+        help: "Database dialect. Required."
+      - flag: --connection
+        placeholder: url
+        required: true
+        help: "Connection string. Required (or set the per-dialect env var below)."
+      - flag: --migrations-path
+        placeholder: dir
+        required: false
+        help: "Full path to the migrations directory (e.g. sql/sqlite/migrations)."
+      - flag: --migrations-root
+        placeholder: dir
+        required: false
+        help: |
+          Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
+          Defaults to 'sql'. Ignored when --migrations-path is also set.
+      - flag: --one
+        required: false
+        help: "Apply only the next pending migration, then exit. Default is to apply all pending migrations."
+
+  - verb: down
+    show_connection_env: true
+    summary: |
+      Rolls back the MOST RECENTLY applied migration (one step). DESTRUCTIVE: prints a
+      random 4-letter uppercase token on stderr and refuses to proceed unless the
+      operator types it back on stdin (or passes --confirm <TOKEN> matching it).
+    examples: |
+      # sqlite — bare path or sqlite:// URL.
+      {{command}} --provider sqlite --connection ./app.sqlite
+      {{command}} --provider sqlite --connection sqlite:///absolute/path/app.sqlite
+
+      # postgres — URL or keyword form.
+      {{command}} --provider postgres --connection postgresql://user:pass@host:5432/dbname
+
+      # mysql — URL form.
+      {{command}} --provider mysql --connection mysql://user:pass@host:3306/dbname
+
+      # sqlserver / oracle — pass a driver-native connection string.
+      {{command}} --provider sqlserver --connection "Server=host;Database=dbname;User Id=user;Password=pass;"
+      {{command}} --provider oracle   --connection "user/pass@host:1521/service"
+
+      # env-var fallback when --connection is omitted:
+      SQLITE_PATH=./app.sqlite       {{command}} --provider sqlite
+      DATABASE_URL=postgresql://...  {{command}} --provider postgres
+
+      # custom migrations layout (default looks under sql/<dialect>/migrations):
+      {{command}} --provider sqlite --connection ./app.sqlite --migrations-path ./db/changes/sqlite
+    args:
+      - flag: --provider
+        placeholder: providers
+        required: true
+        help: "Database dialect. Required."
+      - flag: --connection
+        placeholder: url
+        required: true
+        help: "Connection string. Required (or set the per-dialect env var below)."
+      - flag: --migrations-path
+        placeholder: dir
+        required: false
+        help: "Full path to the migrations directory."
+      - flag: --migrations-root
+        placeholder: dir
+        required: false
+        help: |
+          Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
+          Defaults to 'sql'. Ignored when --migrations-path is also set.
+      - flag: --confirm
+        placeholder: TOKEN
+        required: false
+        help: |
+          Skip the interactive prompt. The TOKEN must match the value
+          printed on stderr at runtime — there is no fixed bypass value.
+
+  - verb: create
+    summary: |
+      Creates a new <NNNN>_<name>_up.sql + <NNNN>_<name>_down.sql pair scaffolded
+      with TODO placeholders. NNNN is one greater than the highest 1-4-digit
+      sequence prefix already present in the migrations directory (starts at 0001).
+      Legacy timestamp-prefixed filenames are ignored for numbering.
+    examples: |
+      {{command}} --provider sqlite --name add_users
+      {{command}} --provider postgres --name backfill_email_lower --migrations-path ./db/changes/postgres
+    args:
+      - flag: --provider
+        placeholder: providers
+        required: true
+        help: "Database dialect. Required."
+      - flag: --name
+        placeholder: snake_case_slug
+        required: true
+        help: |
+          snake_case slug for the new migration. Required. Must
+          match /^[a-z][a-z0-9_]*$/.
+      - flag: --migrations-path
+        placeholder: dir
+        required: false
+        help: |
+          Migrations directory (default: ./sql/<dialect>/migrations).
+          Created with mkdir -p if it does not exist.

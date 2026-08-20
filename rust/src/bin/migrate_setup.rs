@@ -5,12 +5,15 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-use deterministic_migraters::{connection_from_env, try_get, MigrationPool, SqlDialect};
+use deterministic_migraters::{
+    connection_from_env, fill_help_template, message, try_get, MigrationPool, SqlDialect,
+    SUPPORTED_PROVIDERS,
+};
 
-const HELP_TEMPLATE: &str = include_str!("../../../templates/help/setup.txt");
+const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/setup.txt");
 
 fn help_text() -> String {
-    HELP_TEMPLATE.replace("{{command}}", "migrate-setup")
+    fill_help_template(HELP_TEMPLATE, "migrate-setup")
 }
 
 struct Args {
@@ -37,21 +40,27 @@ fn parse_args() -> Result<Args, String> {
                 eprint!("{}", help_text());
                 process::exit(0);
             }
-            other => return Err(format!("unknown arg: {}", other)),
+            other => return Err(message("errors/unknown-arg", &[("arg", other)])),
         }
     }
     let Some(provider) = provider else {
-        return Err("missing --provider — pass --provider <sqlite|postgres|mysql>. Run with --help for examples.".to_string());
+        return Err(message(
+            "errors/missing-provider-hint",
+            &[("providers", SUPPORTED_PROVIDERS)],
+        ));
     };
     let Some(dialect) = try_get(&provider) else {
-        return Err(format!("unsupported provider: {}", provider));
+        return Err(message(
+            "errors/unsupported-provider",
+            &[("provider", &provider)],
+        ));
     };
     let connection = match connection.or_else(|| connection_from_env(dialect)) {
         Some(c) => c,
         None => {
-            return Err(format!(
-                "missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set one of: {}. Run with --help for examples.",
-                dialect.connection_env_vars().join(", ")
+            return Err(message(
+                "errors/missing-connection",
+                &[("envVars", &dialect.connection_env_vars().join(", "))],
             ))
         }
     };
@@ -95,27 +104,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pool.execute(args.dialect.migrates_ddl()).await?;
     pool.execute(args.dialect.migrate_logs_ddl()).await?;
     fs::create_dir_all(PathBuf::from(&args.migrations_path))?;
-    println!(
-        "Setup complete: migrates and migrate_logs ready ({}).",
-        args.dialect.name()
+    print!(
+        "{}",
+        message(
+            "setup-complete",
+            &[
+                ("dialect", args.dialect.name()),
+                ("migrationsPath", &args.migrations_path),
+                (
+                    "createExample",
+                    &format!(
+                        "  cargo run --release --bin migrate-create -- --provider {} --name add_users",
+                        args.dialect.name()
+                    ),
+                ),
+                (
+                    "upExample",
+                    &format!(
+                        "  cargo run --release --bin migrate-up -- --provider {} --connection {}",
+                        args.dialect.name(),
+                        args.connection
+                    ),
+                ),
+            ],
+        )
     );
-    println!("Migrations directory: {}", args.migrations_path);
-    if !args.and_up {
-        println!();
-        println!("Next steps:");
-        println!("  # create a new migration");
-        println!(
-            "  cargo run --release --bin migrate-create -- --provider {} --name add_users",
-            args.dialect.name(),
-        );
-        println!();
-        println!("  # apply pending migrations");
-        println!(
-            "  cargo run --release --bin migrate-up -- --provider {} --connection {}",
-            args.dialect.name(),
-            args.connection,
-        );
-    }
     if args.and_up {
         let up = sibling_migrate_up_binary()?;
         let status = std::process::Command::new(&up)

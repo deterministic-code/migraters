@@ -1,49 +1,42 @@
-using System.Data.Common;
 using Npgsql;
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class PostgresDialect : SqlDialectBase
+internal static class PostgresDialect
 {
-    public override string Name => "postgres";
+    public static readonly ISqlDialect Instance = new SqlDialect(
+        "postgres",
+        ["PG_CONNECTION_STRING", "DATABASE_URL"],
+        useTransaction: true,
+        NormalizeConnection,
+        s => new NpgsqlConnection(s),
+        SqlDialect.Bind,
+        ident => $"\"{ident}\"",
+        name => $"@{name}"
+    );
 
-    public override IReadOnlyList<string> ConnectionEnvironmentVariables { get; } =
-        new[] { "PG_CONNECTION_STRING", "DATABASE_URL" };
-
-    public override string MigratesDdl => SqlTemplates.Read(Name, "migrates");
-    public override string MigrateLogsDdl => SqlTemplates.Read(Name, "migrate_logs");
-    public override bool UseTransaction => true;
-
-    public override string NormalizeConnectionString(string connection)
+    private static string NormalizeConnection(string connection)
     {
-        if (!ConnectionStringUrl.LooksLikeUrl(connection, "postgres", "postgresql"))
-        {
+        if (ConnectionStringUrl.TryUri(connection, "postgres", "postgresql") is not { } url)
             return connection;
-        }
-        var uri = new Uri(connection);
-        var builder = new NpgsqlConnectionStringBuilder
+        var uri = new Uri(url);
+        var b = new NpgsqlConnectionStringBuilder
         {
             Host = uri.Host,
             Port = uri.Port > 0 ? uri.Port : 5432,
         };
-        var (user, pass) = ConnectionStringUrl.SplitUserInfo(uri.UserInfo);
-        if (user is not null) { builder.Username = user; }
-        if (pass is not null) { builder.Password = pass; }
-        var db = ConnectionStringUrl.TrimLeadingSlash(uri.AbsolutePath);
-        if (!string.IsNullOrEmpty(db)) { builder.Database = db; }
-        foreach (var kv in ConnectionStringUrl.ParseQuery(uri.Query))
-        {
-            builder[kv.Key] = kv.Value;
-        }
-        return builder.ToString();
+        ConnectionStringUrl.ApplyUriParts(
+            uri,
+            (u, p) =>
+            {
+                if (u is not null)
+                    b.Username = u;
+                if (p is not null)
+                    b.Password = p;
+            },
+            db => b.Database = db,
+            (k, v) => b[k] = v
+        );
+        return b.ConnectionString;
     }
-
-    public override DbConnection CreateConnection(string connectionString) =>
-        new NpgsqlConnection(connectionString);
-
-    public override void AddParameter(DbCommand command, string name, object value) =>
-        Bind(command, name, value);
-
-    protected override string QuoteIdent(string ident) => $"\"{ident}\"";
-    protected override string Placeholder(string name) => $"@{name}";
 }

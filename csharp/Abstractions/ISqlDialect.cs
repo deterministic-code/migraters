@@ -1,5 +1,3 @@
-using System.Data.Common;
-
 namespace Deterministic.MigrateRunner;
 
 internal interface ISqlDialect

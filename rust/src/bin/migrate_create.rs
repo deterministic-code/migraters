@@ -5,12 +5,12 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-use deterministic_migraters::try_get;
+use deterministic_migraters::{fill_help_template, message, scaffold, try_get, SUPPORTED_PROVIDERS};
 
-const HELP_TEMPLATE: &str = include_str!("../../../templates/help/create.txt");
+const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/create.txt");
 
 fn help_text() -> String {
-    HELP_TEMPLATE.replace("{{command}}", "migrate-create")
+    fill_help_template(HELP_TEMPLATE, "migrate-create")
 }
 
 struct Args {
@@ -34,27 +34,33 @@ fn parse_args() -> Result<Args, String> {
                 eprint!("{}", help_text());
                 process::exit(0);
             }
-            other => return Err(format!("unknown arg: {}", other)),
+            other => return Err(message("errors/unknown-arg", &[("arg", other)])),
         }
     }
     let Some(provider) = provider else {
-        return Err("missing --provider — pass --provider <sqlite|postgres|mysql>. Run with --help for examples.".to_string());
+        return Err(message(
+            "errors/missing-provider-hint",
+            &[("providers", SUPPORTED_PROVIDERS)],
+        ));
     };
     let Some(dialect) = try_get(&provider) else {
-        return Err(format!("unsupported provider: {}", provider));
+        return Err(message(
+            "errors/unsupported-provider",
+            &[("provider", &provider)],
+        ));
     };
     let Some(name) = name else {
-        return Err("missing --name — pass --name <snake_case_slug>.".to_string());
+        return Err(message("errors/missing-name-hint", &[]));
     };
     if !is_snake_case(&name) {
-        return Err(format!(
-            "--name must be snake_case: lowercase letter then [a-z0-9_] (got \"{}\")",
-            name,
-        ));
+        return Err(message("errors/invalid-name", &[("name", &name)]));
     }
     let migrations_path =
         migrations_path.unwrap_or_else(|| format!("./sql/{}/migrations", dialect.name()));
-    Ok(Args { name, migrations_path })
+    Ok(Args {
+        name,
+        migrations_path,
+    })
 }
 
 fn is_snake_case(s: &str) -> bool {
@@ -131,11 +137,10 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let prefix = format!("{:04}", seq);
     let up_name = format!("{}_{}_up.sql", prefix, args.name);
     let down_name = format!("{}_{}_down.sql", prefix, args.name);
-    let up_body = format!("-- TODO: write the up migration for \"{}\"\n", args.name);
-    let down_body = format!("-- TODO: write the down migration for \"{}\"\n", args.name);
-    fs::write(dir.join(&up_name), up_body)?;
-    fs::write(dir.join(&down_name), down_body)?;
-    println!("Created: {}", up_name);
-    println!("Created: {}", down_name);
+    let name = args.name.as_str();
+    fs::write(dir.join(&up_name), scaffold("up", &[("name", name)]))?;
+    fs::write(dir.join(&down_name), scaffold("down", &[("name", name)]))?;
+    print!("{}", message("status/created", &[("file", &up_name)]));
+    print!("{}", message("status/created", &[("file", &down_name)]));
     Ok(())
 }

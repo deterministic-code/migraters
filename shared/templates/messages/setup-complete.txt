@@ -1,0 +1,9 @@
+Setup complete: migrates and migrate_logs ready ({{dialect}}).
+Migrations directory: {{migrationsPath}}
+
+Next steps:
+  # create a new migration
+  {{createExample}}
+
+  # apply pending migrations
+  {{upExample}}

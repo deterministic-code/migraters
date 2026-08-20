@@ -1,0 +1,1 @@
+Cannot roll back "{{name}}": no rollback_*.sql sibling found

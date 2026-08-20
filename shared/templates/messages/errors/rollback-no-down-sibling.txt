@@ -1,0 +1,1 @@
+Cannot roll back "{{name}}": no <stem>_down.sql sibling found

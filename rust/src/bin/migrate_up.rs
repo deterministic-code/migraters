@@ -7,13 +7,14 @@ use std::path::PathBuf;
 use std::process;
 
 use deterministic_migraters::{
-    checksum_hex, connection_from_env, try_get, MigrationPool, SqlDialect,
+    checksum_hex, connection_from_env, fill_help_template, message, try_get, MigrationPool, SqlDialect,
+    SUPPORTED_PROVIDERS,
 };
 
-const HELP_TEMPLATE: &str = include_str!("../../../templates/help/up.txt");
+const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/up.txt");
 
 fn help_text() -> String {
-    HELP_TEMPLATE.replace("{{command}}", "migrate-up")
+    fill_help_template(HELP_TEMPLATE, "migrate-up")
 }
 
 struct Args {
@@ -43,14 +44,20 @@ fn parse_args() -> Result<Args, String> {
                 eprint!("{}", help_text());
                 process::exit(0);
             }
-            other => return Err(format!("unknown arg: {}", other)),
+            other => return Err(message("errors/unknown-arg", &[("arg", other)])),
         }
     }
     let Some(provider) = provider else {
-        return Err("missing --provider — pass --provider <sqlite|postgres|mysql>. Run with --help for examples.".to_string());
+        return Err(message(
+            "errors/missing-provider-hint",
+            &[("providers", SUPPORTED_PROVIDERS)],
+        ));
     };
     let Some(dialect) = try_get(&provider) else {
-        return Err(format!("unsupported provider: {}", provider));
+        return Err(message(
+            "errors/unsupported-provider",
+            &[("provider", &provider)],
+        ));
     };
     let migrate_path = migrate_path.unwrap_or_else(|| {
         let root = migrate_root.unwrap_or_else(|| "sql".to_string());
@@ -59,9 +66,9 @@ fn parse_args() -> Result<Args, String> {
     let connection = match connection.or_else(|| connection_from_env(dialect)) {
         Some(c) => c,
         None => {
-            return Err(format!(
-                "missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set one of: {}. Run with --help for examples.",
-                dialect.connection_env_vars().join(", ")
+            return Err(message(
+                "errors/missing-connection",
+                &[("envVars", &dialect.connection_env_vars().join(", "))],
             ))
         }
     };
@@ -78,7 +85,7 @@ fn discover_up_files(
 ) -> Result<Vec<(String, PathBuf)>, Box<dyn std::error::Error>> {
     let dir = PathBuf::from(migrate_path);
     if !dir.is_dir() {
-        return Err(format!("migrate-path is not a directory: {}", migrate_path).into());
+        return Err(message("errors/migrate-path-not-dir", &[("path", migrate_path)]).into());
     }
     let mut out: Vec<(String, PathBuf)> = Vec::new();
     for entry in fs::read_dir(&dir)? {
@@ -115,9 +122,9 @@ async fn apply_pending(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             Some(t) => t,
             None => {
                 if applied_count == 0 {
-                    println!("No pending migrations.");
+                    print!("{}", message("status/no-pending", &[]));
                 } else {
-                    println!("No more pending migrations.");
+                    print!("{}", message("status/no-more-pending", &[]));
                 }
                 return Ok(());
             }
@@ -132,7 +139,7 @@ async fn apply_pending(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             Some(&sum),
         )
         .await?;
-        println!("Applied: {}", name);
+        print!("{}", message("status/applied", &[("name", &name)]));
         applied_set.insert(name);
         applied_count += 1;
         if args.one {

@@ -1,39 +1,45 @@
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
-import type {
-  MigrationClient,
-  MigrationRow,
-  MigrationSqlParam,
-} from "../migration-client.ts";
-import { pathExists } from "../path-exists.ts";
-import { SqlDialectBase } from "./sql-dialect-base.ts";
+import { mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import type { MigrationClient, MigrationRow, MigrationSqlParam } from '../migration-client.ts';
+import { pathExists } from '../path-exists.ts';
+import { readSqlTemplate } from '../infrastructure/sql-templates.ts';
+import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
+import { SqlDialectBase } from '../abstractions/sql-dialect-base.ts';
+
+const [migratesDdl, migrateLogsDdl, sqlitePrerequisiteTpl] = await Promise.all([
+  readSqlTemplate('sqlite', 'migrates'),
+  readSqlTemplate('sqlite', 'migrate_logs'),
+  loadMessage('errors/sqlite-prerequisite'),
+]);
 
 export const sqliteFilesystemPath = (connection: string): string | null => {
   let s = connection.trim();
-  const eq = s.indexOf("=");
+  const eq = s.indexOf('=');
   if (eq >= 0 && /data\s*source/i.test(s.slice(0, eq))) {
     s = s.slice(eq + 1).trim();
   } else if (/^sqlite:\/\//i.test(s)) {
-    s = s.slice("sqlite://".length);
+    s = s.slice('sqlite://'.length);
   } else if (/^sqlite:/i.test(s)) {
-    s = s.slice("sqlite:".length);
+    s = s.slice('sqlite:'.length);
   } else if (/^file:/i.test(s)) {
-    s = s.slice("file:".length);
+    s = s.slice('file:'.length);
   }
-  if (s === ":memory:" || s === "") return null;
+  if (s === ':memory:' || s === '') return null;
   return s;
 };
 
 export class SqliteDialect extends SqlDialectBase {
-  readonly name = "sqlite" as const;
-  readonly connectionEnvironmentVariables = ["SQLITE_PATH", "DB_PATH"] as const;
+  readonly name = 'sqlite' as const;
+  readonly connectionEnvironmentVariables = ['SQLITE_PATH', 'DB_PATH'] as const;
+  readonly migratesDdl = migratesDdl;
+  readonly migrateLogsDdl = migrateLogsDdl;
   override readonly usesLastInsertRowid = true;
 
   async prerequisiteError(connection: string): Promise<string | null> {
     const path = sqliteFilesystemPath(connection);
     if (path === null) return null;
     if (await pathExists(path)) return null;
-    return `sqlite file: ${path} does not exist — run 'migrate-setup --provider sqlite --connection ${path}' to create it`;
+    return fillTemplate(sqlitePrerequisiteTpl, { path });
   }
 
   async prepareSetup(connection: string): Promise<void> {
@@ -44,11 +50,11 @@ export class SqliteDialect extends SqlDialectBase {
   }
 
   async createClient(connection: string): Promise<MigrationClient> {
-    if (!connection) throw new Error("sqlite requires a database file path");
-    const { default: Database } = await import("better-sqlite3");
+    if (!connection) throw new Error('sqlite requires a database file path');
+    const { default: Database } = await import('better-sqlite3');
     const db = new Database(connection);
     return {
-      dialect: "sqlite",
+      dialect: 'sqlite',
       async exec(sql) {
         db.exec(sql);
       },
@@ -65,17 +71,17 @@ export class SqliteDialect extends SqlDialectBase {
         db.prepare(sql).run(...params);
       },
       async transaction(fn) {
-        db.exec("BEGIN");
+        db.exec('BEGIN');
         try {
           const r = await fn();
-          db.exec("COMMIT");
+          db.exec('COMMIT');
           return r;
         } catch (e) {
           try {
-            db.exec("ROLLBACK");
+            db.exec('ROLLBACK');
           } catch (rollbackErr) {
             console.warn(
-              "sqlite ROLLBACK failed after transaction error; original error rethrown",
+              'sqlite ROLLBACK failed after transaction error; original error rethrown',
               rollbackErr,
             );
           }

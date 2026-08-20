@@ -1,12 +1,16 @@
-import type { Request as MssqlRequest } from "mssql";
-import type {
-  MigrationClient,
-  MigrationSqlParam,
-} from "../migration-client.ts";
-import { SqlDialectBase } from "./sql-dialect-base.ts";
+import type { Request as MssqlRequest } from 'mssql';
+import type { MigrationClient, MigrationSqlParam } from '../migration-client.ts';
+import { interopDefault } from '../infrastructure/interop-default.ts';
+import { readSqlTemplate } from '../infrastructure/sql-templates.ts';
+import { SqlDialectBase } from '../abstractions/sql-dialect-base.ts';
+
+const [migratesDdl, migrateLogsDdl] = await Promise.all([
+  readSqlTemplate('sqlserver', 'migrates'),
+  readSqlTemplate('sqlserver', 'migrate_logs'),
+]);
 
 const bindMssql = (
-  req: Pick<MssqlRequest, "input">,
+  req: Pick<MssqlRequest, 'input'>,
   sql: string,
   params: MigrationSqlParam[],
 ): string => {
@@ -20,15 +24,17 @@ const bindMssql = (
 };
 
 export class SqlServerDialect extends SqlDialectBase {
-  readonly name = "sqlserver" as const;
-  readonly connectionEnvironmentVariables = ["MSSQL_URL", "DATABASE_URL"] as const;
+  readonly name = 'sqlserver' as const;
+  readonly connectionEnvironmentVariables = ['MSSQL_URL', 'DATABASE_URL'] as const;
+  readonly migratesDdl = migratesDdl;
+  readonly migrateLogsDdl = migrateLogsDdl;
 
   quoteIdent(ident: string): string {
     return `[${ident}]`;
   }
 
   nowExpr(): string {
-    return "SYSUTCDATETIME()";
+    return 'SYSUTCDATETIME()';
   }
 
   limitClause(n: number): string {
@@ -36,10 +42,10 @@ export class SqlServerDialect extends SqlDialectBase {
   }
 
   async createClient(connection: string): Promise<MigrationClient> {
-    const mssql = (await import("mssql")).default ?? (await import("mssql"));
+    const mssql = interopDefault(await import('mssql'));
     const pool = await mssql.connect(connection);
     return {
-      dialect: "sqlserver",
+      dialect: 'sqlserver',
       async exec(sql) {
         await pool.request().batch(sql);
       },
@@ -66,7 +72,7 @@ export class SqlServerDialect extends SqlDialectBase {
             await tx.rollback();
           } catch (rollbackErr) {
             console.warn(
-              "sqlserver rollback failed after transaction error; original error rethrown",
+              'sqlserver rollback failed after transaction error; original error rethrown',
               rollbackErr,
             );
           }

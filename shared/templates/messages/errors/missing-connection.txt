@@ -1,0 +1,1 @@
+missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set one of: {{envVars}}. Run with --help for examples.

@@ -8,12 +8,15 @@ use std::path::PathBuf;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use deterministic_migraters::{connection_from_env, try_get, MigrationPool, SqlDialect};
+use deterministic_migraters::{
+    connection_from_env, fill_help_template, message, try_get, MigrationPool, SqlDialect,
+    SUPPORTED_PROVIDERS,
+};
 
-const HELP_TEMPLATE: &str = include_str!("../../../templates/help/down.txt");
+const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/down.txt");
 
 fn help_text() -> String {
-    HELP_TEMPLATE.replace("{{command}}", "migrate-down")
+    fill_help_template(HELP_TEMPLATE, "migrate-down")
 }
 
 struct Args {
@@ -43,14 +46,22 @@ fn parse_args() -> Result<Args, String> {
                 eprint!("{}", help_text());
                 process::exit(0);
             }
-            other => return Err(format!("unknown arg: {}", other)),
+            other => {
+                return Err(message("errors/unknown-arg", &[("arg", other)]));
+            }
         }
     }
     let Some(provider) = provider else {
-        return Err("missing --provider — pass --provider <sqlite|postgres|mysql>. Run with --help for examples.".to_string());
+        return Err(message(
+            "errors/missing-provider-hint",
+            &[("providers", SUPPORTED_PROVIDERS)],
+        ));
     };
     let Some(dialect) = try_get(&provider) else {
-        return Err(format!("unsupported provider: {}", provider));
+        return Err(message(
+            "errors/unsupported-provider",
+            &[("provider", &provider)],
+        ));
     };
     let migrate_path = migrate_path.unwrap_or_else(|| {
         let root = migrate_root.unwrap_or_else(|| "sql".to_string());
@@ -59,9 +70,9 @@ fn parse_args() -> Result<Args, String> {
     let connection = match connection.or_else(|| connection_from_env(dialect)) {
         Some(c) => c,
         None => {
-            return Err(format!(
-                "missing --connection — pass --connection <url> (e.g. ./app.sqlite for sqlite) or set one of: {}. Run with --help for examples.",
-                dialect.connection_env_vars().join(", ")
+            return Err(message(
+                "errors/missing-connection",
+                &[("envVars", &dialect.connection_env_vars().join(", "))],
             ))
         }
     };
@@ -78,7 +89,7 @@ fn discover_down_files(
 ) -> Result<HashMap<String, PathBuf>, Box<dyn std::error::Error>> {
     let dir = PathBuf::from(migrate_path);
     if !dir.is_dir() {
-        return Err(format!("migrate-path is not a directory: {}", migrate_path).into());
+        return Err(message("errors/migrate-path-not-dir", &[("path", migrate_path)]).into());
     }
     let mut out: HashMap<String, PathBuf> = HashMap::new();
     for entry in fs::read_dir(&dir)? {
@@ -116,13 +127,16 @@ fn random_token() -> String {
     out
 }
 
-fn confirm_or_abort(token: &str, confirm: Option<&str>) {
+fn confirm_or_abort(dialect: &str, token: &str, confirm: Option<&str>) {
     let stderr = io::stderr();
     let mut err = stderr.lock();
-    let _ = writeln!(
+    let _ = write!(
         err,
-        "\n⚠ DESTRUCTIVE: this rolls back the most recently applied migration.\n  Confirmation token: {}\n",
-        token,
+        "{}",
+        message(
+            "down/destructive-header",
+            &[("dialect", dialect), ("token", token)],
+        ),
     );
     if let Some(supplied) = confirm {
         if supplied == token {
@@ -130,24 +144,39 @@ fn confirm_or_abort(token: &str, confirm: Option<&str>) {
         }
         let _ = writeln!(
             err,
-            "--confirm value ({}) does not match the token printed above ({}). Aborting.",
-            supplied, token,
+            "{}",
+            message(
+                "down/confirm-mismatch",
+                &[("supplied", supplied), ("token", token)],
+            ),
         );
         process::exit(2);
     }
-    let _ = write!(err, "Type {} to confirm rollback: ", token);
+    let _ = write!(
+        err,
+        "{}",
+        message("down/confirm-prompt", &[("token", token)]),
+    );
     let _ = err.flush();
     let stdin = io::stdin();
     let mut line = String::new();
     match stdin.lock().read_line(&mut line) {
         Ok(_) => {}
         Err(_) => {
-            let _ = writeln!(err, "failed to read confirmation from stdin — aborting.");
+            let _ = writeln!(
+                err,
+                "{}",
+                message("down/confirm-stdin-failed", &[]),
+            );
             process::exit(2);
         }
     }
     if line.trim() != token {
-        let _ = writeln!(err, "Confirmation token did not match — aborting.");
+        let _ = writeln!(
+            err,
+            "{}",
+            message("down/confirm-token-mismatch", &[]),
+        );
         process::exit(2);
     }
 }
@@ -160,7 +189,7 @@ async fn rollback_last(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     {
         Some(n) => n,
         None => {
-            println!("No applied migrations to roll back.");
+            print!("{}", message("status/no-rollback", &[]));
             return Ok(());
         }
     };
@@ -168,9 +197,9 @@ async fn rollback_last(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = downs
         .get(&name)
         .ok_or_else(|| {
-            format!(
-                "Cannot roll back \"{}\": no <stem>_down.sql sibling found",
-                name
+            message(
+                "errors/rollback-no-down-sibling",
+                &[("name", &name)],
             )
         })?
         .clone();
@@ -183,7 +212,7 @@ async fn rollback_last(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         None,
     )
     .await?;
-    println!("Rolled back: {}", name);
+    print!("{}", message("status/rolled-back", &[("name", &name)]));
     Ok(())
 }
 
@@ -206,6 +235,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         process::exit(2);
     }
     let token = random_token();
-    confirm_or_abort(&token, args.confirm.as_deref());
+    confirm_or_abort(args.dialect.name(), &token, args.confirm.as_deref());
     rollback_last(&args).await
 }

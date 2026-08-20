@@ -19,16 +19,21 @@
   "files": [
     "dist",
     "src",
-    "templates"
+    "cli.yaml",
+    "tsconfig.build.json"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "prepare": "npm run build",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R ../shared/templates dist/templates",
+    "prepare": "npm run generate:help && npm run build",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "generate:help": "node --experimental-strip-types src/generate-help.ts",
+    "format": "prettier --write ."
   },
   "dependencies": {
-    "better-sqlite3": "^12.10.0"
+    "better-sqlite3": "^12.10.0",
+    "yaml": "^2.9.0"
   },
   "peerDependencies": {
     "mssql": "^12.5.0",
@@ -37,10 +42,18 @@
     "pg": "^8.13.0"
   },
   "peerDependenciesMeta": {
-    "mssql": { "optional": true },
-    "mysql2": { "optional": true },
-    "oracledb": { "optional": true },
-    "pg": { "optional": true }
+    "mssql": {
+      "optional": true
+    },
+    "mysql2": {
+      "optional": true
+    },
+    "oracledb": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
@@ -48,7 +61,9 @@
     "@types/node": "^22.10.0",
     "@types/oracledb": "^6.10.3",
     "@types/pg": "^8.11.10",
+    "@vitest/coverage-v8": "^3.2.4",
     "mysql2": "^3.22.2",
+    "prettier": "^3.9.6",
     "typescript": "^5.8.0",
     "vitest": "^3.2.4"
   }

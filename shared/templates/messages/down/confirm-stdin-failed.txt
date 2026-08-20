@@ -1,0 +1,1 @@
+failed to read confirmation from stdin — aborting.

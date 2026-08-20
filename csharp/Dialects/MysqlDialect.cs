@@ -1,51 +1,43 @@
-using System.Data.Common;
 using MySqlConnector;
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MysqlDialect : SqlDialectBase
+internal static class MysqlDialect
 {
-    public override string Name => "mysql";
-
-    public override IReadOnlyList<string> ConnectionEnvironmentVariables { get; } =
-        new[] { "MYSQL_URL", "DATABASE_URL" };
-
-    public override string MigratesDdl => SqlTemplates.Read(Name, "migrates");
-    public override string MigrateLogsDdl => SqlTemplates.Read(Name, "migrate_logs");
-
     // MySQL DDL auto-commits, so wrapping apply + catalog write gives no atomicity.
-    public override bool UseTransaction => false;
+    public static readonly ISqlDialect Instance = new SqlDialect(
+        "mysql",
+        ["MYSQL_URL", "DATABASE_URL"],
+        useTransaction: false,
+        NormalizeConnection,
+        s => new MySqlConnection(s),
+        (cmd, n, v) => SqlDialect.Bind(cmd, $"@{n}", v),
+        ident => $"`{ident}`",
+        name => $"@{name}"
+    );
 
-    public override string NormalizeConnectionString(string connection)
+    private static string NormalizeConnection(string connection)
     {
-        if (!ConnectionStringUrl.LooksLikeUrl(connection, "mysql"))
-        {
+        if (ConnectionStringUrl.TryUri(connection, "mysql") is not { } url)
             return connection;
-        }
-        var uri = new Uri(connection);
-        var builder = new MySqlConnectionStringBuilder
+        var uri = new Uri(url);
+        var b = new MySqlConnectionStringBuilder
         {
             Server = uri.Host,
             Port = (uint)(uri.Port > 0 ? uri.Port : 3306),
         };
-        var (user, pass) = ConnectionStringUrl.SplitUserInfo(uri.UserInfo);
-        if (user is not null) { builder.UserID = user; }
-        if (pass is not null) { builder.Password = pass; }
-        var db = ConnectionStringUrl.TrimLeadingSlash(uri.AbsolutePath);
-        if (!string.IsNullOrEmpty(db)) { builder.Database = db; }
-        foreach (var kv in ConnectionStringUrl.ParseQuery(uri.Query))
-        {
-            builder[kv.Key] = kv.Value;
-        }
-        return builder.ToString();
+        ConnectionStringUrl.ApplyUriParts(
+            uri,
+            (u, p) =>
+            {
+                if (u is not null)
+                    b.UserID = u;
+                if (p is not null)
+                    b.Password = p;
+            },
+            db => b.Database = db,
+            (k, v) => b[k] = v
+        );
+        return b.ConnectionString;
     }
-
-    public override DbConnection CreateConnection(string connectionString) =>
-        new MySqlConnection(connectionString);
-
-    public override void AddParameter(DbCommand command, string name, object value) =>
-        Bind(command, $"@{name}", value);
-
-    protected override string QuoteIdent(string ident) => $"`{ident}`";
-    protected override string Placeholder(string name) => $"@{name}";
 }

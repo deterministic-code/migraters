@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
@@ -9,20 +8,76 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <UseAppHost>true</UseAppHost>
     <NoWarn>$(NoWarn);CA1031;CA1303;CA1812;CA1848;CA2007</NoWarn>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <MigrateVerbNames>migrate-setup;migrate-up;migrate-down;migrate-create</MigrateVerbNames>
+  </PropertyGroup>
+
   <ItemGroup>
-    <Content Include="..\templates\sql\**\*.sql" Link="templates\sql\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\templates\help\*.txt" Link="templates\help\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content
+      Include="..\cli.yaml"
+      Link="cli.yaml"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\sql\**\*.sql"
+      Link="templates\sql\%(RecursiveDir)%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\help\*.txt"
+      Link="templates\help\%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\messages\**\*.txt"
+      Link="templates\messages\%(RecursiveDir)%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\scaffold\*.sql"
+      Link="templates\scaffold\%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
+    <PackageReference Include="HashDepot" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <PackageReference Include="Npgsql" Version="9.0.1" />
     <PackageReference Include="MySqlConnector" Version="2.4.0" />
   </ItemGroup>
 
+  <Target Name="CopyMigrateCommandHosts" AfterTargets="CopyFilesToOutputDirectory">
+    <PropertyGroup>
+      <_MigrateExeExt Condition="$([MSBuild]::IsOSPlatform('Windows'))">.exe</_MigrateExeExt>
+    </PropertyGroup>
+    <ItemGroup>
+      <_MigrateVerb Include="$(MigrateVerbNames)" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="$(TargetDir)$(AssemblyName)$(_MigrateExeExt)"
+      DestinationFiles="$(TargetDir)%(_MigrateVerb.Identity)$(_MigrateExeExt)"
+      SkipUnchangedFiles="true"
+    />
+  </Target>
+
+  <Target Name="CopyMigrateCommandHostsOnPublish" AfterTargets="Publish">
+    <PropertyGroup>
+      <_MigrateExeExt Condition="$([MSBuild]::IsOSPlatform('Windows'))">.exe</_MigrateExeExt>
+    </PropertyGroup>
+    <ItemGroup>
+      <_MigrateVerb Include="$(MigrateVerbNames)" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="$(PublishDir)$(AssemblyName)$(_MigrateExeExt)"
+      DestinationFiles="$(PublishDir)%(_MigrateVerb.Identity)$(_MigrateExeExt)"
+      SkipUnchangedFiles="true"
+    />
+  </Target>
 </Project>

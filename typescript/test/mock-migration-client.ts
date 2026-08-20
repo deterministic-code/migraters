@@ -1,5 +1,5 @@
-import type { MigrationClient } from "../src/datasource-migrate.ts";
-import type { SqlDialect } from "../src/sql.ts";
+import type { MigrationClient } from '../src/datasource-migrate.ts';
+import type { SqlDialect } from '../src/sql.ts';
 
 type MigrationRow = Record<string, string | number | null>;
 
@@ -19,10 +19,9 @@ export const mockMigrationClient = (
 ): MockMigrationClient => {
   const applied = new Map(Object.entries(init.applied ?? {}));
   let nextLogId = 1;
-  const logs: { id: number; name: string; direction: string; status: string }[] =
-    [];
+  const logs: { id: number; name: string; direction: string; status: string }[] = [];
   const client: MockMigrationClient = {
-    dialect: init.dialect ?? "sqlite",
+    dialect: init.dialect ?? 'sqlite',
     execs: [],
     runs: [],
     applied,
@@ -39,11 +38,9 @@ export const mockMigrationClient = (
         }));
       }
       if (/FROM\s+"?migrate_logs"?/i.test(sql)) {
-        const name = String(params[0] ?? "");
-        const direction = String(params[1] ?? "");
-        const match = logs
-          .filter((l) => l.name === name && l.direction === direction)
-          .at(-1);
+        const name = String(params[0] ?? '');
+        const direction = String(params[1] ?? '');
+        const match = logs.filter((l) => l.name === name && l.direction === direction).at(-1);
         return match ? [{ id: match.id }] : [];
       }
       return [];
@@ -63,7 +60,7 @@ export const mockMigrationClient = (
           id: nextLogId++,
           name: String(params[0]),
           direction: String(params[1]),
-          status: "started",
+          status: 'started',
         });
         return;
       }

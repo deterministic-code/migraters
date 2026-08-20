@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 // Idempotent migrate-setup — creates the migrates + migrate_logs tracking tables per dialect.
 
-import { spawn } from "node:child_process";
-import { once } from "node:events";
-import { mkdir } from "node:fs/promises";
-import { dirname, resolve as pathResolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { requireConnection, requireDialect, takeFlag } from "../cli.ts";
-import { loadHelp } from "../index.ts";
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdir } from 'node:fs/promises';
+import { dirname, resolve as pathResolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
+import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
+import { loadHelp } from '../index.ts';
 
-const HELP_TEXT = await loadHelp("migrate-setup");
+const [HELP_TEXT, unknownArgTpl, setupCompleteTpl] = await Promise.all([
+  loadHelp('migrate-setup'),
+  loadMessage('errors/unknown-arg'),
+  loadMessage('setup-complete'),
+]);
 
 const parseArgs = (argv: string[]) => {
   const args: {
@@ -26,29 +31,29 @@ const parseArgs = (argv: string[]) => {
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i] as string;
-    if (a === "-h" || a === "--help") {
+    if (a === '-h' || a === '--help') {
       process.stderr.write(HELP_TEXT);
       process.exit(0);
     }
-    if (a === "--and-up") {
+    if (a === '--and-up') {
       args.andUp = true;
       continue;
     }
     let taken;
-    if ((taken = takeFlag(rest, i, a, "--provider"))) {
+    if ((taken = takeFlag(rest, i, a, '--provider'))) {
       args.provider = taken.value;
       i = taken.next;
-    } else if ((taken = takeFlag(rest, i, a, "--connection"))) {
+    } else if ((taken = takeFlag(rest, i, a, '--connection'))) {
       args.connection = taken.value;
       i = taken.next;
     } else if (
-      (taken = takeFlag(rest, i, a, "--migrations-path")) ||
-      (taken = takeFlag(rest, i, a, "--migrate-path"))
+      (taken = takeFlag(rest, i, a, '--migrations-path')) ||
+      (taken = takeFlag(rest, i, a, '--migrate-path'))
     ) {
       args.migrationsPath = taken.value;
       i = taken.next;
     } else {
-      process.stderr.write(`unknown arg: ${a}\n`);
+      process.stderr.write(fillTemplate(unknownArgTpl, { arg: a }));
       process.exit(2);
     }
   }
@@ -58,14 +63,13 @@ const parseArgs = (argv: string[]) => {
 const main = async () => {
   const args = parseArgs(process.argv);
   if (!args.provider) {
-    process.stderr.write("missing --provider\n");
+    process.stderr.write(missingProviderMsg);
     process.exit(2);
   }
   const dialect = requireDialect(args.provider);
   const connection = requireConnection(dialect, args.connection);
 
-  const migrationsPath =
-    args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
+  const migrationsPath = args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
 
   await dialect.prepareSetup(connection);
 
@@ -76,41 +80,25 @@ const main = async () => {
     }
     await mkdir(migrationsPath, { recursive: true });
     process.stdout.write(
-      `Setup complete: migrates and migrate_logs ready (${dialect.name}).\n` +
-        `Migrations directory: ${migrationsPath}\n`,
+      fillTemplate(setupCompleteTpl, {
+        dialect: dialect.name,
+        migrationsPath,
+        createExample: `  migrate-create --provider ${dialect.name} --name add_users`,
+        upExample: `  migrate-up --provider ${dialect.name} --connection ${connection}`,
+      }),
     );
-    if (!args.andUp) {
-      process.stdout.write(
-        `\n` +
-          `Next steps:\n` +
-          `  # create a new migration\n` +
-          `  migrate-create --provider ${dialect.name} --name add_users\n` +
-          `\n` +
-          `  # apply pending migrations\n` +
-          `  migrate-up --provider ${dialect.name} --connection ${connection}\n`,
-      );
-    }
   } finally {
     await client.close();
   }
 
   if (args.andUp) {
-    const upScript = pathResolve(
-      dirname(fileURLToPath(import.meta.url)),
-      "migrate-up.js",
-    );
-    const childArgs = [
-      upScript,
-      "--provider",
-      dialect.name,
-      "--connection",
-      connection,
-    ];
+    const upScript = pathResolve(dirname(fileURLToPath(import.meta.url)), 'migrate-up.js');
+    const childArgs = [upScript, '--provider', dialect.name, '--connection', connection];
     if (args.migrationsPath) {
-      childArgs.push("--migrations-path", args.migrationsPath);
+      childArgs.push('--migrations-path', args.migrationsPath);
     }
-    const child = spawn(process.execPath, childArgs, { stdio: "inherit" });
-    const [code] = (await once(child, "exit")) as [number | null];
+    const child = spawn(process.execPath, childArgs, { stdio: 'inherit' });
+    const [code] = (await once(child, 'exit')) as [number | null];
     if (code !== 0) process.exit(code ?? 1);
   }
 };

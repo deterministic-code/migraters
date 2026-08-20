@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 // Default: applies ALL pending migrations in sequence, each in its own transaction. Pass --one to apply only the next pending migration (legacy one-shot behavior; useful when wrapping in an external loop or when you want to inspect state between steps).
 
-import { resolve } from "node:path";
-import { requireConnection, requireDialect, takeFlag } from "../cli.ts";
-import { discoverMigrations, loadHelp, runUp } from "../index.ts";
+import { resolve } from 'node:path';
+import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
+import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
+import { discoverMigrations, loadHelp, runUp } from '../index.ts';
 
-const HELP_TEXT = await loadHelp("migrate-up");
+const [HELP_TEXT, unknownArgTpl, noPendingMsg, noMorePendingMsg, appliedTpl] = await Promise.all([
+  loadHelp('migrate-up'),
+  loadMessage('errors/unknown-arg'),
+  loadMessage('status/no-pending'),
+  loadMessage('status/no-more-pending'),
+  loadMessage('status/applied'),
+]);
 
 const parseArgs = (argv: string[]) => {
   const args: {
@@ -24,35 +31,35 @@ const parseArgs = (argv: string[]) => {
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i] as string;
-    if (a === "-h" || a === "--help") {
+    if (a === '-h' || a === '--help') {
       process.stderr.write(HELP_TEXT);
       process.exit(0);
     }
-    if (a === "--one") {
+    if (a === '--one') {
       args.one = true;
       continue;
     }
     let taken;
-    if ((taken = takeFlag(rest, i, a, "--provider"))) {
+    if ((taken = takeFlag(rest, i, a, '--provider'))) {
       args.provider = taken.value;
       i = taken.next;
     } else if (
-      (taken = takeFlag(rest, i, a, "--migrations-path")) ||
-      (taken = takeFlag(rest, i, a, "--migrate-path"))
+      (taken = takeFlag(rest, i, a, '--migrations-path')) ||
+      (taken = takeFlag(rest, i, a, '--migrate-path'))
     ) {
       args.migratePath = taken.value;
       i = taken.next;
     } else if (
-      (taken = takeFlag(rest, i, a, "--migrations-root")) ||
-      (taken = takeFlag(rest, i, a, "--migrate-root"))
+      (taken = takeFlag(rest, i, a, '--migrations-root')) ||
+      (taken = takeFlag(rest, i, a, '--migrate-root'))
     ) {
       args.migrateRoot = taken.value;
       i = taken.next;
-    } else if ((taken = takeFlag(rest, i, a, "--connection"))) {
+    } else if ((taken = takeFlag(rest, i, a, '--connection'))) {
       args.connection = taken.value;
       i = taken.next;
     } else {
-      process.stderr.write(`unknown arg: ${a}\n`);
+      process.stderr.write(fillTemplate(unknownArgTpl, { arg: a }));
       process.exit(2);
     }
   }
@@ -64,14 +71,14 @@ const resolveMigratePath = (
   dialect: string,
 ): string => {
   if (args.migratePath) return args.migratePath;
-  const root = args.migrateRoot ?? "sql";
+  const root = args.migrateRoot ?? 'sql';
   return `${root}/${dialect}/migrations`;
 };
 
 const main = async () => {
   const args = parseArgs(process.argv);
   if (!args.provider) {
-    process.stderr.write("missing --provider\n");
+    process.stderr.write(missingProviderMsg);
     process.exit(2);
   }
   const dialect = requireDialect(args.provider);
@@ -94,12 +101,10 @@ const main = async () => {
     for (;;) {
       const r = await runUp({ client, migrations });
       if (!r.applied) {
-        if (appliedCount === 0)
-          process.stdout.write("No pending migrations.\n");
-        else process.stdout.write(`No more pending migrations.\n`);
+        process.stdout.write(appliedCount === 0 ? noPendingMsg : noMorePendingMsg);
         break;
       }
-      process.stdout.write(`Applied: ${r.name}\n`);
+      process.stdout.write(fillTemplate(appliedTpl, { name: r.name ?? '' }));
       appliedCount++;
       if (args.one) break;
     }

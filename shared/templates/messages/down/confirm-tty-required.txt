@@ -1,0 +1,1 @@
+migrate-down requires interactive confirmation when stdin is not a TTY — pass --confirm {{token}} (this exact token, printed above) to proceed.

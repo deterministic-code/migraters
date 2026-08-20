@@ -1,0 +1,11 @@
+Migration checksum drift detected — the migration file changed AFTER it was applied:
+{{lines}}
+
+The DB and source disagree about the schema you're running. Either the codegen
+regenerated an already-applied migration in place (the canonical bug — emit a NEW
+migration file instead), or the migrate state was hand-edited.
+
+Recovery options:
+  1. Emit a new migration that brings the DB up to the current schema, then deploy.
+  2. For showcase/dev DBs with no real data: wipe the DB file and let migrate:up re-run from scratch.
+  3. If you've verified the DB matches the new file: MIGRATE_ALLOW_CHECKSUM_DRIFT=1 npm run migrate:up

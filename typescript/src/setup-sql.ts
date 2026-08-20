@@ -1,4 +1,4 @@
-import { defaultDialectFactory } from "./dialects/default-factory.ts";
+import { defaultDialectFactory } from './infrastructure/default-factory.ts';
 
 export function setupSql(dialect: string): string[] {
   const d = defaultDialectFactory.get(dialect);

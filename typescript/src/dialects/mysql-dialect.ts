@@ -1,9 +1,15 @@
-import type { Connection as MysqlConnection } from "mysql2/promise";
-import type { MigrationClient, MigrationRow } from "../migration-client.ts";
-import { SqlDialectBase } from "./sql-dialect-base.ts";
+import type { Connection as MysqlConnection } from 'mysql2/promise';
+import type { MigrationClient, MigrationRow } from '../migration-client.ts';
+import { readSqlTemplate } from '../infrastructure/sql-templates.ts';
+import { SqlDialectBase } from '../abstractions/sql-dialect-base.ts';
+
+const [migratesDdl, migrateLogsDdl] = await Promise.all([
+  readSqlTemplate('mysql', 'migrates'),
+  readSqlTemplate('mysql', 'migrate_logs'),
+]);
 
 export async function applyMysqlDdlViaTextProtocol(
-  conn: Pick<MysqlConnection, "query">,
+  conn: Pick<MysqlConnection, 'query'>,
   sql: string,
 ): Promise<void> {
   // why: DDL statements (DROP/CREATE PROCEDURE) reject prepared-statement protocol (MySQL 1295)
@@ -11,18 +17,20 @@ export async function applyMysqlDdlViaTextProtocol(
 }
 
 export class MysqlDialect extends SqlDialectBase {
-  readonly name = "mysql" as const;
-  readonly connectionEnvironmentVariables = ["MYSQL_URL", "DATABASE_URL"] as const;
+  readonly name = 'mysql' as const;
+  readonly connectionEnvironmentVariables = ['MYSQL_URL', 'DATABASE_URL'] as const;
+  readonly migratesDdl = migratesDdl;
+  readonly migrateLogsDdl = migrateLogsDdl;
 
   quoteIdent(ident: string): string {
     return `\`${ident}\``;
   }
 
   async createClient(connection: string): Promise<MigrationClient> {
-    const mysql = await import("mysql2/promise");
+    const mysql = await import('mysql2/promise');
     const conn = await mysql.createConnection(connection);
     return {
-      dialect: "mysql",
+      dialect: 'mysql',
       async exec(sql) {
         await applyMysqlDdlViaTextProtocol(conn, sql);
       },
@@ -44,7 +52,7 @@ export class MysqlDialect extends SqlDialectBase {
             await conn.rollback();
           } catch (rollbackErr) {
             console.warn(
-              "mysql rollback failed after transaction error; original error rethrown",
+              'mysql rollback failed after transaction error; original error rethrown',
               rollbackErr,
             );
           }

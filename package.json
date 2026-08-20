@@ -6,6 +6,8 @@
   "scripts": {
     "build": "npm run build --prefix typescript",
     "typecheck": "npm run typecheck --prefix typescript",
-    "test": "npm run test --prefix typescript"
+    "test": "npm run test --prefix typescript",
+    "generate:help": "npm run generate:help --prefix typescript",
+    "format": "npm run format --prefix typescript"
   }
 }
