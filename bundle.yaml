@@ -28,7 +28,7 @@ languages:
         apk: sqlite
         packages:
           - name: better-sqlite3
-            version: "^12.10.0"
+            version: "^13.0.3"
             installScripts: true
       postgres:
         files:
