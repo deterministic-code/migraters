@@ -1,0 +1,224 @@
+# Source of truth for vendoring migrate runners into generated apps.
+# generators-migraters `fetch-bundle` copies these files; `generate` emits
+# Bundled content or Reference install instructions from the same manifest.
+
+repository: https://github.com/deterministic-code/migraters
+ref: main
+
+languages:
+  typescript:
+    root: migraters
+    common:
+      - cli.yaml
+      - typescript/cli.yaml
+      - typescript/package.json
+      - typescript/tsconfig.build.json
+      - typescript/src/**/*.ts
+      - shared/templates/help/**
+      - shared/templates/messages/**
+      - shared/templates/scaffold/**
+    exclude:
+      - typescript/src/**/*.test.ts
+      - typescript/src/generate-help.ts
+    dialects:
+      sqlite:
+        files:
+          - typescript/src/dialects/sqlite-dialect.ts
+          - shared/templates/sql/sqlite/**
+        apk: sqlite
+        packages:
+          - name: better-sqlite3
+            version: "^13.0.3"
+            installScripts: true
+      postgres:
+        files:
+          - typescript/src/dialects/postgres-dialect.ts
+          - shared/templates/sql/postgres/**
+        apk: postgresql-client
+        packages:
+          - name: pg
+            version: "^8.13.0"
+      mysql:
+        files:
+          - typescript/src/dialects/mysql-dialect.ts
+          - shared/templates/sql/mysql/**
+        apk: mysql-client
+        packages:
+          - name: mysql2
+            version: "^3.22.2"
+      sqlserver:
+        files:
+          - typescript/src/dialects/sqlserver-dialect.ts
+          - shared/templates/sql/sqlserver/**
+        packages:
+          - name: mssql
+            version: "^12.5.0"
+      oracle:
+        files:
+          - typescript/src/dialects/oracle-dialect.ts
+          - shared/templates/sql/oracle/**
+        packages:
+          - name: oracledb
+            version: "^6.10.0"
+    commands:
+      setup: migrate-setup --provider {{provider}}
+      up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}
+      down: migrate-down --provider {{provider}} --migrate-path {{migrationsPath}}
+      create: migrate-create --provider {{provider}}
+    build:
+      cwd: typescript
+      steps:
+        - npm install
+        - npm run build
+    invoke:
+      setup:
+        reference: migrate-setup --provider "$DIALECT" --connection "$CONN"
+        bundled: npm --prefix /app/migraters/typescript exec -- migrate-setup --provider "$DIALECT" --connection "$CONN"
+      up:
+        reference: migrate-up --provider "$DIALECT" --migrate-path "$MIGRATIONS_DIR" --connection "$CONN"
+        bundled: npm --prefix /app/migraters/typescript exec -- migrate-up --provider "$DIALECT" --migrate-path "$MIGRATIONS_DIR" --connection "$CONN"
+    reference:
+      package: "@deterministic-code/migraters"
+      spec: "github:deterministic-code/migraters"
+    docker:
+      copy:
+        reference: |
+          COPY {{shared}}sql {{containerSqlRoot}}
+        bundled: |
+          COPY {{shared}}sql {{containerSqlRoot}}
+          COPY {{lane}}migraters ./migraters
+      runtime_copy:
+        reference: |
+          COPY {{shared}}sql {{containerSqlRoot}}
+        bundled: |
+          COPY {{shared}}sql {{containerSqlRoot}}
+          COPY {{lane}}migraters ./migraters
+
+  rust:
+    root: migraters
+    common:
+      - rust/Cargo.toml
+      - rust/rustfmt.toml
+      - rust/src/**/*.rs
+      - shared/templates/help/**
+      - shared/templates/messages/**
+      - shared/templates/scaffold/**
+      - cli.yaml
+    dialects:
+      sqlite:
+        files:
+          - rust/src/dialects/sqlite.rs
+          - shared/templates/sql/sqlite/**
+        apk: sqlite
+      postgres:
+        files:
+          - rust/src/dialects/postgres.rs
+          - shared/templates/sql/postgres/**
+        apk: postgresql-client
+      mysql:
+        files:
+          - rust/src/dialects/mysql.rs
+          - shared/templates/sql/mysql/**
+        apk: mysql-client
+    commands:
+      setup: migrate-setup --provider {{provider}}
+      up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}
+      down: migrate-down --provider {{provider}} --migrate-path {{migrationsPath}}
+      create: migrate-create --provider {{provider}}
+    build:
+      cwd: rust
+      steps:
+        - cargo build --release
+    invoke:
+      setup:
+        reference: migrate-setup --provider "$DIALECT" --connection "$CONN"
+        bundled: /app/migraters/rust/target/release/migrate-setup --provider "$DIALECT" --connection "$CONN"
+      up:
+        reference: migrate-up --provider "$DIALECT" --migrate-path "$MIGRATIONS_DIR" --connection "$CONN"
+        bundled: /app/migraters/rust/target/release/migrate-up --provider "$DIALECT" --migrate-path "$MIGRATIONS_DIR" --connection "$CONN"
+    reference:
+      git: "https://github.com/deterministic-code/migraters"
+      path: rust
+    docker:
+      copy:
+        reference: |
+          COPY {{shared}}sql ./sql
+        bundled: |
+          COPY {{shared}}sql ./sql
+          COPY {{lane}}migraters ./migraters
+          RUN cargo build --release --manifest-path migraters/rust/Cargo.toml
+      runtime_copy:
+        reference: |
+          COPY {{shared}}sql {{containerSqlRoot}}
+        bundled: |
+          COPY --from=builder /app/migraters/rust/target/release/migrate-setup /app/migraters/rust/target/release/migrate-setup
+          COPY --from=builder /app/migraters/rust/target/release/migrate-up /app/migraters/rust/target/release/migrate-up
+          COPY --from=builder /app/migraters/rust/target/release/migrate-down /app/migraters/rust/target/release/migrate-down
+          COPY --from=builder /app/migraters/rust/target/release/migrate-create /app/migraters/rust/target/release/migrate-create
+          COPY {{shared}}sql {{containerSqlRoot}}
+
+  csharp:
+    root: migraters
+    common:
+      - csharp/**/*.cs
+      - csharp/MigrateRunner.csproj
+      - csharp/GlobalUsings.cs
+      - csharp/.csharpierrc.json
+      - csharp/.csharpierignore
+      - csharp/dotnet-tools.json
+      - cli.yaml
+      - shared/templates/help/**
+      - shared/templates/messages/**
+      - shared/templates/scaffold/**
+    exclude:
+      - csharp/bin/**
+      - csharp/obj/**
+    dialects:
+      sqlite:
+        files:
+          - csharp/Dialects/SqliteDialect.cs
+          - shared/templates/sql/sqlite/**
+        apk: sqlite
+      postgres:
+        files:
+          - csharp/Dialects/PostgresDialect.cs
+          - shared/templates/sql/postgres/**
+        apk: postgresql-client
+      mysql:
+        files:
+          - csharp/Dialects/MysqlDialect.cs
+          - shared/templates/sql/mysql/**
+        apk: mysql-client
+    commands:
+      setup: migrate-setup --provider {{provider}}
+      up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}
+      down: migrate-down --provider {{provider}} --migrate-path {{migrationsPath}}
+      create: migrate-create --provider {{provider}}
+    build:
+      cwd: csharp
+      steps:
+        - dotnet publish MigrateRunner.csproj -c Release
+    invoke:
+      setup:
+        reference: migrate-setup --provider "$DIALECT" --connection "$CONN"
+        bundled: dotnet /app/MigrateRunner/MigrateRunner.dll setup --provider "$DIALECT" --connection "$CONN"
+      up:
+        reference: migrate-up --provider "$DIALECT" --migrate-path "$MIGRATIONS_DIR" --connection "$CONN"
+        bundled: dotnet /app/MigrateRunner/MigrateRunner.dll up --provider "$DIALECT" --migrate-path "$MIGRATIONS_DIR" --connection "$CONN"
+    reference:
+      git: "https://github.com/deterministic-code/migraters"
+      path: csharp
+    docker:
+      copy:
+        reference: |
+          COPY {{shared}}sql ./sql
+        bundled: |
+          COPY {{shared}}sql ./sql
+          COPY {{lane}}migraters ./migraters
+          RUN dotnet publish migraters/csharp/MigrateRunner.csproj -c Release -o /app/migrate-publish
+      runtime_copy:
+        reference: |
+          COPY {{shared}}sql {{containerSqlRoot}}
+        bundled: |
+          COPY --from=build /app/migrate-publish ./MigrateRunner
+          COPY {{shared}}sql {{containerSqlRoot}}
