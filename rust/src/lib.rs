@@ -1,13 +1,19 @@
 pub mod abstractions;
+pub mod argv;
 pub mod checksum;
 pub mod cli_spec;
 pub mod dialects;
 pub mod help;
 pub mod infrastructure;
 pub mod messages;
+pub mod migrations;
+pub mod provider;
 
 pub use abstractions::{try_get, SqlDialect};
+pub use argv::{is_help, take_value};
 pub use checksum::checksum_hex;
+pub use dialects::parse_oracle_connection;
 pub use help::{fill_help_template, program_usage};
 pub use infrastructure::{connection_from_env, MigrationPool};
 pub use messages::{fill_template, message, scaffold, SUPPORTED_PROVIDERS};
+pub use migrations::{assert_no_checksum_drift, catalog_name, discover_up_files, down_path_for};

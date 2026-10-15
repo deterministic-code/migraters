@@ -1,13 +1,13 @@
 // Default: applies ALL pending migrations in sequence, each in its own transaction. Pass --one to apply only the next pending migration (legacy one-shot behavior; useful when wrapping in an external loop or when you want to inspect state between steps).
 
-use std::collections::HashSet;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
 use std::process;
+use std::time::Instant;
 
 use deterministic_migraters::{
-    checksum_hex, connection_from_env, fill_help_template, message, try_get, MigrationPool, SqlDialect,
+    assert_no_checksum_drift, checksum_hex, connection_from_env, discover_up_files,
+    fill_help_template, is_help, message, take_value, try_get, MigrationPool, SqlDialect,
     SUPPORTED_PROVIDERS,
 };
 
@@ -32,19 +32,28 @@ fn parse_args() -> Result<Args, String> {
     let mut one = false;
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
-        match a.as_str() {
-            "--provider" => provider = iter.next(),
-            "--migrations-path" => migrate_path = iter.next(),
-            "--migrate-path" => migrate_path = iter.next(),
-            "--migrations-root" => migrate_root = iter.next(),
-            "--migrate-root" => migrate_root = iter.next(),
-            "--connection" => connection = iter.next(),
-            "--one" => one = true,
-            "-h" | "--help" => {
-                eprint!("{}", help_text());
-                process::exit(0);
-            }
-            other => return Err(message("errors/unknown-arg", &[("arg", other)])),
+        if is_help(&a) {
+            eprint!("{}", help_text());
+            process::exit(0);
+        }
+        if a == "--one" {
+            one = true;
+            continue;
+        }
+        if let Some(v) = take_value(&a, &mut iter, "--provider") {
+            provider = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--migrations-path")
+            .or_else(|| take_value(&a, &mut iter, "--migrate-path"))
+        {
+            migrate_path = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--migrations-root")
+            .or_else(|| take_value(&a, &mut iter, "--migrate-root"))
+        {
+            migrate_root = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--connection") {
+            connection = Some(v);
+        } else {
+            return Err(message("errors/unknown-arg", &[("arg", &a)]));
         }
     }
     let Some(provider) = provider else {
@@ -80,43 +89,18 @@ fn parse_args() -> Result<Args, String> {
     })
 }
 
-fn discover_up_files(
-    migrate_path: &str,
-) -> Result<Vec<(String, PathBuf)>, Box<dyn std::error::Error>> {
-    let dir = PathBuf::from(migrate_path);
-    if !dir.is_dir() {
-        return Err(message("errors/migrate-path-not-dir", &[("path", migrate_path)]).into());
-    }
-    let mut out: Vec<(String, PathBuf)> = Vec::new();
-    for entry in fs::read_dir(&dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        let name = match path.file_name().and_then(|s| s.to_str()) {
-            Some(n) if n.ends_with("_up.sql") => n.to_string(),
-            _ => continue,
-        };
-        out.push((name, path));
-    }
-    out.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(out)
-}
-
 async fn apply_pending(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let pool = MigrationPool::connect(args.dialect, &args.connection).await?;
-    let mut applied_set: HashSet<String> = pool
-        .fetch_strings(args.dialect.select_applied_sql())
-        .await?
-        .into_iter()
-        .collect();
     let files = discover_up_files(&args.migrate_path)?;
+    let mut applied = pool
+        .fetch_applied(&args.dialect.select_applied_checksum_sql())
+        .await?;
+    assert_no_checksum_drift(&files, &applied)?;
     let mut applied_count = 0usize;
     loop {
         let next = files
             .iter()
-            .find(|(n, _)| !applied_set.contains(n))
+            .find(|(n, _)| !applied.contains_key(n))
             .cloned();
         let (name, path) = match next {
             Some(t) => t,
@@ -131,16 +115,44 @@ async fn apply_pending(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         };
         let sql = fs::read_to_string(&path)?;
         let sum = checksum_hex(&sql);
-        pool.apply_statements(
-            args.dialect,
-            &sql,
-            args.dialect.insert_applied_sql(),
-            &name,
-            Some(&sum),
-        )
-        .await?;
+        let log_id = pool.insert_log_started(args.dialect, &name, "up").await?;
+        let started = Instant::now();
+        match pool
+            .apply_statements(
+                args.dialect,
+                &sql,
+                args.dialect.insert_applied_sql(),
+                &name,
+                Some(&sum),
+            )
+            .await
+        {
+            Ok(()) => {
+                let _ = pool
+                    .update_log(
+                        args.dialect,
+                        log_id,
+                        "success",
+                        started.elapsed().as_millis() as i64,
+                        None,
+                    )
+                    .await;
+            }
+            Err(e) => {
+                let _ = pool
+                    .update_log(
+                        args.dialect,
+                        log_id,
+                        "error",
+                        started.elapsed().as_millis() as i64,
+                        Some(&e.to_string()),
+                    )
+                    .await;
+                return Err(e);
+            }
+        }
         print!("{}", message("status/applied", &[("name", &name)]));
-        applied_set.insert(name);
+        applied.insert(name, Some(sum));
         applied_count += 1;
         if args.one {
             return Ok(());

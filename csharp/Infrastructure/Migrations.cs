@@ -1,8 +1,10 @@
 namespace Deterministic.MigrateRunner;
 
+internal sealed record MigrationFile(string Name, string UpPath);
+
 internal static class Migrations
 {
-    public static IEnumerable<string> OrderedUpFiles(string migratePath)
+    public static IReadOnlyList<MigrationFile> OrderedUpFiles(string migratePath)
     {
         if (!Directory.Exists(migratePath))
             throw new DirectoryNotFoundException(
@@ -14,44 +16,77 @@ internal static class Migrations
         return Directory
             .EnumerateFiles(migratePath)
             .Where(p => Path.GetFileName(p).EndsWith("_up.sql", StringComparison.Ordinal))
-            .OrderBy(p => Path.GetFileName(p), StringComparer.Ordinal);
+            .OrderBy(p => Path.GetFileName(p), StringComparer.Ordinal)
+            .Select(p =>
+            {
+                var file = Path.GetFileName(p);
+                return new MigrationFile(file[..^"_up.sql".Length], p);
+            })
+            .ToList();
     }
 
-    public static async Task<HashSet<string>> AppliedNamesAsync(DbConnection conn, string sql)
-    {
-        var set = new HashSet<string>(StringComparer.Ordinal);
-        await foreach (var name in ReadColumnAsync(conn, sql).ConfigureAwait(false))
-            set.Add(name);
-        return set;
-    }
+    public static string CatalogName(string stored) =>
+        stored.EndsWith("_up.sql", StringComparison.Ordinal) ? stored[..^"_up.sql".Length] : stored;
 
-    public static Task<string?> LastAppliedAsync(DbConnection conn, string sql) =>
-        ReadColumnAsync(conn, sql).FirstOrDefaultAsync();
-
-    public static string? DownPathFor(string migratePath, string upName)
+    public static async Task<Dictionary<string, string?>> AppliedChecksumsAsync(
+        DbConnection conn,
+        string sql
+    )
     {
-        if (!upName.EndsWith("_up.sql", StringComparison.Ordinal))
-            return null;
-        var path = Path.Combine(migratePath, $"{upName[..^"_up.sql".Length]}_down.sql");
-        return File.Exists(path) ? path : null;
-    }
-
-    private static async IAsyncEnumerable<string> ReadColumnAsync(DbConnection conn, string sql)
-    {
+        var map = new Dictionary<string, string?>(StringComparer.Ordinal);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
         while (await reader.ReadAsync().ConfigureAwait(false))
-            yield return reader.GetString(0);
+        {
+            var name = CatalogName(reader.GetString(0));
+            var checksum = reader.IsDBNull(1) ? null : reader.GetString(1);
+            map[name] = checksum;
+        }
+        return map;
     }
-}
 
-internal static class AsyncEnumerableExtensions
-{
-    public static async Task<T?> FirstOrDefaultAsync<T>(this IAsyncEnumerable<T> source)
+    public static void AssertNoChecksumDrift(
+        IReadOnlyList<MigrationFile> files,
+        IReadOnlyDictionary<string, string?> applied
+    )
     {
-        await foreach (var item in source.ConfigureAwait(false))
-            return item;
-        return default;
+        if (Environment.GetEnvironmentVariable("MIGRATE_ALLOW_CHECKSUM_DRIFT") == "1")
+            return;
+        var lines = new List<string>();
+        foreach (var file in files)
+        {
+            if (!applied.TryGetValue(file.Name, out var stored) || stored is null)
+                continue;
+            var current = Checksum.Hex(File.ReadAllText(file.UpPath));
+            if (current == stored)
+                continue;
+            lines.Add(
+                HelpTemplates
+                    .Message(
+                        "checksum-drift-line",
+                        new Dictionary<string, string>
+                        {
+                            ["name"] = file.Name,
+                            ["stored"] = stored.Length <= 12 ? stored : stored[..12],
+                            ["current"] = current.Length <= 12 ? current : current[..12],
+                        }
+                    )
+                    .TrimEnd()
+            );
+        }
+        if (lines.Count == 0)
+            return;
+        throw new InvalidOperationException(
+            HelpTemplates
+                .Message("checksum-drift", new Dictionary<string, string> { ["lines"] = string.Join('\n', lines) })
+                .TrimEnd()
+        );
+    }
+
+    public static string? DownPathFor(string migratePath, string name)
+    {
+        var path = Path.Combine(migratePath, $"{name}_down.sql");
+        return File.Exists(path) ? path : null;
     }
 }

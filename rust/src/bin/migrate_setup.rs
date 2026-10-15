@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::process;
 
 use deterministic_migraters::{
-    connection_from_env, fill_help_template, message, try_get, MigrationPool, SqlDialect,
-    SUPPORTED_PROVIDERS,
+    connection_from_env, fill_help_template, is_help, message, take_value, try_get, MigrationPool,
+    SqlDialect, SUPPORTED_PROVIDERS,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/setup.txt");
@@ -30,17 +30,24 @@ fn parse_args() -> Result<Args, String> {
     let mut and_up = false;
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
-        match a.as_str() {
-            "--provider" => provider = iter.next(),
-            "--connection" => connection = iter.next(),
-            "--migrations-path" => migrations_path = iter.next(),
-            "--migrate-path" => migrations_path = iter.next(),
-            "--and-up" => and_up = true,
-            "-h" | "--help" => {
-                eprint!("{}", help_text());
-                process::exit(0);
-            }
-            other => return Err(message("errors/unknown-arg", &[("arg", other)])),
+        if is_help(&a) {
+            eprint!("{}", help_text());
+            process::exit(0);
+        }
+        if a == "--and-up" {
+            and_up = true;
+            continue;
+        }
+        if let Some(v) = take_value(&a, &mut iter, "--provider") {
+            provider = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--connection") {
+            connection = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--migrations-path")
+            .or_else(|| take_value(&a, &mut iter, "--migrate-path"))
+        {
+            migrations_path = Some(v);
+        } else {
+            return Err(message("errors/unknown-arg", &[("arg", &a)]));
         }
     }
     let Some(provider) = provider else {

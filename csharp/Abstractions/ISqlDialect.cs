@@ -7,12 +7,18 @@ internal interface ISqlDialect
     string MigratesDdl { get; }
     string MigrateLogsDdl { get; }
     string SelectAppliedNamesSql { get; }
+    string SelectAppliedChecksumSql { get; }
     string SelectLastAppliedNameSql { get; }
     string InsertAppliedSql { get; }
     string DeleteAppliedSql { get; }
     bool UseTransaction { get; }
+    string NowExpr { get; }
+    string LimitClause(int n);
+    string QuoteIdent(string ident);
+    string Placeholder(string name);
     string NormalizeConnectionString(string connection);
     DbConnection CreateConnection(string connectionString);
     string? PrerequisiteError(string connection);
+    void PrepareSetup(string connection);
     void AddParameter(DbCommand command, string name, object value);
 }

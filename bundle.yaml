@@ -120,6 +120,14 @@ languages:
           - rust/src/dialects/mysql.rs
           - shared/templates/sql/mysql/**
         apk: mysql-client
+      sqlserver:
+        files:
+          - rust/src/dialects/sqlserver.rs
+          - shared/templates/sql/sqlserver/**
+      oracle:
+        files:
+          - rust/src/dialects/oracle.rs
+          - shared/templates/sql/oracle/**
     commands:
       setup: migrate-setup --provider {{provider}}
       up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}
@@ -189,6 +197,14 @@ languages:
           - csharp/Dialects/MysqlDialect.cs
           - shared/templates/sql/mysql/**
         apk: mysql-client
+      sqlserver:
+        files:
+          - csharp/Dialects/SqlServerDialect.cs
+          - shared/templates/sql/sqlserver/**
+      oracle:
+        files:
+          - csharp/Dialects/OracleDialect.cs
+          - shared/templates/sql/oracle/**
     commands:
       setup: migrate-setup --provider {{provider}}
       up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}

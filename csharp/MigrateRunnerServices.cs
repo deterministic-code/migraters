@@ -7,6 +7,8 @@ internal static class MigrateRunnerServices
             .AddSingleton<ISqlDialect>(SqliteDialect.Instance)
             .AddSingleton<ISqlDialect>(PostgresDialect.Instance)
             .AddSingleton<ISqlDialect>(MysqlDialect.Instance)
+            .AddSingleton<ISqlDialect>(SqlServerDialect.Instance)
+            .AddSingleton<ISqlDialect>(OracleDialect.Instance)
             .AddSingleton<ISqlDialectFactory, SqlDialectFactory>()
             .AddSingleton<IConnectionResolver, ConnectionResolver>()
             .AddSingleton<IMigrateCommand, MigrateSetup>()

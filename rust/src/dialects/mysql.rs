@@ -39,4 +39,7 @@ impl SqlDialect for MysqlDialect {
     fn prepare_setup(&self, _connection: &str) -> std::io::Result<()> {
         Ok(())
     }
+    fn quote_ident(&self, ident: &str) -> String {
+        format!("`{ident}`")
+    }
 }

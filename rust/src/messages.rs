@@ -1,4 +1,4 @@
-pub const SUPPORTED_PROVIDERS: &str = "sqlite|postgres|mysql";
+pub const SUPPORTED_PROVIDERS: &str = "sqlite|postgres|mysql|sqlserver|oracle";
 
 pub fn fill_template(template: &str, vars: &[(&str, &str)]) -> String {
     let mut out = template.to_string();
@@ -11,14 +11,20 @@ pub fn fill_template(template: &str, vars: &[(&str, &str)]) -> String {
 fn raw_message(path: &str) -> &'static str {
     match path {
         "setup-complete" => include_str!("../../shared/templates/messages/setup-complete.txt"),
-        "status/no-pending" => include_str!("../../shared/templates/messages/status/no-pending.txt"),
+        "status/no-pending" => {
+            include_str!("../../shared/templates/messages/status/no-pending.txt")
+        }
         "status/no-more-pending" => {
             include_str!("../../shared/templates/messages/status/no-more-pending.txt")
         }
         "status/applied" => include_str!("../../shared/templates/messages/status/applied.txt"),
         "status/created" => include_str!("../../shared/templates/messages/status/created.txt"),
-        "status/rolled-back" => include_str!("../../shared/templates/messages/status/rolled-back.txt"),
-        "status/no-rollback" => include_str!("../../shared/templates/messages/status/no-rollback.txt"),
+        "status/rolled-back" => {
+            include_str!("../../shared/templates/messages/status/rolled-back.txt")
+        }
+        "status/no-rollback" => {
+            include_str!("../../shared/templates/messages/status/no-rollback.txt")
+        }
         "down/destructive-header" => {
             include_str!("../../shared/templates/messages/down/destructive-header.txt")
         }
@@ -28,7 +34,9 @@ fn raw_message(path: &str) -> &'static str {
         "down/confirm-tty-required" => {
             include_str!("../../shared/templates/messages/down/confirm-tty-required.txt")
         }
-        "down/confirm-prompt" => include_str!("../../shared/templates/messages/down/confirm-prompt.txt"),
+        "down/confirm-prompt" => {
+            include_str!("../../shared/templates/messages/down/confirm-prompt.txt")
+        }
         "down/confirm-stdin-failed" => {
             include_str!("../../shared/templates/messages/down/confirm-stdin-failed.txt")
         }
@@ -44,12 +52,18 @@ fn raw_message(path: &str) -> &'static str {
         "errors/missing-connection" => {
             include_str!("../../shared/templates/messages/errors/missing-connection.txt")
         }
-        "errors/missing-name" => include_str!("../../shared/templates/messages/errors/missing-name.txt"),
+        "errors/missing-name" => {
+            include_str!("../../shared/templates/messages/errors/missing-name.txt")
+        }
         "errors/missing-name-hint" => {
             include_str!("../../shared/templates/messages/errors/missing-name-hint.txt")
         }
-        "errors/invalid-name" => include_str!("../../shared/templates/messages/errors/invalid-name.txt"),
-        "errors/unknown-arg" => include_str!("../../shared/templates/messages/errors/unknown-arg.txt"),
+        "errors/invalid-name" => {
+            include_str!("../../shared/templates/messages/errors/invalid-name.txt")
+        }
+        "errors/unknown-arg" => {
+            include_str!("../../shared/templates/messages/errors/unknown-arg.txt")
+        }
         "errors/unsupported-provider" => {
             include_str!("../../shared/templates/messages/errors/unsupported-provider.txt")
         }
@@ -61,6 +75,13 @@ fn raw_message(path: &str) -> &'static str {
         }
         "errors/rollback-no-down-sibling" => {
             include_str!("../../shared/templates/messages/errors/rollback-no-down-sibling.txt")
+        }
+        "errors/rollback-not-in-path" => {
+            include_str!("../../shared/templates/messages/errors/rollback-not-in-path.txt")
+        }
+        "checksum-drift" => include_str!("../../shared/templates/messages/checksum-drift.txt"),
+        "checksum-drift-line" => {
+            include_str!("../../shared/templates/messages/checksum-drift-line.txt")
         }
         "errors/sqlite-prerequisite" => {
             include_str!("../../shared/templates/messages/errors/sqlite-prerequisite.txt")

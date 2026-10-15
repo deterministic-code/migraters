@@ -40,14 +40,13 @@ internal sealed class MigrateUp(ISqlDialectFactory dialects, IConnectionResolver
         await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(connection));
         await conn.OpenAsync().ConfigureAwait(false);
 
-        var applied = await Migrations.AppliedNamesAsync(conn, dialect.SelectAppliedNamesSql).ConfigureAwait(false);
+        var files = Migrations.OrderedUpFiles(migratePath);
+        var applied = await Migrations.AppliedChecksumsAsync(conn, dialect.SelectAppliedChecksumSql).ConfigureAwait(false);
+        Migrations.AssertNoChecksumDrift(files, applied);
         var appliedCount = 0;
         while (true)
         {
-            var next = Migrations
-                .OrderedUpFiles(migratePath)
-                .Select(p => Path.GetFileName(p))
-                .FirstOrDefault(n => !applied.Contains(n));
+            var next = files.FirstOrDefault(f => !applied.ContainsKey(f.Name));
             if (next is null)
             {
                 Console.WriteLine(
@@ -58,31 +57,44 @@ internal sealed class MigrateUp(ISqlDialectFactory dialects, IConnectionResolver
                 return 0;
             }
 
-            var path = Path.Combine(migratePath, next);
-            var sql = await File.ReadAllTextAsync(path).ConfigureAwait(false);
-            var checksum = FnvChecksum.Hex(sql);
-
-            await DbExecute
-                .ApplyStatementsAsync(
-                    conn,
-                    dialect,
-                    sql,
-                    tx =>
-                        DbExecute.CatalogWriteAsync(
-                            conn,
-                            tx,
-                            dialect,
-                            dialect.InsertAppliedSql,
-                            ("p1", next),
-                            ("p2", checksum)
-                        )
-                )
-                .ConfigureAwait(false);
+            var sql = await File.ReadAllTextAsync(next.UpPath).ConfigureAwait(false);
+            var checksum = Checksum.Hex(sql);
+            var logId = await MigrateLog.InsertStartedAsync(conn, dialect, next.Name, "up").ConfigureAwait(false);
+            var started = DateTime.UtcNow;
+            try
+            {
+                await DbExecute
+                    .ApplyStatementsAsync(
+                        conn,
+                        dialect,
+                        sql,
+                        tx =>
+                            DbExecute.CatalogWriteAsync(
+                                conn,
+                                tx,
+                                dialect,
+                                dialect.InsertAppliedSql,
+                                ("p1", next.Name),
+                                ("p2", checksum)
+                            )
+                    )
+                    .ConfigureAwait(false);
+                await MigrateLog
+                    .UpdateAsync(conn, dialect, logId, "success", (long)(DateTime.UtcNow - started).TotalMilliseconds, null)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await MigrateLog
+                    .UpdateAsync(conn, dialect, logId, "error", (long)(DateTime.UtcNow - started).TotalMilliseconds, ex.Message)
+                    .ConfigureAwait(false);
+                throw;
+            }
 
             Console.WriteLine(
-                HelpTemplates.Message("status/applied", new Dictionary<string, string> { ["name"] = next })
+                HelpTemplates.Message("status/applied", new Dictionary<string, string> { ["name"] = next.Name })
             );
-            applied.Add(next);
+            applied[next.Name] = checksum;
             appliedCount++;
             if (one)
                 return 0;

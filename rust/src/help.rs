@@ -1,5 +1,5 @@
-use crate::messages::fill_template;
 use crate::cli_spec::{program_usage as spec_program_usage, usage_line};
+use crate::messages::fill_template;
 
 pub fn fill_help_template(template: &str, command: &str) -> String {
     let verb = command
