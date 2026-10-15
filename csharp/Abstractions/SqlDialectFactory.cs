@@ -7,6 +7,12 @@ internal sealed class SqlDialectFactory(IEnumerable<ISqlDialect> dialects) : ISq
         StringComparer.Ordinal
     );
 
-    public bool TryGet(string name, out ISqlDialect dialect) =>
-        _byName.TryGetValue(name, out dialect!);
+    public bool TryGet(string name, out ISqlDialect dialect)
+    {
+        var key = MigrateCli.NormalizeProvider(name);
+        if (key is not null && _byName.TryGetValue(key, out dialect!))
+            return true;
+        dialect = null!;
+        return false;
+    }
 }

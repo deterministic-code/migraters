@@ -2,8 +2,11 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResolver connections)
-    : IMigrateCommand
+internal sealed class MigrateSetup(
+    ISqlDialectFactory dialects,
+    IConnectionResolver connections,
+    IServiceProvider services
+) : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("setup");
 
@@ -11,7 +14,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
 
     public async Task<int> RunAsync(string[] args)
     {
-        if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var showHelp, out var error))
+        if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var andUp, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
         if (!MigrateCli.TryResolveProvider(dialects, connections, provider, connection, out var dialect, out connection, out error))
@@ -21,6 +24,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
 
         try
         {
+            dialect.PrepareSetup(connection);
             await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(connection));
             await conn.OpenAsync().ConfigureAwait(false);
             await DbExecute.NonQueryAsync(conn, null, dialect.MigratesDdl).ConfigureAwait(false);
@@ -46,7 +50,20 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
                 }
             )
         );
-        return 0;
+        if (!andUp)
+            return 0;
+        var up = services.GetServices<IMigrateCommand>().First(c => c.Name == "up");
+        return await up.RunAsync(
+                [
+                    "--provider",
+                    dialect.Name,
+                    "--connection",
+                    connection,
+                    "--migrations-path",
+                    resolvedMigrationsPath,
+                ]
+            )
+            .ConfigureAwait(false);
     }
 
     private bool TryParse(
@@ -54,6 +71,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
         out string provider,
         out string? connection,
         out string? migrationsPath,
+        out bool andUp,
         out bool showHelp,
         out string error
     )
@@ -61,6 +79,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
         provider = string.Empty;
         connection = null;
         migrationsPath = null;
+        andUp = false;
         showHelp = false;
         error = string.Empty;
 
@@ -76,6 +95,11 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
                 continue;
             if (MigrateCli.TryTakeFlag(args, ref i, a, "--connection", out connection))
                 continue;
+            if (a == "--and-up")
+            {
+                andUp = true;
+                continue;
+            }
             if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out migrationsPath)
                 || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out migrationsPath))
                 continue;

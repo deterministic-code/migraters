@@ -5,7 +5,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-use deterministic_migraters::{fill_help_template, message, scaffold, try_get, SUPPORTED_PROVIDERS};
+use deterministic_migraters::{
+    fill_help_template, is_help, message, scaffold, take_value, try_get, SUPPORTED_PROVIDERS,
+};
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/create.txt");
 
@@ -24,17 +26,20 @@ fn parse_args() -> Result<Args, String> {
     let mut migrations_path: Option<String> = None;
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
-        match a.as_str() {
-            "--provider" => provider = iter.next(),
-            "--name" => name = iter.next(),
-            // --migrate-path is a silent alias retained for backward compat.
-            "--migrations-path" => migrations_path = iter.next(),
-            "--migrate-path" => migrations_path = iter.next(),
-            "-h" | "--help" => {
-                eprint!("{}", help_text());
-                process::exit(0);
-            }
-            other => return Err(message("errors/unknown-arg", &[("arg", other)])),
+        if is_help(&a) {
+            eprint!("{}", help_text());
+            process::exit(0);
+        }
+        if let Some(v) = take_value(&a, &mut iter, "--provider") {
+            provider = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--name") {
+            name = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--migrations-path")
+            .or_else(|| take_value(&a, &mut iter, "--migrate-path"))
+        {
+            migrations_path = Some(v);
+        } else {
+            return Err(message("errors/unknown-arg", &[("arg", &a)]));
         }
     }
     let Some(provider) = provider else {
@@ -72,7 +77,6 @@ fn is_snake_case(s: &str) -> bool {
     chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
 }
 
-// Bounded to 1-4 digits so legacy timestamp prefixes (10+ digits, e.g. 1767261600_initial_up.sql) do not poison numbering.
 fn parse_sequence(filename: &str) -> Option<u32> {
     if !filename.ends_with("_up.sql") {
         return None;
@@ -88,7 +92,6 @@ fn parse_sequence(filename: &str) -> Option<u32> {
     if end >= bytes.len() || bytes[end] != b'_' {
         return None;
     }
-    // Reject 5+ digit prefixes (the 5th char must NOT be a digit).
     if end == 4 && bytes.len() > 4 && bytes[4].is_ascii_digit() {
         return None;
     }

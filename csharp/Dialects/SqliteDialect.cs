@@ -22,8 +22,19 @@ internal static class SqliteDialect
                     "errors/sqlite-prerequisite",
                     new Dictionary<string, string> { ["path"] = path }
                 );
-        }
+        },
+        PrepareSetup
     );
+
+    private static void PrepareSetup(string connection)
+    {
+        var path = FilesystemPath(connection);
+        if (path is null)
+            return;
+        var parent = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(parent))
+            Directory.CreateDirectory(parent);
+    }
 
     private static string NormalizeConnection(string connection)
     {

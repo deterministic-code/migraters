@@ -45,6 +45,9 @@ impl SqlDialect for SqliteDialect {
         }
         Some(message("errors/sqlite-prerequisite", &[("path", &path)]))
     }
+    fn uses_last_insert_rowid(&self) -> bool {
+        true
+    }
     fn prepare_setup(&self, connection: &str) -> std::io::Result<()> {
         if let Some(path) = filesystem_path(connection) {
             if let Some(parent) = std::path::Path::new(&path).parent() {

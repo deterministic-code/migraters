@@ -78,12 +78,32 @@ internal static class MigrateCli
     )
     {
         value = string.Empty;
-        if (current != flag)
+        if (current == flag)
+        {
+            if (i + 1 >= args.Length)
+                return false;
+            value = args[++i];
+            return true;
+        }
+        var eq = flag + "=";
+        if (!current.StartsWith(eq, StringComparison.Ordinal))
             return false;
-        if (i + 1 >= args.Length)
-            return false;
-        value = args[++i];
+        value = current[eq.Length..];
         return true;
+    }
+
+    internal static string? NormalizeProvider(string raw)
+    {
+        var key = string.Concat(raw.Where(c => c is not ' ' and not '_' and not '-')).ToLowerInvariant();
+        return key switch
+        {
+            "sqlite" or "sqlite3" => "sqlite",
+            "mysql" or "mariadb" => "mysql",
+            "postgres" or "postgresql" or "pg" => "postgres",
+            "sqlserver" or "mssql" or "mssqlserver" => "sqlserver",
+            "oracle" or "ora" => "oracle",
+            _ => null,
+        };
     }
 
     internal static bool MissingValue(string flag, out string error)

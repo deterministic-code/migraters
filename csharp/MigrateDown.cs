@@ -43,41 +43,60 @@ internal sealed class MigrateDown(ISqlDialectFactory dialects, IConnectionResolv
         await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(connection));
         await conn.OpenAsync().ConfigureAwait(false);
 
-        var name = await Migrations.LastAppliedAsync(conn, dialect.SelectLastAppliedNameSql).ConfigureAwait(false);
-        if (name is null)
+        var files = Migrations.OrderedUpFiles(migratePath);
+        var applied = await Migrations.AppliedChecksumsAsync(conn, dialect.SelectAppliedChecksumSql).ConfigureAwait(false);
+        if (applied.Count == 0)
         {
             Console.WriteLine(HelpTemplates.Message("status/no-rollback"));
             return 0;
         }
+        Migrations.AssertNoChecksumDrift(files, applied);
+        var last = files.LastOrDefault(f => applied.ContainsKey(f.Name));
+        if (last is null)
+            throw new InvalidOperationException(HelpTemplates.Message("errors/rollback-not-in-path"));
 
         var path =
-            Migrations.DownPathFor(migratePath, name)
+            Migrations.DownPathFor(migratePath, last.Name)
             ?? throw new FileNotFoundException(
                 HelpTemplates.Message(
                     "errors/rollback-no-down-sibling",
-                    new Dictionary<string, string> { ["name"] = name }
+                    new Dictionary<string, string> { ["name"] = last.Name }
                 )
             );
         var sql = await File.ReadAllTextAsync(path).ConfigureAwait(false);
-
-        await DbExecute
-            .ApplyStatementsAsync(
-                conn,
-                dialect,
-                sql,
-                tx =>
-                    DbExecute.CatalogWriteAsync(
-                        conn,
-                        tx,
-                        dialect,
-                        dialect.DeleteAppliedSql,
-                        ("p1", name)
-                    )
-            )
-            .ConfigureAwait(false);
+        var logId = await MigrateLog.InsertStartedAsync(conn, dialect, last.Name, "down").ConfigureAwait(false);
+        var started = DateTime.UtcNow;
+        try
+        {
+            await DbExecute
+                .ApplyStatementsAsync(
+                    conn,
+                    dialect,
+                    sql,
+                    tx =>
+                        DbExecute.CatalogWriteAsync(
+                            conn,
+                            tx,
+                            dialect,
+                            dialect.DeleteAppliedSql,
+                            ("p1", last.Name)
+                        )
+                )
+                .ConfigureAwait(false);
+            await MigrateLog
+                .UpdateAsync(conn, dialect, logId, "success", (long)(DateTime.UtcNow - started).TotalMilliseconds, null)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            await MigrateLog
+                .UpdateAsync(conn, dialect, logId, "error", (long)(DateTime.UtcNow - started).TotalMilliseconds, ex.Message)
+                .ConfigureAwait(false);
+            throw;
+        }
 
         Console.WriteLine(
-            HelpTemplates.Message("status/rolled-back", new Dictionary<string, string> { ["name"] = name })
+            HelpTemplates.Message("status/rolled-back", new Dictionary<string, string> { ["name"] = last.Name })
         );
         return 0;
     }
