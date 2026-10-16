@@ -33,6 +33,9 @@ coverage/
 **/target/
 **/*.rs.bk
 
+# Proof Instant Client cache
+proof/.instantclient/
+
 # C# / .NET — scoped under csharp/ so it does not collide with typescript/src/bin
 csharp/dialects.props
 csharp/**/bin/
