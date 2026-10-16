@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <RootNamespace>Deterministic.MigrateInit</RootNamespace>
+    <AssemblyName>migrate-init</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <UseAppHost>true</UseAppHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content
+      Include="..\..\cli.yaml"
+      Link="cli.yaml"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\..\shared\templates\help\init.txt"
+      Link="templates\help\init.txt"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+  </ItemGroup>
+</Project>

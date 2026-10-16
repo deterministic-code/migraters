@@ -4,6 +4,18 @@ Migraters lets you track SQL changes and apply them to your project throughout t
 
 ## Commands
 
+### init
+
+Selects the dialects this tree will compile and install. `migrate-init` is project setup, not an `IMigrater` method, and it does not take `--connection`. Repeat `--dialect` once per provider (aliases from [`cli.yaml`](cli.yaml) apply: `pg`, `mssql`, `ora`, and the rest). Re-running replaces the previous set. `--all` restores every dialect.
+
+```
+migrate-init --dialect sqlite --dialect postgres
+migrate-init --dialect oracle
+migrate-init --all
+```
+
+Committed manifests keep every dialect, so a clone that never runs init still builds and tests with all providers. Init is what makes a local or vendored tree light: Rust compiles only the selected Cargo features, C# restores only the selected driver packages, and TypeScript installs only the selected native drivers. Run init before `cargo build`, `dotnet build`, or `npm install` when you want a slim tree.
+
 ### setup
 
 Creates the `migrates` and `migrate_logs` tables and the migrations directory. Idempotent.
@@ -42,7 +54,7 @@ migrate-create --provider <…> --name <snake_case_slug> [--migrations-path <dir
 
 ## API
 
-The four verbs are one contract in every language: argv in [`cli.yaml`](cli.yaml), `IMigrater` in [`api.yaml`](api.yaml). Each language implements that interface. Catalog insert and delete stay inside `up` and `down`.
+The four `IMigrater` verbs are one contract in every language: argv in [`cli.yaml`](cli.yaml), `IMigrater` in [`api.yaml`](api.yaml). Each language implements that interface. Catalog insert and delete stay inside `up` and `down`. `migrate-init` lives only in [`cli.yaml`](cli.yaml).
 
 | Verb | TypeScript [`IMigrater`](typescript/src/abstractions/migrater.ts) | Rust [`IMigrater`](rust/src/migrater.rs) | C# [`IMigrater`](csharp/Abstractions/IMigrater.cs) |
 |---|---|---|---|
@@ -77,4 +89,4 @@ When `--connection` is omitted, the runner reads the first set environment varia
 
 ## Specification
 
-Shared argv, flags, aliases, exit codes, and command behavior live in [`cli.yaml`](cli.yaml). `IMigrater` (`setup`, `up`, `down`, `create`) lives in [`api.yaml`](api.yaml). SQL spelling stays a provider detail.
+Shared argv, flags, aliases, exit codes, and command behavior live in [`cli.yaml`](cli.yaml). `IMigrater` (`setup`, `up`, `down`, `create`) lives in [`api.yaml`](api.yaml). `migrate-init` is CLI-only. SQL spelling stays a provider detail.

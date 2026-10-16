@@ -1,0 +1,8 @@
+[package]
+name = "migrate-init"
+version = "0.0.1"
+edition = "2021"
+
+[[bin]]
+name = "migrate-init"
+path = "src/main.rs"

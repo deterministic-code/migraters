@@ -184,7 +184,7 @@ describe('CLI e2e parity across languages', () => {
 
   it('accepts every spec flag and alias without treating it as unknown', async () => {
     for (const proc of langs) {
-      for (const command of cliSpec.commands) {
+      for (const command of cliSpec.commands.filter((c) => c.verb !== 'init')) {
         const argv: string[] = [];
         for (const arg of command.args) {
           if (arg.placeholder) argv.push(arg.flag, 'x');

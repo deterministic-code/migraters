@@ -28,6 +28,16 @@ mod tests {
     fn registry_matches_cli_yaml() {
         let names: Vec<&str> = all().iter().map(|d| d.name()).collect();
         let expected: Vec<&str> = cli_spec::providers().iter().map(|s| s.as_str()).collect();
+        for name in &names {
+            assert!(expected.contains(name), "{name}");
+        }
+        #[cfg(all(
+            feature = "sqlite",
+            feature = "postgres",
+            feature = "mysql",
+            feature = "sqlserver",
+            feature = "oracle"
+        ))]
         assert_eq!(names, expected);
         for (alias, canonical) in cli_spec::provider_aliases() {
             assert_eq!(

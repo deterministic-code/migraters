@@ -85,7 +85,13 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         name: &args.name,
         migrations_path: &args.migrations_path,
     })?;
-    print!("{}", message("status/created", &[("file", &created.up_name)]));
-    print!("{}", message("status/created", &[("file", &created.down_name)]));
+    print!(
+        "{}",
+        message("status/created", &[("file", &created.up_name)])
+    );
+    print!(
+        "{}",
+        message("status/created", &[("file", &created.down_name)])
+    );
     Ok(())
 }

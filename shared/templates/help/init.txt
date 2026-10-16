@@ -1,0 +1,13 @@
+{{usage}}
+
+Selects the dialects this tree will compile and install. Repeat --dialect
+once per provider. Re-running replaces the previous set. --all restores
+every dialect. Does not take --connection.
+
+  --dialect  Dialect to enable. Repeat for each dialect. Aliases from this file apply.
+  --all      Enable every dialect. Restores the committed full-provider set.
+
+Examples:
+  {{command}} --dialect sqlite --dialect postgres
+  {{command}} --dialect oracle
+  {{command}} --all

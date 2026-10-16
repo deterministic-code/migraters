@@ -14,6 +14,7 @@ const BINS: { verb: MigrateVerb; file: string }[] = [
   { verb: 'up', file: 'migrate-up.js' },
   { verb: 'down', file: 'migrate-down.js' },
   { verb: 'create', file: 'migrate-create.js' },
+  { verb: 'init', file: 'migrate-init.js' },
 ];
 
 const runHelp = async (file: string): Promise<{ code: number; stderr: string }> => {

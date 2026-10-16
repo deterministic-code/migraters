@@ -115,7 +115,11 @@ mod api_tests {
             .unwrap();
         let sql = "CREATE TABLE t (id INTEGER);\n";
         std::fs::write(migrations_path.join("0001_init_up.sql"), sql).unwrap();
-        std::fs::write(migrations_path.join("0001_init_down.sql"), "DROP TABLE t;\n").unwrap();
+        std::fs::write(
+            migrations_path.join("0001_init_down.sql"),
+            "DROP TABLE t;\n",
+        )
+        .unwrap();
         let names = migrater
             .up(UpArg {
                 connection,
