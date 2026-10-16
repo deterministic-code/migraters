@@ -1,6 +1,13 @@
 # Migraters
 
-Migraters lets you track SQL changes and apply them to your project throughout the development cycle. This project provides database migrate commands and a consistent API in multiple programming languages and many datasource dialects.
+Migraters tracks SQL changes during development and applies them upstream as the project evolves. As a codebase grows in complexity and team size, keeping those changes tracked and in sync becomes harder. Migraters is built for that.
+
+The typical workflow is:
+
+* On development, create one or more migration files, test them, and run migrate up.
+* On deploy, those scripts are copied to production and migrate up is run again, so the upstream database matches development.
+
+The same migrate commands and a consistent API are available in multiple programming languages and across many datasource dialects.
 
 ## Install
 

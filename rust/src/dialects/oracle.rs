@@ -54,3 +54,51 @@ impl SqlDialect for OracleDialect {
         format!("FETCH FIRST {n} ROWS ONLY")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_oracle_connection, OracleDialect};
+    use crate::abstractions::SqlDialect;
+    use crate::dialects::assert_dialect_surface;
+
+    #[test]
+    fn surface() {
+        let d = OracleDialect;
+        assert_dialect_surface(&d);
+        assert_eq!(d.name(), "oracle");
+        assert_eq!(
+            d.connection_env_vars(),
+            &["ORACLE_CONNECT_STRING", "DATABASE_URL"]
+        );
+        assert!(d.use_transaction());
+        assert_eq!(d.normalize_connection("u/p@c"), "u/p@c");
+        assert!(d.prerequisite_error("u/p@c").is_none());
+        d.prepare_setup("u/p@c").unwrap();
+        assert!(d.insert_applied_sql().contains(":1"));
+        assert!(d.delete_applied_sql().contains(":1"));
+        assert_eq!(d.quote_ident("t"), "\"t\"");
+        assert_eq!(d.now_expr(), "CURRENT_TIMESTAMP");
+        assert_eq!(d.limit_clause(5), "FETCH FIRST 5 ROWS ONLY");
+    }
+
+    #[test]
+    fn parse_oracle_connection_accepts_user_password_connect() {
+        assert_eq!(
+            parse_oracle_connection("scott/tiger@localhost/orcl").unwrap(),
+            (
+                "scott".to_string(),
+                "tiger".to_string(),
+                "localhost/orcl".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn parse_oracle_connection_rejects_malformed() {
+        let msg = "Oracle connection must look like user/password@connectString";
+        for bad in ["not-a-dsn", "user/nohost", "/p@c", "u/@c", "u/p@"] {
+            let err = parse_oracle_connection(bad).unwrap_err();
+            assert_eq!(err, msg, "{bad}");
+        }
+    }
+}

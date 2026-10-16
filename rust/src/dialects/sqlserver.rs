@@ -43,3 +43,30 @@ impl SqlDialect for SqlServerDialect {
         format!("OFFSET 0 ROWS FETCH NEXT {n} ROWS ONLY")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SqlServerDialect;
+    use crate::abstractions::SqlDialect;
+    use crate::dialects::assert_dialect_surface;
+
+    #[test]
+    fn surface() {
+        let d = SqlServerDialect;
+        assert_dialect_surface(&d);
+        assert_eq!(d.name(), "sqlserver");
+        assert_eq!(d.connection_env_vars(), &["MSSQL_URL", "DATABASE_URL"]);
+        assert!(d.use_transaction());
+        assert_eq!(
+            d.normalize_connection("Server=localhost"),
+            "Server=localhost"
+        );
+        assert!(d.prerequisite_error("Server=localhost").is_none());
+        d.prepare_setup("Server=localhost").unwrap();
+        assert!(d.insert_applied_sql().contains("@P1"));
+        assert!(d.delete_applied_sql().contains("@P1"));
+        assert_eq!(d.quote_ident("t"), "[t]");
+        assert_eq!(d.now_expr(), "SYSUTCDATETIME()");
+        assert_eq!(d.limit_clause(4), "OFFSET 0 ROWS FETCH NEXT 4 ROWS ONLY");
+    }
+}
