@@ -9,6 +9,8 @@ describe('defaultDialectFactory', () => {
     expect(defaultDialectFactory.get('postgresql').name).toBe('postgres');
     expect(defaultDialectFactory.get('mariadb').name).toBe('mysql');
     expect(defaultDialectFactory.get('mssql').name).toBe('sqlserver');
+    expect(defaultDialectFactory.get('mssqlserver').name).toBe('sqlserver');
+    expect(defaultDialectFactory.get('ms-sql-server').name).toBe('sqlserver');
     expect(defaultDialectFactory.get('ora').name).toBe('oracle');
     expect(defaultDialectFactory.tryGet('nope')).toBeUndefined();
     expect(() => defaultDialectFactory.get('nope')).toThrow(/Unknown SQL dialect/);

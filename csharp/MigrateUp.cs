@@ -132,29 +132,35 @@ internal sealed class MigrateUp(ISqlDialectFactory dialects, IConnectionResolver
                 one = true;
                 continue;
             }
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--provider", out provider))
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--provider", out var takenProvider))
+            {
+                provider = takenProvider;
                 continue;
+            }
             if (MigrateCli.TryTakeFlag(args, ref i, a, "--connection", out var c))
             {
                 connection = c;
                 continue;
             }
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out migratePath)
-                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out migratePath))
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out var takenPath)
+                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out takenPath))
+            {
+                migratePath = takenPath;
                 continue;
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-root", out migrateRoot)
-                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-root", out migrateRoot))
+            }
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-root", out var takenRoot)
+                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-root", out takenRoot))
+            {
+                migrateRoot = takenRoot;
                 continue;
+            }
 
-            error = MigrateCli.ParseArgError(
-                a,
-                a.StartsWith("--", StringComparison.Ordinal) && i + 1 >= args.Length
-            );
+            error = MigrateCli.ParseArgError(a, MigrateCli.IsValueFlag(a) && i + 1 >= args.Length);
             return false;
         }
 
         if (string.IsNullOrEmpty(provider))
-            return MigrateCli.MissingValue("--provider", out error);
+            return MigrateCli.MissingProvider(out error);
         migratePath = MigrateCli.MigratePath(provider, migratePath, migrateRoot);
         return true;
     }

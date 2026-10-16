@@ -3,11 +3,9 @@
 
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { missingProviderMsg, requireDialect, takeFlag } from '../cli.ts';
+import { isMigrationName, nextSequence, pad4 } from '../create-sequence.ts';
 import { fillTemplate, loadMessage, loadScaffold } from '../infrastructure/message-templates.ts';
 import { loadHelp } from '../index.ts';
-
-const NAME_RE = /^[a-z][a-z0-9_]*$/;
-const SEQ_RE = /^(\d{1,4})_.*_up\.sql$/;
 
 const [HELP_TEXT, unknownArgTpl, missingNameMsg, invalidNameTpl, createdTpl] = await Promise.all([
   loadHelp('migrate-create'),
@@ -51,7 +49,7 @@ const parseArgs = (argv: string[]) => {
   return args;
 };
 
-const nextSequence = async (dir: string): Promise<number> => {
+const sequenceFromDir = async (dir: string): Promise<number> => {
   let entries: string[];
   try {
     entries = await readdir(dir);
@@ -61,17 +59,8 @@ const nextSequence = async (dir: string): Promise<number> => {
     }
     throw err;
   }
-  let max = 0;
-  for (const name of entries) {
-    const m = SEQ_RE.exec(name);
-    if (!m) continue;
-    const n = Number.parseInt(m[1] as string, 10);
-    if (n > max) max = n;
-  }
-  return max + 1;
+  return nextSequence(entries);
 };
-
-const pad4 = (n: number): string => String(n).padStart(4, '0');
 
 const main = async () => {
   const args = parseArgs(process.argv);
@@ -84,7 +73,7 @@ const main = async () => {
     process.stderr.write(missingNameMsg);
     process.exit(2);
   }
-  if (!NAME_RE.test(args.name)) {
+  if (!isMigrationName(args.name)) {
     process.stderr.write(fillTemplate(invalidNameTpl, { name: args.name }));
     process.exit(2);
   }
@@ -92,7 +81,7 @@ const main = async () => {
   const migrationsPath = args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
   await mkdir(migrationsPath, { recursive: true });
 
-  const seq = pad4(await nextSequence(migrationsPath));
+  const seq = pad4(await sequenceFromDir(migrationsPath));
   const upName = `${seq}_${args.name}_up.sql`;
   const downName = `${seq}_${args.name}_down.sql`;
   await writeFile(`${migrationsPath}/${upName}`, await loadScaffold('up', { name: args.name }));

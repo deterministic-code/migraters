@@ -1,5 +1,6 @@
 import { connectionResolver, defaultDialectFactory } from './infrastructure/default-factory.ts';
 import type { ISqlDialect } from './abstractions/sql-dialect.ts';
+import { cliSpec } from './cli-spec.ts';
 import { sqliteFilesystemPath } from './dialects/sqlite-dialect.ts';
 import { fillTemplate, loadMessage } from './infrastructure/message-templates.ts';
 
@@ -39,7 +40,7 @@ export const requireConnection = (dialect: ISqlDialect, fromFlag: string | null)
   if (!connection) {
     process.stderr.write(
       fillTemplate(missingConnectionTpl, {
-        envVars: dialect.connectionEnvironmentVariables.join(' / '),
+        envVars: dialect.connectionEnvironmentVariables.join(cliSpec.env_var_list_separator),
       }),
     );
     process.exit(2);

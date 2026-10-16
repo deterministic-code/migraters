@@ -6,9 +6,19 @@ internal static class CliSpec
 
     private readonly record struct Command(string Verb, Arg[] Args);
 
-    private sealed record Spec(string Command, string[] Providers, Command[] Commands);
+    private sealed record Spec(
+        string Command,
+        string[] Providers,
+        IReadOnlyDictionary<string, string> ProviderAliases,
+        string EnvVarListSeparator,
+        Command[] Commands
+    );
 
     private static readonly Spec Document = Parse(File.ReadAllText(SpecPath()));
+
+    internal static IReadOnlyList<string> Providers => Document.Providers;
+    internal static IReadOnlyDictionary<string, string> ProviderAliases => Document.ProviderAliases;
+    internal static string EnvVarListSeparator => Document.EnvVarListSeparator;
 
     internal static string UsageLine(string verb)
     {
@@ -42,8 +52,11 @@ internal static class CliSpec
     {
         var command = "migrate-{verb}";
         var providers = new List<string>();
+        var providerAliases = new Dictionary<string, string>(StringComparer.Ordinal);
+        var envVarListSeparator = " / ";
         var commands = new List<Command>();
         var inProviders = false;
+        var inAliases = false;
         var inCommands = false;
         string? currentVerb = null;
         var currentArgs = new List<Arg>();
@@ -67,6 +80,7 @@ internal static class CliSpec
             if (line.Length > 0 && line[0] is not ' ' and not '-')
             {
                 inProviders = false;
+                inAliases = false;
                 if (!line.StartsWith("commands:", StringComparison.Ordinal))
                 {
                     inCommands = false;
@@ -78,9 +92,19 @@ internal static class CliSpec
                 command = line.Split(':', 2)[1].Trim();
                 continue;
             }
+            if (line.StartsWith("env_var_list_separator:", StringComparison.Ordinal))
+            {
+                envVarListSeparator = Unquote(line.Split(':', 2)[1]);
+                continue;
+            }
             if (line.StartsWith("providers:", StringComparison.Ordinal))
             {
                 inProviders = true;
+                continue;
+            }
+            if (line.StartsWith("provider_aliases:", StringComparison.Ordinal))
+            {
+                inAliases = true;
                 continue;
             }
             if (line.StartsWith("commands:", StringComparison.Ordinal))
@@ -93,6 +117,19 @@ internal static class CliSpec
                 var item = line.Trim();
                 if (item.StartsWith("- ", StringComparison.Ordinal))
                     providers.Add(item[2..].Trim());
+                continue;
+            }
+            if (inAliases)
+            {
+                var aliasLine = line.Trim();
+                var colon = aliasLine.IndexOf(':');
+                if (colon > 0)
+                {
+                    var alias = StripKey(aliasLine[..colon].Trim());
+                    var canonical = aliasLine[(colon + 1)..].Trim();
+                    if (alias.Length > 0 && canonical.Length > 0)
+                        providerAliases[alias] = canonical;
+                }
                 continue;
             }
             if (!inCommands)
@@ -111,9 +148,31 @@ internal static class CliSpec
             }
             if (inArgs && trimmed.StartsWith("- {", StringComparison.Ordinal))
                 currentArgs.Add(ParseArg(trimmed));
+            else if (inArgs && trimmed.StartsWith("- flag:", StringComparison.Ordinal))
+                currentArgs.Add(new Arg(trimmed["- flag:".Length..].Trim(), null, false));
+            else if (inArgs && currentArgs.Count > 0)
+            {
+                var last = currentArgs[^1];
+                if (trimmed.StartsWith("placeholder:", StringComparison.Ordinal))
+                    currentArgs[^1] = last with { Placeholder = trimmed["placeholder:".Length..].Trim() };
+                else if (trimmed.StartsWith("required:", StringComparison.Ordinal))
+                    currentArgs[^1] = last with
+                    {
+                        Required = trimmed["required:".Length..].Trim() == "true",
+                    };
+            }
         }
         Flush();
-        return new Spec(command, [.. providers], [.. commands]);
+        return new Spec(command, [.. providers], providerAliases, envVarListSeparator, [.. commands]);
+    }
+
+    internal static string StripKey(string raw) =>
+        string.Concat(raw.Where(c => c is not ' ' and not '_' and not '-')).ToLowerInvariant();
+
+    private static string Unquote(string value)
+    {
+        var v = value.Trim();
+        return v.Length >= 2 && v[0] == '"' && v[^1] == '"' ? v[1..^1] : v;
     }
 
     private static Arg ParseArg(string line)

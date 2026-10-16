@@ -1,5 +1,6 @@
 # Source of truth for migrate command names, argv layout, and --help copy.
 # TypeScript, Rust, and C# parsers must match this file.
+# Dialect operations live in api.yaml. SQL spelling is a provider detail.
 # Help templates in shared/templates/help are generated:
 #   npm run generate:help
 # Usage line for each verb: `Usage: migrate-<verb> ` + args in order.
@@ -13,14 +14,49 @@ providers:
   - sqlserver
   - oracle
 
+# Lookup: lowercase, strip spaces/underscores/hyphens, then match a provider or alias.
+provider_aliases:
+  sqlite3: sqlite
+  mariadb: mysql
+  postgresql: postgres
+  pg: postgres
+  mssql: sqlserver
+  mssqlserver: sqlserver
+  ora: oracle
+
+exit_codes:
+  success: 0
+  usage: 2
+  runtime: 1
+
 help:
   - -h
   - --help
+
+help_stream: stderr
 
 # Canonical argv is `--flag value`. `--flag=value` is optional extra syntax.
 aliases:
   --migrate-path: --migrations-path
   --migrate-root: --migrations-root
+
+env_var_list_separator: " / "
+
+migrations:
+  path_flag: --migrations-path
+  root_flag: --migrations-root
+  root_default: sql
+  layout: "<root>/<provider>/migrations"
+  discovery: top_level_up_down_pairs
+  missing_directory: errors/migrate-path-not-dir
+
+create:
+  name_pattern: "^[a-z][a-z0-9_]*$"
+  sequence_digits: 4
+
+checksum:
+  algorithm: sha256
+  drift_bypass: MIGRATE_ALLOW_CHECKSUM_DRIFT
 
 # Documented when a command sets show_connection_env: true.
 connection_environment:

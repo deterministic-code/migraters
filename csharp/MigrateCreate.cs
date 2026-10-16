@@ -5,8 +5,6 @@ namespace Deterministic.MigrateRunner;
 internal sealed class MigrateCreate(ISqlDialectFactory dialects) : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("create");
-    private static readonly Regex NameRe = new("^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
-    private static readonly Regex SeqRe = new(@"^(\d{1,4})_.*_up\.sql$", RegexOptions.Compiled);
 
     public string Name => "create";
 
@@ -29,7 +27,7 @@ internal sealed class MigrateCreate(ISqlDialectFactory dialects) : IMigrateComma
         try
         {
             Directory.CreateDirectory(dir);
-            var prefix = NextSequence(dir).ToString("D4", CultureInfo.InvariantCulture);
+            var prefix = NextSequenceFromDir(dir).ToString("D4", CultureInfo.InvariantCulture);
             var upName = $"{prefix}_{name}_up.sql";
             var downName = $"{prefix}_{name}_down.sql";
             File.WriteAllText(
@@ -54,19 +52,12 @@ internal sealed class MigrateCreate(ISqlDialectFactory dialects) : IMigrateComma
         }
     }
 
-    private static int NextSequence(string dir) =>
+    private static int NextSequenceFromDir(string dir) =>
         !Directory.Exists(dir)
             ? 1
-            : Directory
-                .EnumerateFiles(dir)
-                .Select(Path.GetFileName)
-                .Where(f => f is not null)
-                .Select(f => SeqRe.Match(f!))
-                .Where(m => m.Success)
-                .Select(m => int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))
-                .DefaultIfEmpty(0)
-                .Max()
-            + 1;
+            : Migrations.NextSequence(
+                Directory.EnumerateFiles(dir).Select(Path.GetFileName).OfType<string>()
+            );
 
     private static bool TryParse(
         string[] args,
@@ -91,26 +82,32 @@ internal sealed class MigrateCreate(ISqlDialectFactory dialects) : IMigrateComma
                 showHelp = true;
                 return false;
             }
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--provider", out provider))
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--provider", out var takenProvider))
+            {
+                provider = takenProvider;
                 continue;
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--name", out name))
+            }
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--name", out var takenName))
+            {
+                name = takenName;
                 continue;
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out migrationsPath)
-                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out migrationsPath))
+            }
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out var takenPath)
+                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out takenPath))
+            {
+                migrationsPath = takenPath;
                 continue;
+            }
 
-            error = MigrateCli.ParseArgError(
-                a,
-                a.StartsWith("--", StringComparison.Ordinal) && i + 1 >= args.Length
-            );
+            error = MigrateCli.ParseArgError(a, MigrateCli.IsValueFlag(a) && i + 1 >= args.Length);
             return false;
         }
 
         if (string.IsNullOrEmpty(provider))
-            return MigrateCli.MissingValue("--provider", out error);
+            return MigrateCli.MissingProvider(out error);
         if (string.IsNullOrEmpty(name))
-            return MigrateCli.MissingValue("--name", out error);
-        if (!NameRe.IsMatch(name))
+            return MigrateCli.MissingName(out error);
+        if (!Migrations.IsMigrationName(name))
         {
             error = HelpTemplates.Message(
                 "errors/invalid-name",

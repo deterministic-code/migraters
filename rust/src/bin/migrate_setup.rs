@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::process;
 
 use deterministic_migraters::{
-    connection_from_env, fill_help_template, is_help, message, take_value, try_get, MigrationPool,
-    SqlDialect, SUPPORTED_PROVIDERS,
+    connection_from_env, fill_help_template, is_help, join_env_vars, message, take_value, try_get,
+    MigrationPool, SqlDialect,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/setup.txt");
@@ -51,10 +51,7 @@ fn parse_args() -> Result<Args, String> {
         }
     }
     let Some(provider) = provider else {
-        return Err(message(
-            "errors/missing-provider-hint",
-            &[("providers", SUPPORTED_PROVIDERS)],
-        ));
+        return Err(message("errors/missing-provider", &[]));
     };
     let Some(dialect) = try_get(&provider) else {
         return Err(message(
@@ -67,7 +64,7 @@ fn parse_args() -> Result<Args, String> {
         None => {
             return Err(message(
                 "errors/missing-connection",
-                &[("envVars", &dialect.connection_env_vars().join(", "))],
+                &[("envVars", &join_env_vars(dialect.connection_env_vars()))],
             ))
         }
     };

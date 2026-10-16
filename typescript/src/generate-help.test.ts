@@ -21,6 +21,7 @@ describe('generate-help', () => {
   it('writes the four verb templates', async () => {
     const written = await generateHelpFiles();
     expect(written.map((p) => p.slice(p.lastIndexOf('/') + 1)).sort()).toEqual([
+      'cli.yaml',
       'create.txt',
       'down.txt',
       'setup.txt',
