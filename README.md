@@ -4,11 +4,18 @@ Migraters lets you track SQL changes and apply them to your project throughout t
 
 ## Install
 
+### Install from npm
+
+```shell
+npm install @deterministic-code/migraters
+```
+
+### Install skill
+
 Agent skill for Claude or Cursor: [skill/SKILL.md](skill/SKILL.md).
 
-```
-ln -s "$(pwd)/skill" ~/.claude/skills/migraters
-mkdir -p .cursor/skills && ln -s "$(pwd)/skill" .cursor/skills/migraters
+```shell
+npx skills add https://github.com/deterministic-code/migraters/tree/main/skill -g -a cursor -a claude-code -y --copy
 ```
 
 ## Commands
@@ -17,7 +24,7 @@ mkdir -p .cursor/skills && ln -s "$(pwd)/skill" .cursor/skills/migraters
 
 Selects the dialects this tree will compile and install. `migrate-init` is project setup, not an `IMigrater` method, and it does not take `--connection`. Repeat `--dialect` once per provider (aliases from [`cli.yaml`](cli.yaml) apply: `pg`, `mssql`, `ora`, and the rest). Re-running replaces the previous set. `--all` restores every dialect.
 
-```
+```shell
 migrate-init --dialect sqlite --dialect postgres
 migrate-init --dialect oracle
 migrate-init --all
@@ -29,7 +36,7 @@ Committed manifests keep every dialect, so a clone that never runs init still bu
 
 Compiles one language after init. Uses the dialect set init already wrote.
 
-```
+```shell
 ./build rust
 ./build csharp
 ./build typescript
@@ -39,7 +46,7 @@ Compiles one language after init. Uses the dialect set init already wrote.
 
 Creates the `migrates` and `migrate_logs` tables and the migrations directory. Idempotent.
 
-```
+```shell
 migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <url> [--migrations-path <dir>] [--and-up]
 ```
 
@@ -49,7 +56,7 @@ migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <
 
 Applies every pending migration, each in its own transaction.
 
-```
+```shell
 migrate-up --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--one]
 ```
 
@@ -59,7 +66,7 @@ migrate-up --provider <…> --connection <url> [--migrations-path <dir>] [--migr
 
 Rolls back the most recently applied migration, one step. Prints a random 4-letter token and refuses to continue unless you type that token, or pass `--confirm` with the same token.
 
-```
+```shell
 migrate-down --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--confirm <TOKEN>]
 ```
 
@@ -67,7 +74,7 @@ migrate-down --provider <…> --connection <url> [--migrations-path <dir>] [--mi
 
 Writes the next `<NNNN>_<name>_up.sql` and `<NNNN>_<name>_down.sql` pair. The name must match `^[a-z][a-z0-9_]*$`.
 
-```
+```shell
 migrate-create --provider <…> --name <snake_case_slug> [--migrations-path <dir>]
 ```
 
