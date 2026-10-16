@@ -2,6 +2,15 @@
 
 Migraters lets you track SQL changes and apply them to your project throughout the development cycle. This project provides database migrate commands and a consistent API in multiple programming languages and many datasource dialects.
 
+## Install
+
+Agent skill for Claude or Cursor: [skill/SKILL.md](skill/SKILL.md).
+
+```
+ln -s "$(pwd)/skill" ~/.claude/skills/migraters
+mkdir -p .cursor/skills && ln -s "$(pwd)/skill" .cursor/skills/migraters
+```
+
 ## Commands
 
 ### init
