@@ -215,16 +215,6 @@ pub fn usage_line(verb: &str) -> String {
     format!("Usage: {command_name} {args}")
 }
 
-pub fn program_usage() -> String {
-    spec()
-        .commands
-        .iter()
-        .map(|c| usage_line(&c.verb))
-        .collect::<Vec<_>>()
-        .join("\n")
-        + "\n"
-}
-
 pub fn providers() -> &'static [String] {
     &spec().providers
 }

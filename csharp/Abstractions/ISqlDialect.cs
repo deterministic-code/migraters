@@ -6,9 +6,7 @@ internal interface ISqlDialect
     IReadOnlyList<string> ConnectionEnvironmentVariables { get; }
     string MigratesDdl { get; }
     string MigrateLogsDdl { get; }
-    string SelectAppliedNamesSql { get; }
     string SelectAppliedChecksumSql { get; }
-    string SelectLastAppliedNameSql { get; }
     string InsertAppliedSql { get; }
     string DeleteAppliedSql { get; }
     bool UseTransaction { get; }

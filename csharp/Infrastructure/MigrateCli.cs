@@ -123,15 +123,6 @@ internal static class MigrateCli
         return false;
     }
 
-    internal static bool MissingValue(string flag, out string error)
-    {
-        error = HelpTemplates.Message(
-            "errors/missing-value-for-flag",
-            new Dictionary<string, string> { ["flag"] = flag }
-        );
-        return false;
-    }
-
     internal static bool IsValueFlag(string arg)
     {
         ReadOnlySpan<string> flags =

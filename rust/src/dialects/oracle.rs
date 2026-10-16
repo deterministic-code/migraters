@@ -35,12 +35,6 @@ impl SqlDialect for OracleDialect {
     fn use_transaction(&self) -> bool {
         true
     }
-    fn select_applied_sql(&self) -> &'static str {
-        r#"SELECT "name" FROM "migrates""#
-    }
-    fn select_last_applied_sql(&self) -> &'static str {
-        r#"SELECT "name" FROM "migrates" ORDER BY "name" DESC FETCH FIRST 1 ROWS ONLY"#
-    }
     fn insert_applied_sql(&self) -> &'static str {
         r#"INSERT INTO "migrates" ("name", "checksum") VALUES (:1, :2)"#
     }

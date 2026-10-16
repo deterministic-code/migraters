@@ -28,5 +28,3 @@ export const loadScaffold = async (
   const text = await readFile(join(templatesRoot(), 'scaffold', `${name}.sql`), 'utf8');
   return fillTemplate(text, vars);
 };
-
-export const supportedProviders = (names: readonly string[]): string => names.join('|');

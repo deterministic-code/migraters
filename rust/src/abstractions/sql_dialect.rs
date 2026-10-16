@@ -4,8 +4,6 @@ pub trait SqlDialect: Send + Sync {
     fn migrates_ddl(&self) -> &'static str;
     fn migrate_logs_ddl(&self) -> &'static str;
     fn use_transaction(&self) -> bool;
-    fn select_applied_sql(&self) -> &'static str;
-    fn select_last_applied_sql(&self) -> &'static str;
     fn insert_applied_sql(&self) -> &'static str;
     fn delete_applied_sql(&self) -> &'static str;
     fn normalize_connection(&self, connection: &str) -> String;
@@ -20,9 +18,6 @@ pub trait SqlDialect: Send + Sync {
     }
     fn limit_clause(&self, n: usize) -> String {
         format!("LIMIT {n}")
-    }
-    fn uses_last_insert_rowid(&self) -> bool {
-        false
     }
     fn select_applied_checksum_sql(&self) -> String {
         let name = self.quote_ident("name");

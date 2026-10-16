@@ -7,7 +7,6 @@ export type {
   SetupArg,
   UpArg,
 } from './abstractions/migrater.ts';
-export { MigraterFactory } from './abstractions/migrater-factory.ts';
 export { getMigrater, Migrater } from './migrater.ts';
 export {
   fillHelpTemplate,
@@ -20,7 +19,5 @@ export {
   fillTemplate,
   loadMessage,
   loadScaffold,
-  supportedProviders,
 } from './infrastructure/message-templates.ts';
 export { normalizeDialect, pathExists, type SqlDialect } from './sql.ts';
-export { q } from './q.ts';

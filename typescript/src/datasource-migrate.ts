@@ -85,16 +85,6 @@ export function checksum(text: string): string {
   return createHash('sha256').update(body, 'utf8').digest('hex');
 }
 
-export async function createClient({
-  provider,
-  connection,
-}: {
-  provider: string;
-  connection: string;
-}): Promise<MigrationClient> {
-  return defaultDialectFactory.get(provider).createClient(connection);
-}
-
 export async function applyOneUp({
   client,
   migrations,

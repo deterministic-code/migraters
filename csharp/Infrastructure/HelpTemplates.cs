@@ -2,10 +2,6 @@ namespace Deterministic.MigrateRunner;
 
 internal static class HelpTemplates
 {
-    internal const string SupportedProviders = "sqlite|postgres|mysql|sqlserver|oracle";
-
-    private const string CommandPlaceholder = "{{command}}";
-
     public static string ProgramUsage() => CliSpec.ProgramUsage();
 
     public static string Read(string verb)
@@ -30,9 +26,6 @@ internal static class HelpTemplates
             ),
             vars
         );
-
-    public static string Fill(string template, string command) =>
-        Fill(template, new Dictionary<string, string> { [CommandPlaceholder.Trim('{', '}')] = command });
 
     public static string Fill(string template, IReadOnlyDictionary<string, string>? vars)
     {

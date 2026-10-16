@@ -18,12 +18,6 @@ impl SqlDialect for MysqlDialect {
     fn use_transaction(&self) -> bool {
         false
     }
-    fn select_applied_sql(&self) -> &'static str {
-        "SELECT `name` FROM `migrates`"
-    }
-    fn select_last_applied_sql(&self) -> &'static str {
-        "SELECT `name` FROM `migrates` ORDER BY `name` DESC LIMIT 1"
-    }
     fn insert_applied_sql(&self) -> &'static str {
         "INSERT INTO `migrates` (`name`, `checksum`) VALUES (?, ?)"
     }

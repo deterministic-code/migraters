@@ -1,5 +1,3 @@
-pub const SUPPORTED_PROVIDERS: &str = "sqlite|postgres|mysql|sqlserver|oracle";
-
 pub fn fill_template(template: &str, vars: &[(&str, &str)]) -> String {
     let mut out = template.to_string();
     for (key, value) in vars {
