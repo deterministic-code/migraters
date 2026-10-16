@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - '55432:5432'
+    environment:
+      POSTGRES_USER: proof
+      POSTGRES_PASSWORD: proof
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U proof -d postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - '53306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: proof
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-pproof']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - '51433:1433'
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: Proof_Pass123
+      MSSQL_PID: Developer
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Proof_Pass123" -C -Q "SELECT 1" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Proof_Pass123" -Q "SELECT 1" || exit 1',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    ports:
+      - '51521:1521'
+    environment:
+      ORACLE_PASSWORD: proof
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh']
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 90s

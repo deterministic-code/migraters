@@ -1,0 +1,151 @@
+# Source of truth for the proof e2e: one migration, expected schema, per-provider SQL.
+# TypeScript, Rust, and C# each apply this migration to every provider.
+# Host ports must match proof/docker-compose.yml.
+
+migration: 0001_proof
+
+languages:
+  - typescript
+  - rust
+  - csharp
+
+providers:
+  sqlite:
+    connection: '{workdir}/app.sqlite'
+    up: |
+      CREATE TABLE proof_widget (
+        id INTEGER NOT NULL,
+        name TEXT NOT NULL
+      );
+    down: |
+      DROP TABLE proof_widget;
+    schema_query: |
+      SELECT name, type FROM pragma_table_info('proof_widget') ORDER BY cid
+    catalog_query: |
+      SELECT "name" AS name, "checksum" AS checksum FROM "migrates"
+    expected:
+      - name: id
+        type: INTEGER
+      - name: name
+        type: TEXT
+
+  postgres:
+    admin_connection: postgresql://proof:proof@127.0.0.1:55432/postgres
+    connection: postgresql://proof:proof@127.0.0.1:55432/{database}
+    database: proof_{language}
+    prepare:
+      - DROP DATABASE IF EXISTS {database}
+      - CREATE DATABASE {database}
+    up: |
+      CREATE TABLE proof_widget (
+        id INTEGER NOT NULL,
+        name TEXT NOT NULL
+      );
+    down: |
+      DROP TABLE proof_widget;
+    schema_query: |
+      SELECT column_name AS name, data_type AS type
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'proof_widget'
+      ORDER BY ordinal_position
+    catalog_query: |
+      SELECT "name" AS name, "checksum" AS checksum FROM "migrates"
+    expected:
+      - name: id
+        type: integer
+      - name: name
+        type: text
+
+  mysql:
+    admin_connection: mysql://root:proof@127.0.0.1:53306/mysql
+    connection: mysql://root:proof@127.0.0.1:53306/{database}
+    database: proof_{language}
+    prepare:
+      - DROP DATABASE IF EXISTS `{database}`
+      - CREATE DATABASE `{database}`
+    up: |
+      CREATE TABLE proof_widget (
+        id INT NOT NULL,
+        name VARCHAR(255) NOT NULL
+      );
+    down: |
+      DROP TABLE proof_widget;
+    schema_query: |
+      SELECT COLUMN_NAME AS name, DATA_TYPE AS type
+      FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = 'proof_widget'
+      ORDER BY ORDINAL_POSITION
+    catalog_query: |
+      SELECT `name` AS name, `checksum` AS checksum FROM `migrates`
+    expected:
+      - name: id
+        type: int
+      - name: name
+        type: varchar
+
+  sqlserver:
+    admin_connection: Server=127.0.0.1,51433;User Id=sa;Password=Proof_Pass123;TrustServerCertificate=True;Encrypt=False;Database=master
+    connection: Server=127.0.0.1,51433;User Id=sa;Password=Proof_Pass123;TrustServerCertificate=True;Encrypt=False;Database={database}
+    database: proof_{language}
+    prepare:
+      - |
+        IF DB_ID(N'{database}') IS NOT NULL
+        BEGIN
+          ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+          DROP DATABASE [{database}];
+        END
+        CREATE DATABASE [{database}];
+    up: |
+      CREATE TABLE proof_widget (
+        id INT NOT NULL,
+        name NVARCHAR(255) NOT NULL
+      );
+    down: |
+      DROP TABLE proof_widget;
+    schema_query: |
+      SELECT c.name AS name, t.name AS type
+      FROM sys.columns c
+      JOIN sys.types t ON c.user_type_id = t.user_type_id
+      WHERE c.object_id = OBJECT_ID('dbo.proof_widget')
+      ORDER BY c.column_id
+    catalog_query: |
+      SELECT [name] AS name, [checksum] AS checksum FROM [migrates]
+    expected:
+      - name: id
+        type: int
+      - name: name
+        type: nvarchar
+
+  oracle:
+    admin_connection: system/proof@127.0.0.1:51521/FREEPDB1
+    connection: '{database}/proof@127.0.0.1:51521/FREEPDB1'
+    database: proof_{language}
+    prepare:
+      - |
+        BEGIN
+          EXECUTE IMMEDIATE 'DROP USER {database} CASCADE';
+        EXCEPTION
+          WHEN OTHERS THEN
+            IF SQLCODE != -1918 THEN RAISE; END IF;
+        END;
+      - CREATE USER {database} IDENTIFIED BY proof
+      - GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO {database}
+    up: |
+      CREATE TABLE proof_widget (
+        id NUMBER NOT NULL,
+        name VARCHAR2(255) NOT NULL
+      )
+    down: |
+      DROP TABLE proof_widget
+    schema_query: |
+      SELECT column_name AS name, data_type AS type
+      FROM user_tab_columns
+      WHERE table_name = 'PROOF_WIDGET'
+      ORDER BY column_id
+    catalog_query: |
+      SELECT "name" AS name, "checksum" AS checksum FROM "migrates"
+    expected:
+      - name: ID
+        type: NUMBER
+      - name: NAME
+        type: VARCHAR2

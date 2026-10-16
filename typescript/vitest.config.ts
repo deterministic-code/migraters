@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    exclude: ['test/proof.e2e.test.ts'],
     fileParallelism: false,
     coverage: {
       provider: 'v8',
