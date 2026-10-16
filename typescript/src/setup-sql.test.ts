@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { setupSql } from './setup-sql.ts';
+import { getMigrater } from './migrater.ts';
+import { defaultDialectFactory } from './infrastructure/default-factory.ts';
 
-describe('setupSql', () => {
+describe('IMigrater setup bookkeeping', () => {
   it('loads the shared DDL templates for every dialect', () => {
-    for (const dialect of ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle']) {
-      const stmts = setupSql(dialect);
-      expect(stmts).toHaveLength(2);
-      expect(stmts[0]).toMatch(/migrates/i);
-      expect(stmts[1]).toMatch(/migrate_logs/i);
+    for (const dialect of defaultDialectFactory.all()) {
+      expect(dialect.migratesDdl).toMatch(/migrates/i);
+      expect(dialect.migrateLogsDdl).toMatch(/migrate_logs/i);
     }
   });
 
   it('rejects an unknown dialect', () => {
-    expect(() => setupSql('dbase')).toThrow(/Unknown SQL dialect/);
+    expect(() => getMigrater('dbase')).toThrow(/Unknown SQL dialect/);
   });
 });

@@ -4,7 +4,7 @@
 import { resolve } from 'node:path';
 import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
 import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
-import { discoverMigrations, loadHelp, runUp } from '../index.ts';
+import { loadHelp, Migrater } from '../index.ts';
 
 const [HELP_TEXT, unknownArgTpl, noPendingMsg, noMorePendingMsg, appliedTpl] = await Promise.all([
   loadHelp('migrate-up'),
@@ -91,26 +91,17 @@ const main = async () => {
   }
 
   const migratePath = resolve(resolveMigratePath(args, dialect.name));
-  const client = await dialect.createClient(connection);
-  try {
-    const migrations = await discoverMigrations({
-      migratePath,
-      dialect: dialect.name,
-    });
-    let appliedCount = 0;
-    for (;;) {
-      const r = await runUp({ client, migrations });
-      if (!r.applied) {
-        process.stdout.write(appliedCount === 0 ? noPendingMsg : noMorePendingMsg);
-        break;
-      }
-      process.stdout.write(fillTemplate(appliedTpl, { name: r.name ?? '' }));
-      appliedCount++;
-      if (args.one) break;
-    }
-  } finally {
-    await client.close();
+  const names = await new Migrater(dialect).up({
+    connection,
+    migrationsPath: migratePath,
+    one: args.one,
+  });
+  if (names.length === 0) {
+    process.stdout.write(noPendingMsg);
+    return;
   }
+  for (const name of names) process.stdout.write(fillTemplate(appliedTpl, { name }));
+  if (!args.one) process.stdout.write(noMorePendingMsg);
 };
 
 main().catch((e: unknown) => {

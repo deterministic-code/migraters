@@ -1,20 +1,15 @@
-# Source of truth for dialect operations every language implements.
+# Source of truth for the library API every language implements.
 # Command argv, aliases, exit codes, and help copy live in cli.yaml.
 # SQL spelling, placeholders, quoting, and driver connections are provider details.
 
 connection_environment: cli.yaml
 
-operations:
-  - name
-  - connectionEnvironment
-  - prerequisite
-  - prepareSetup
-  - open
-  - close
-  - setupBookkeeping
-  - applied
-  - apply
-  - rollback
+interface: IMigrater
+methods:
+  - setup
+  - up
+  - down
+  - create
 
 providers:
   - sqlite

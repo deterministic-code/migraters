@@ -6,10 +6,14 @@ pub mod dialects;
 pub mod help;
 pub mod infrastructure;
 pub mod messages;
+pub mod migrater;
 pub mod migrations;
 pub mod provider;
 
 pub use abstractions::{all, try_get, SqlDialect};
+pub use migrater::{
+    get_migrater, CreateArg, CreateResponse, DownArg, IMigrater, Migrater, SetupArg, UpArg,
+};
 pub use argv::{is_help, take_value};
 pub use checksum::checksum_hex;
 pub use cli_spec::join_env_vars;
@@ -27,22 +31,12 @@ mod api_yaml {
     const RAW: &str = include_str!("../../api.yaml");
 
     #[test]
-    fn lists_the_shared_operations() {
-        for op in [
-            "name",
-            "connectionEnvironment",
-            "prerequisite",
-            "prepareSetup",
-            "open",
-            "close",
-            "setupBookkeeping",
-            "applied",
-            "apply",
-            "rollback",
-        ] {
+    fn lists_imigrater() {
+        assert!(RAW.contains("interface: IMigrater"));
+        for method in ["setup", "up", "down", "create"] {
             assert!(
-                RAW.contains(&format!("  - {op}")),
-                "api.yaml missing operation {op}"
+                RAW.contains(&format!("  - {method}")),
+                "api.yaml missing method {method}"
             );
         }
     }

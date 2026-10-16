@@ -1,15 +1,12 @@
 // Rolls back the most recently applied migration (one step). DESTRUCTIVE: prints a random 4-letter uppercase token and refuses to proceed unless the operator types it back on stdin. Pass --confirm <TOKEN> matching the printed token to bypass the prompt (CI / scripted use).
 
 use std::env;
-use std::fs;
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::process;
-use std::time::Instant;
 
 use deterministic_migraters::{
-    assert_no_checksum_drift, connection_from_env, discover_up_files, down_path_for,
-    fill_help_template, is_help, join_env_vars, message, take_value, try_get, MigrationPool,
-    SqlDialect,
+    connection_from_env, fill_help_template, is_help, join_env_vars, message, take_value, try_get,
+    DownArg, IMigrater, Migrater, SqlDialect,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/down.txt");
@@ -149,64 +146,16 @@ fn confirm_or_abort(dialect: &str, token: &str, confirm: Option<&str>) {
 }
 
 async fn rollback_last(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    let pool = MigrationPool::connect(args.dialect, &args.connection).await?;
-    let files = discover_up_files(&args.migrate_path)?;
-    let applied = pool
-        .fetch_applied(&args.dialect.select_applied_checksum_sql())
-        .await?;
-    if applied.is_empty() {
-        print!("{}", message("status/no-rollback", &[]));
-        return Ok(());
-    }
-    assert_no_checksum_drift(&files, &applied)?;
-    let last = files
-        .iter()
-        .rev()
-        .find(|(n, _)| applied.contains_key(n))
-        .cloned();
-    let Some((name, _)) = last else {
-        return Err(message("errors/rollback-not-in-path", &[]).into());
-    };
-    let path = down_path_for(&args.migrate_path, &name)
-        .ok_or_else(|| message("errors/rollback-no-down-sibling", &[("name", &name)]))?;
-    let sql = fs::read_to_string(&path)?;
-    let log_id = pool.insert_log_started(args.dialect, &name, "down").await?;
-    let started = Instant::now();
-    match pool
-        .apply_statements(
-            args.dialect,
-            &sql,
-            args.dialect.delete_applied_sql(),
-            &name,
-            None,
-        )
-        .await
+    match Migrater::new(args.dialect)
+        .down(DownArg {
+            connection: &args.connection,
+            migrations_path: &args.migrate_path,
+        })
+        .await?
     {
-        Ok(()) => {
-            let _ = pool
-                .update_log(
-                    args.dialect,
-                    log_id,
-                    "success",
-                    started.elapsed().as_millis() as i64,
-                    None,
-                )
-                .await;
-        }
-        Err(e) => {
-            let _ = pool
-                .update_log(
-                    args.dialect,
-                    log_id,
-                    "error",
-                    started.elapsed().as_millis() as i64,
-                    Some(&e.to_string()),
-                )
-                .await;
-            return Err(e);
-        }
+        None => print!("{}", message("status/no-rollback", &[])),
+        Some(name) => print!("{}", message("status/rolled-back", &[("name", &name)])),
     }
-    print!("{}", message("status/rolled-back", &[("name", &name)]));
     Ok(())
 }
 

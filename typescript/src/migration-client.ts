@@ -9,7 +9,7 @@ export interface SqliteRawDatabase {
   };
 }
 
-/** Provider-agnostic migration client: the exact methods `runUp`/`runDown`/`setupSql` execution paths call, honored identically by every dialect adapter. */
+/** Provider-agnostic migration client used by IMigrater.up, IMigrater.down, and IMigrater.setup. */
 export interface MigrationClient {
   dialect: import('./sql.ts').SqlDialect;
   exec(sql: string): Promise<void>;
