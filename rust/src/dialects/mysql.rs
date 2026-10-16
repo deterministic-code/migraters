@@ -37,3 +37,30 @@ impl SqlDialect for MysqlDialect {
         format!("`{ident}`")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MysqlDialect;
+    use crate::abstractions::SqlDialect;
+    use crate::dialects::assert_dialect_surface;
+
+    #[test]
+    fn surface() {
+        let d = MysqlDialect;
+        assert_dialect_surface(&d);
+        assert_eq!(d.name(), "mysql");
+        assert_eq!(d.connection_env_vars(), &["MYSQL_URL", "DATABASE_URL"]);
+        assert!(!d.use_transaction());
+        assert_eq!(
+            d.normalize_connection("mysql://localhost/db"),
+            "mysql://localhost/db"
+        );
+        assert!(d.prerequisite_error("mysql://localhost/db").is_none());
+        d.prepare_setup("mysql://localhost/db").unwrap();
+        assert!(d.insert_applied_sql().contains('?'));
+        assert!(d.delete_applied_sql().contains('?'));
+        assert_eq!(d.quote_ident("t"), "`t`");
+        assert_eq!(d.now_expr(), "CURRENT_TIMESTAMP");
+        assert_eq!(d.limit_clause(2), "LIMIT 2");
+    }
+}

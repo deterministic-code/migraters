@@ -144,4 +144,79 @@ mod api_tests {
         assert!(!applied.contains_key("0001_init"));
         let _ = std::fs::remove_dir_all(dir);
     }
+
+    #[test]
+    fn surface_and_path_parsing() {
+        use crate::dialects::assert_dialect_surface;
+        let d = SqliteDialect;
+        assert_dialect_surface(&d);
+        assert_eq!(d.name(), "sqlite");
+        assert_eq!(d.connection_env_vars(), &["SQLITE_PATH", "DB_PATH"]);
+        assert!(d.use_transaction());
+        assert_eq!(d.quote_ident("t"), "\"t\"");
+        assert_eq!(d.now_expr(), "CURRENT_TIMESTAMP");
+        assert_eq!(d.limit_clause(3), "LIMIT 3");
+        assert!(d.insert_applied_sql().contains('?'));
+        assert!(d.delete_applied_sql().contains('?'));
+
+        assert_eq!(
+            d.normalize_connection("sqlite://./app.sqlite"),
+            "sqlite://./app.sqlite"
+        );
+        assert_eq!(
+            d.normalize_connection("./app.sqlite"),
+            "sqlite://./app.sqlite?mode=rwc"
+        );
+
+        assert!(d.prerequisite_error(":memory:").is_none());
+        assert!(d.prerequisite_error("  :memory:  ").is_none());
+        assert!(d.prerequisite_error("").is_none());
+        assert!(d.prerequisite_error("sqlite://").is_none());
+        assert!(d.prerequisite_error("file:").is_none());
+        assert!(d.prerequisite_error("Data Source=:memory:").is_none());
+        assert!(d.prerequisite_error("data source = :memory:").is_none());
+        assert!(d.prerequisite_error("SQLITE://").is_none());
+        assert!(d.prerequisite_error("FILE:").is_none());
+        d.prepare_setup(":memory:").unwrap();
+        d.prepare_setup("app.sqlite").unwrap();
+        d.prepare_setup("/").unwrap();
+
+        let dir = std::env::temp_dir().join(format!(
+            "migraters-sqlite-paths-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let existing = dir.join("exists.sqlite");
+        std::fs::write(&existing, []).unwrap();
+        assert!(d.prerequisite_error(existing.to_str().unwrap()).is_none());
+        assert!(d
+            .prerequisite_error(&format!("Data Source={}", existing.display()))
+            .is_none());
+
+        let missing = dir.join("nested").join("missing.sqlite");
+        let err = d.prerequisite_error(missing.to_str().unwrap()).unwrap();
+        assert!(err.contains(missing.to_str().unwrap()));
+        d.prepare_setup(missing.to_str().unwrap()).unwrap();
+        assert!(missing.parent().unwrap().is_dir());
+
+        let blocker = dir.join("not-a-dir");
+        std::fs::write(&blocker, []).unwrap();
+        let blocked = blocker.join("db.sqlite");
+        assert!(d.prepare_setup(blocked.to_str().unwrap()).is_err());
+
+        assert!(d
+            .prerequisite_error(&format!("sqlite://{}", missing.display()))
+            .is_some());
+        assert!(d
+            .prerequisite_error(&format!("sqlite:{}", missing.display()))
+            .is_some());
+        assert!(d
+            .prerequisite_error(&format!("file:{}", missing.display()))
+            .is_some());
+        assert!(d.prerequisite_error("other=value.sqlite").is_some());
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }
