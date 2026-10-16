@@ -100,6 +100,7 @@ languages:
       - rust/Cargo.toml
       - rust/rustfmt.toml
       - rust/src/**/*.rs
+      - rust/init/**
       - shared/templates/help/**
       - shared/templates/messages/**
       - shared/templates/scaffold/**
@@ -110,24 +111,29 @@ languages:
           - rust/src/dialects/sqlite.rs
           - shared/templates/sql/sqlite/**
         apk: sqlite
+        feature: sqlite
       postgres:
         files:
           - rust/src/dialects/postgres.rs
           - shared/templates/sql/postgres/**
         apk: postgresql-client
+        feature: postgres
       mysql:
         files:
           - rust/src/dialects/mysql.rs
           - shared/templates/sql/mysql/**
         apk: mysql-client
+        feature: mysql
       sqlserver:
         files:
           - rust/src/dialects/sqlserver.rs
           - shared/templates/sql/sqlserver/**
+        feature: sqlserver
       oracle:
         files:
           - rust/src/dialects/oracle.rs
           - shared/templates/sql/oracle/**
+        feature: oracle
     commands:
       setup: migrate-setup --provider {{provider}}
       up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}
@@ -170,6 +176,7 @@ languages:
     common:
       - csharp/**/*.cs
       - csharp/MigrateRunner.csproj
+      - csharp/MigrateInit/MigrateInit.csproj
       - csharp/GlobalUsings.cs
       - csharp/.csharpierrc.json
       - csharp/.csharpierignore
@@ -187,24 +194,39 @@ languages:
           - csharp/Dialects/SqliteDialect.cs
           - shared/templates/sql/sqlite/**
         apk: sqlite
+        packages:
+          - name: Microsoft.Data.Sqlite
+            version: "9.0.0"
       postgres:
         files:
           - csharp/Dialects/PostgresDialect.cs
           - shared/templates/sql/postgres/**
         apk: postgresql-client
+        packages:
+          - name: Npgsql
+            version: "9.0.1"
       mysql:
         files:
           - csharp/Dialects/MysqlDialect.cs
           - shared/templates/sql/mysql/**
         apk: mysql-client
+        packages:
+          - name: MySqlConnector
+            version: "2.4.0"
       sqlserver:
         files:
           - csharp/Dialects/SqlServerDialect.cs
           - shared/templates/sql/sqlserver/**
+        packages:
+          - name: Microsoft.Data.SqlClient
+            version: "6.0.1"
       oracle:
         files:
           - csharp/Dialects/OracleDialect.cs
           - shared/templates/sql/oracle/**
+        packages:
+          - name: Oracle.ManagedDataAccess.Core
+            version: "23.7.0"
     commands:
       setup: migrate-setup --provider {{provider}}
       up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}

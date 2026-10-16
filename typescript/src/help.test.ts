@@ -28,6 +28,7 @@ describe('unified help loader', () => {
     for (const verb of VERBS) {
       expect(text).toContain(`Usage: ${migrateCommand(verb)} --provider`);
     }
+    expect(text).toContain('Usage: migrate-init');
     expect(text).not.toContain('{{command}}');
     expect(text).not.toContain('MigrateRunner');
     expect(text).not.toMatch(/^Usage: (create|up|down|setup) /m);

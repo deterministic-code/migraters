@@ -7,7 +7,13 @@ export const MIGRATE_VERBS = ['setup', 'up', 'down', 'create'] as const;
 
 export const verbFromCommand = (command: string): MigrateVerb => {
   const verb = command.replace(/^migrate-/, '');
-  if (verb !== 'setup' && verb !== 'up' && verb !== 'down' && verb !== 'create') {
+  if (
+    verb !== 'init' &&
+    verb !== 'setup' &&
+    verb !== 'up' &&
+    verb !== 'down' &&
+    verb !== 'create'
+  ) {
     throw new Error(`Unknown migrate command "${command}"`);
   }
   return verb;

@@ -158,9 +158,7 @@ impl IMigrater for Migrater {
         let path = down_path_for(args.migrations_path, &name)
             .ok_or_else(|| message("errors/rollback-no-down-sibling", &[("name", &name)]))?;
         let sql = fs::read_to_string(&path)?;
-        let log_id = pool
-            .insert_log_started(self.dialect, &name, "down")
-            .await?;
+        let log_id = pool.insert_log_started(self.dialect, &name, "down").await?;
         let started = Instant::now();
         match pool
             .apply_statements(
@@ -221,10 +219,10 @@ impl IMigrater for Migrater {
         let up_name = format!("{prefix}_{}_up.sql", args.name);
         let down_name = format!("{prefix}_{}_down.sql", args.name);
         fs::write(dir.join(&up_name), scaffold("up", &[("name", args.name)]))?;
-        fs::write(dir.join(&down_name), scaffold("down", &[("name", args.name)]))?;
-        Ok(CreateResponse {
-            up_name,
-            down_name,
-        })
+        fs::write(
+            dir.join(&down_name),
+            scaffold("down", &[("name", args.name)]),
+        )?;
+        Ok(CreateResponse { up_name, down_name })
     }
 }

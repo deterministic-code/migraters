@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
-export type MigrateVerb = 'setup' | 'up' | 'down' | 'create';
+export type MigrateVerb = 'init' | 'setup' | 'up' | 'down' | 'create';
 
 export type CliArg = {
   flag: string;

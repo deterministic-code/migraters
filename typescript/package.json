@@ -14,12 +14,14 @@
     "migrate-up": "./dist/bin/migrate-up.js",
     "migrate-down": "./dist/bin/migrate-down.js",
     "migrate-setup": "./dist/bin/migrate-setup.js",
-    "migrate-create": "./dist/bin/migrate-create.js"
+    "migrate-create": "./dist/bin/migrate-create.js",
+    "migrate-init": "./dist/bin/migrate-init.js"
   },
   "files": [
     "dist",
     "src",
     "cli.yaml",
+    "bundle.yaml",
     "tsconfig.build.json"
   ],
   "scripts": {
@@ -32,16 +34,19 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "better-sqlite3": "^12.10.0",
     "yaml": "^2.9.0"
   },
   "peerDependencies": {
+    "better-sqlite3": "^12.10.0",
     "mssql": "^12.5.0",
     "mysql2": "^3.22.2",
     "oracledb": "^6.10.0",
     "pg": "^8.13.0"
   },
   "peerDependenciesMeta": {
+    "better-sqlite3": {
+      "optional": true
+    },
     "mssql": {
       "optional": true
     },
@@ -57,6 +62,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
+    "better-sqlite3": "^12.10.0",
     "@types/mssql": "^12.3.0",
     "@types/node": "^22.10.0",
     "@types/oracledb": "^6.10.3",

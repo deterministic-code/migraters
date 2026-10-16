@@ -1,25 +1,43 @@
 use std::collections::HashMap;
+#[cfg(feature = "oracle")]
 use std::sync::Mutex as StdMutex;
 
+#[cfg(feature = "oracle")]
 use oracle::Connection as OracleConn;
-use sqlx::{MySqlPool, PgPool, SqlitePool};
+#[cfg(feature = "mysql")]
+use sqlx::MySqlPool;
+#[cfg(feature = "postgres")]
+use sqlx::PgPool;
+#[cfg(feature = "sqlite")]
+use sqlx::SqlitePool;
+#[cfg(feature = "sqlserver")]
 use tiberius::{Client, Config};
+#[cfg(feature = "sqlserver")]
 use tokio::net::TcpStream;
+#[cfg(feature = "sqlserver")]
 use tokio::sync::Mutex;
+#[cfg(feature = "sqlserver")]
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use crate::abstractions::SqlDialect;
+#[cfg(feature = "oracle")]
 use crate::dialects::parse_oracle_connection;
 use crate::migrations::catalog_name;
 
 type BoxError = Box<dyn std::error::Error>;
+#[cfg(feature = "sqlserver")]
 type MssqlClient = Client<Compat<TcpStream>>;
 
 pub enum MigrationPool {
+    #[cfg(feature = "sqlite")]
     Sqlite(SqlitePool),
+    #[cfg(feature = "postgres")]
     Postgres(PgPool),
+    #[cfg(feature = "mysql")]
     Mysql(MySqlPool),
+    #[cfg(feature = "sqlserver")]
     SqlServer(Mutex<MssqlClient>),
+    #[cfg(feature = "oracle")]
     Oracle(StdMutex<OracleConn>),
 }
 
@@ -27,9 +45,13 @@ impl MigrationPool {
     pub async fn connect(dialect: &dyn SqlDialect, connection: &str) -> Result<Self, BoxError> {
         let url = dialect.normalize_connection(connection);
         match dialect.name() {
+            #[cfg(feature = "sqlite")]
             "sqlite" => Ok(Self::Sqlite(SqlitePool::connect(&url).await?)),
+            #[cfg(feature = "postgres")]
             "postgres" => Ok(Self::Postgres(PgPool::connect(&url).await?)),
+            #[cfg(feature = "mysql")]
             "mysql" => Ok(Self::Mysql(MySqlPool::connect(&url).await?)),
+            #[cfg(feature = "sqlserver")]
             "sqlserver" => {
                 let config = Config::from_ado_string(&url)
                     .or_else(|_| Config::from_jdbc_string(&url))
@@ -39,6 +61,7 @@ impl MigrationPool {
                 let client = Client::connect(config, tcp.compat_write()).await?;
                 Ok(Self::SqlServer(Mutex::new(client)))
             }
+            #[cfg(feature = "oracle")]
             "oracle" => {
                 let (user, password, connect_string) = parse_oracle_connection(&url)?;
                 let conn = tokio::task::spawn_blocking(move || {
@@ -53,19 +76,24 @@ impl MigrationPool {
 
     pub async fn execute(&self, sql: &str) -> Result<(), BoxError> {
         match self {
+            #[cfg(feature = "sqlite")]
             Self::Sqlite(pool) => {
                 sqlx::query(sql).execute(pool).await?;
             }
+            #[cfg(feature = "postgres")]
             Self::Postgres(pool) => {
                 sqlx::query(sql).execute(pool).await?;
             }
+            #[cfg(feature = "mysql")]
             Self::Mysql(pool) => {
                 sqlx::query(sql).execute(pool).await?;
             }
+            #[cfg(feature = "sqlserver")]
             Self::SqlServer(client) => {
                 let mut c = client.lock().await;
                 c.execute(sql, &[]).await?;
             }
+            #[cfg(feature = "oracle")]
             Self::Oracle(conn) => {
                 let sql = sql.to_string();
                 let conn = conn.lock().map_err(|e| e.to_string())?;
@@ -79,30 +107,36 @@ impl MigrationPool {
         &self,
         sql: &str,
     ) -> Result<HashMap<String, Option<String>>, BoxError> {
-        use sqlx::Row;
         let mut out = HashMap::new();
         match self {
+            #[cfg(feature = "sqlite")]
             Self::Sqlite(pool) => {
+                use sqlx::Row;
                 for row in sqlx::query(sql).fetch_all(pool).await? {
                     let name: String = row.get(0);
                     let checksum: Option<String> = row.try_get(1).ok().flatten();
                     out.insert(catalog_name(&name).to_string(), checksum);
                 }
             }
+            #[cfg(feature = "postgres")]
             Self::Postgres(pool) => {
+                use sqlx::Row;
                 for row in sqlx::query(sql).fetch_all(pool).await? {
                     let name: String = row.get(0);
                     let checksum: Option<String> = row.try_get(1).ok().flatten();
                     out.insert(catalog_name(&name).to_string(), checksum);
                 }
             }
+            #[cfg(feature = "mysql")]
             Self::Mysql(pool) => {
+                use sqlx::Row;
                 for row in sqlx::query(sql).fetch_all(pool).await? {
                     let name: String = row.get(0);
                     let checksum: Option<String> = row.try_get(1).ok().flatten();
                     out.insert(catalog_name(&name).to_string(), checksum);
                 }
             }
+            #[cfg(feature = "sqlserver")]
             Self::SqlServer(client) => {
                 let mut c = client.lock().await;
                 let stream = c.query(sql, &[]).await?;
@@ -113,6 +147,7 @@ impl MigrationPool {
                     out.insert(catalog_name(name).to_string(), checksum.map(str::to_string));
                 }
             }
+            #[cfg(feature = "oracle")]
             Self::Oracle(conn) => {
                 let sql = sql.to_string();
                 let conn = conn.lock().map_err(|e| e.to_string())?;
@@ -211,9 +246,10 @@ impl MigrationPool {
         p1: &str,
         p2: Option<&str>,
     ) -> Result<(), BoxError> {
-        use sqlx::Executor;
         match self {
+            #[cfg(feature = "sqlite")]
             Self::Sqlite(pool) => {
+                use sqlx::Executor;
                 let mut tx = pool.begin().await?;
                 for stmt in stmts {
                     tx.execute(stmt.as_str()).await?;
@@ -221,7 +257,9 @@ impl MigrationPool {
                 catalog_exec_sqlite(&mut tx, catalog_sql, p1, p2).await?;
                 tx.commit().await?;
             }
+            #[cfg(feature = "postgres")]
             Self::Postgres(pool) => {
+                use sqlx::Executor;
                 let mut tx = pool.begin().await?;
                 for stmt in stmts {
                     tx.execute(stmt.as_str()).await?;
@@ -229,7 +267,9 @@ impl MigrationPool {
                 catalog_exec_postgres(&mut tx, catalog_sql, p1, p2).await?;
                 tx.commit().await?;
             }
+            #[cfg(feature = "mysql")]
             Self::Mysql(pool) => {
+                use sqlx::Executor;
                 let mut tx = pool.begin().await?;
                 for stmt in stmts {
                     tx.execute(stmt.as_str()).await?;
@@ -237,6 +277,7 @@ impl MigrationPool {
                 catalog_exec_mysql(&mut tx, catalog_sql, p1, p2).await?;
                 tx.commit().await?;
             }
+            #[cfg(feature = "sqlserver")]
             Self::SqlServer(client) => {
                 let mut c = client.lock().await;
                 c.simple_query("BEGIN TRAN").await?;
@@ -257,6 +298,7 @@ impl MigrationPool {
                     }
                 }
             }
+            #[cfg(feature = "oracle")]
             Self::Oracle(conn) => {
                 let conn = conn.lock().map_err(|e| e.to_string())?;
                 let result: Result<(), BoxError> = (|| {
@@ -284,13 +326,18 @@ impl MigrationPool {
         p2: Option<&str>,
     ) -> Result<(), BoxError> {
         match self {
+            #[cfg(feature = "sqlite")]
             Self::Sqlite(pool) => catalog_exec_pool_sqlite(pool, catalog_sql, p1, p2).await,
+            #[cfg(feature = "postgres")]
             Self::Postgres(pool) => catalog_exec_pool_postgres(pool, catalog_sql, p1, p2).await,
+            #[cfg(feature = "mysql")]
             Self::Mysql(pool) => catalog_exec_pool_mysql(pool, catalog_sql, p1, p2).await,
+            #[cfg(feature = "sqlserver")]
             Self::SqlServer(client) => {
                 let mut c = client.lock().await;
                 mssql_catalog(&mut c, catalog_sql, p1, p2).await
             }
+            #[cfg(feature = "oracle")]
             Self::Oracle(conn) => {
                 let conn = conn.lock().map_err(|e| e.to_string())?;
                 oracle_catalog(&conn, catalog_sql, p1, p2)
@@ -305,32 +352,43 @@ impl MigrationPool {
         p1: &str,
         p2: &str,
     ) -> Result<i64, BoxError> {
-        use sqlx::Row;
         let _ = dialect;
         Ok(match self {
-            Self::Sqlite(pool) => sqlx::query(sql)
-                .bind(p1)
-                .bind(p2)
-                .fetch_one(pool)
-                .await?
-                .get::<i64, _>(0),
-            Self::Postgres(pool) => sqlx::query(sql)
-                .bind(p1)
-                .bind(p2)
-                .fetch_one(pool)
-                .await?
-                .get::<i64, _>(0),
+            #[cfg(feature = "sqlite")]
+            Self::Sqlite(pool) => {
+                use sqlx::Row;
+                sqlx::query(sql)
+                    .bind(p1)
+                    .bind(p2)
+                    .fetch_one(pool)
+                    .await?
+                    .get::<i64, _>(0)
+            }
+            #[cfg(feature = "postgres")]
+            Self::Postgres(pool) => {
+                use sqlx::Row;
+                sqlx::query(sql)
+                    .bind(p1)
+                    .bind(p2)
+                    .fetch_one(pool)
+                    .await?
+                    .get::<i64, _>(0)
+            }
+            #[cfg(feature = "mysql")]
             Self::Mysql(pool) => {
+                use sqlx::Row;
                 let row = sqlx::query(sql).bind(p1).bind(p2).fetch_one(pool).await?;
                 row.try_get::<i64, _>(0)
                     .or_else(|_| row.try_get::<u64, _>(0).map(|v| v as i64))?
             }
+            #[cfg(feature = "sqlserver")]
             Self::SqlServer(client) => {
                 let mut c = client.lock().await;
                 let stream = c.query(sql, &[&p1 as &dyn tiberius::ToSql, &p2]).await?;
                 let row = stream.into_row().await?.ok_or("missing migrate_logs id")?;
                 row.get::<i64, usize>(0).ok_or("missing migrate_logs id")?
             }
+            #[cfg(feature = "oracle")]
             Self::Oracle(conn) => {
                 let sql = sql.to_string();
                 let p1 = p1.to_string();
@@ -353,6 +411,7 @@ impl MigrationPool {
     ) -> Result<(), BoxError> {
         let _ = dialect;
         match self {
+            #[cfg(feature = "sqlite")]
             Self::Sqlite(pool) => {
                 sqlx::query(sql)
                     .bind(status)
@@ -362,6 +421,7 @@ impl MigrationPool {
                     .execute(pool)
                     .await?;
             }
+            #[cfg(feature = "postgres")]
             Self::Postgres(pool) => {
                 sqlx::query(sql)
                     .bind(status)
@@ -371,6 +431,7 @@ impl MigrationPool {
                     .execute(pool)
                     .await?;
             }
+            #[cfg(feature = "mysql")]
             Self::Mysql(pool) => {
                 sqlx::query(sql)
                     .bind(status)
@@ -380,11 +441,13 @@ impl MigrationPool {
                     .execute(pool)
                     .await?;
             }
+            #[cfg(feature = "sqlserver")]
             Self::SqlServer(client) => {
                 let mut c = client.lock().await;
                 let err = error_message.unwrap_or("");
                 c.execute(sql, &[&status, &duration_ms, &err, &id]).await?;
             }
+            #[cfg(feature = "oracle")]
             Self::Oracle(conn) => {
                 let sql = sql.to_string();
                 let status = status.to_string();
@@ -406,6 +469,7 @@ fn placeholders(dialect: &str, n: usize) -> Vec<String> {
     }
 }
 
+#[cfg(feature = "sqlite")]
 async fn catalog_exec_sqlite(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     sql: &str,
@@ -424,6 +488,7 @@ async fn catalog_exec_sqlite(
     Ok(())
 }
 
+#[cfg(feature = "postgres")]
 async fn catalog_exec_postgres(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     sql: &str,
@@ -442,6 +507,7 @@ async fn catalog_exec_postgres(
     Ok(())
 }
 
+#[cfg(feature = "mysql")]
 async fn catalog_exec_mysql(
     tx: &mut sqlx::Transaction<'_, sqlx::MySql>,
     sql: &str,
@@ -460,6 +526,7 @@ async fn catalog_exec_mysql(
     Ok(())
 }
 
+#[cfg(feature = "sqlite")]
 async fn catalog_exec_pool_sqlite(
     pool: &SqlitePool,
     sql: &str,
@@ -474,6 +541,7 @@ async fn catalog_exec_pool_sqlite(
     Ok(())
 }
 
+#[cfg(feature = "postgres")]
 async fn catalog_exec_pool_postgres(
     pool: &PgPool,
     sql: &str,
@@ -488,6 +556,7 @@ async fn catalog_exec_pool_postgres(
     Ok(())
 }
 
+#[cfg(feature = "mysql")]
 async fn catalog_exec_pool_mysql(
     pool: &MySqlPool,
     sql: &str,
@@ -502,6 +571,7 @@ async fn catalog_exec_pool_mysql(
     Ok(())
 }
 
+#[cfg(feature = "sqlserver")]
 async fn mssql_catalog(
     client: &mut MssqlClient,
     sql: &str,
@@ -516,6 +586,7 @@ async fn mssql_catalog(
     Ok(())
 }
 
+#[cfg(feature = "oracle")]
 fn oracle_catalog(
     conn: &OracleConn,
     sql: &str,
