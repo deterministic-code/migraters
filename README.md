@@ -16,6 +16,16 @@ migrate-init --all
 
 Committed manifests keep every dialect, so a clone that never runs init still builds and tests with all providers. Init is what makes a local or vendored tree light: Rust compiles only the selected Cargo features, C# restores only the selected driver packages, and TypeScript installs only the selected native drivers. Run init before `cargo build`, `dotnet build`, or `npm install` when you want a slim tree.
 
+### build
+
+Compiles one language after init. Uses the dialect set init already wrote.
+
+```
+./build rust
+./build csharp
+./build typescript
+```
+
 ### setup
 
 Creates the `migrates` and `migrate_logs` tables and the migrations directory. Idempotent.

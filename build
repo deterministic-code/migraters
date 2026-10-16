@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+USAGE='Usage: ./build rust|csharp|typescript'
+
+lang="${1:-}"
+
+if [[ -z "$lang" || "$lang" == "-h" || "$lang" == "--help" ]]; then
+  printf '%s\n' "$USAGE" >&2
+  exit 0
+fi
+
+case "$lang" in
+  rust)
+    exec cargo build --manifest-path "$ROOT/rust/Cargo.toml"
+    ;;
+  csharp)
+    exec dotnet build "$ROOT/csharp"
+    ;;
+  typescript)
+    exec npm run build --prefix "$ROOT/typescript"
+    ;;
+  *)
+    printf '%s\n' "$USAGE" >&2
+    exit 2
+    ;;
+esac
