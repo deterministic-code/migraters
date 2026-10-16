@@ -15,3 +15,13 @@ pub fn try_get(name: &str) -> Option<&'static dyn SqlDialect> {
         _ => None,
     }
 }
+
+pub fn all() -> &'static [&'static dyn SqlDialect] {
+    &[
+        &SqliteDialect,
+        &PostgresDialect,
+        &MysqlDialect,
+        &SqlServerDialect,
+        &OracleDialect,
+    ]
+}

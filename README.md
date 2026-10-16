@@ -66,4 +66,4 @@ When `--connection` is omitted, the runner reads the first set environment varia
 
 ## Specification
 
-Shared argv, flags, and help copy live in [`cli.yaml`](cli.yaml).
+Shared argv, flags, aliases, exit codes, and command behavior live in [`cli.yaml`](cli.yaml). Dialect operations every language implements live in [`api.yaml`](api.yaml). SQL spelling stays a provider detail.

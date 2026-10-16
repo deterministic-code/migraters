@@ -4,6 +4,19 @@ internal sealed record MigrationFile(string Name, string UpPath);
 
 internal static class Migrations
 {
+    private static readonly Regex NameRe = new("^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
+    private static readonly Regex SeqRe = new(@"^(\d{1,4})_.*_up\.sql$", RegexOptions.Compiled);
+
+    public static bool IsMigrationName(string name) => NameRe.IsMatch(name);
+
+    public static int NextSequence(IEnumerable<string> fileNames) =>
+        fileNames
+            .Select(f => SeqRe.Match(f))
+            .Where(m => m.Success)
+            .Select(m => int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+
     public static IReadOnlyList<MigrationFile> OrderedUpFiles(string migratePath)
     {
         if (!Directory.Exists(migratePath))

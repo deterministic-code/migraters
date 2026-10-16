@@ -1,0 +1,24 @@
+# Source of truth for dialect operations every language implements.
+# Command argv, aliases, exit codes, and help copy live in cli.yaml.
+# SQL spelling, placeholders, quoting, and driver connections are provider details.
+
+connection_environment: cli.yaml
+
+operations:
+  - name
+  - connectionEnvironment
+  - prerequisite
+  - prepareSetup
+  - open
+  - close
+  - setupBookkeeping
+  - applied
+  - apply
+  - rollback
+
+providers:
+  - sqlite
+  - postgres
+  - mysql
+  - sqlserver
+  - oracle

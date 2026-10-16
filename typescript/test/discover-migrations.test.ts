@@ -16,23 +16,23 @@ describe('discoverMigrations', () => {
     expect(found[0]?.downPath?.endsWith('0001_init_down.sql')).toBe(true);
   });
 
-  it('returns an empty list when the directory is missing', async () => {
-    const found = await discoverMigrations({
-      migratePath: join(tmpdir(), 'does-not-exist-migrate'),
-      dialect: 'postgres',
-    });
-    expect(found).toEqual([]);
+  it('fails with the shared missing-directory error', async () => {
+    const migratePath = join(tmpdir(), 'does-not-exist-migrate');
+    await expect(discoverMigrations({ migratePath, dialect: 'postgres' })).rejects.toThrow(
+      `migrate-path is not a directory: ${migratePath}`,
+    );
   });
 
-  it('walks nested dialect folders and accepts migration.<dialect>.sql', async () => {
+  it('ignores nested files and legacy dialect filenames', async () => {
     const root = await mkdtemp(join(tmpdir(), 'discover-nested-'));
     const nested = join(root, '0003_nested');
     await mkdir(nested);
     await writeFile(join(nested, 'migration.sqlite.sql'), '-- nested up\n');
+    await writeFile(join(root, 'rollback_0001_init.sql'), '-- leftover\n');
     const found = await discoverMigrations({
       migratePath: root,
       dialect: 'sqlite',
     });
-    expect(found.map((m) => m.name)).toEqual(['0003_nested']);
+    expect(found).toEqual([]);
   });
 });

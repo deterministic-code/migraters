@@ -1,12 +1,14 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { access } from 'node:fs/promises';
+import { access, appendFile, mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { cliSpec } from '../src/cli-spec.ts';
 import { MIGRATE_VERBS, migrateCommand, type MigrateVerb } from '../src/cli-contract.ts';
 import { loadHelp } from '../src/help.ts';
+import { loadMessage } from '../src/infrastructure/message-templates.ts';
 
 const MIGRATERS = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const UNKNOWN_FLAG = '--not-a-cli-flag';
@@ -67,14 +69,33 @@ const binFor = (proc: Proc, verb: MigrateVerb): { cmd: string; argv0: string[] }
 
 const canon = (text: string): string => `${text.replaceAll('\r\n', '\n').replace(/\n+$/, '')}\n`;
 
+const isolatedEnv = (): NodeJS.ProcessEnv => {
+  const env = { ...process.env };
+  for (const name of [
+    'SQLITE_PATH',
+    'DB_PATH',
+    'DATABASE_URL',
+    'PG_CONNECTION_STRING',
+    'MYSQL_URL',
+    'MSSQL_URL',
+    'ORACLE_CONNECT_STRING',
+    'MIGRATE_ALLOW_CHECKSUM_DRIFT',
+  ]) {
+    delete env[name];
+  }
+  return env;
+};
+
 const run = async (
   proc: Proc,
   verb: MigrateVerb,
   args: string[],
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
 ): Promise<{ code: number; stderr: string; stdout: string }> => {
   const { cmd, argv0 } = binFor(proc, verb);
   const child = spawn(cmd, [...argv0, ...args], {
-    env: { ...process.env },
+    cwd: opts.cwd,
+    env: opts.env ?? isolatedEnv(),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stderr = '';
@@ -186,3 +207,108 @@ describe('CLI e2e parity across languages', () => {
     }
   });
 });
+
+const tokenFrom = (stderr: string): string => {
+  const m = /Confirmation token: ([A-Z]{4})/.exec(stderr);
+  if (!m) throw new Error(`no confirmation token in stderr:\n${stderr}`);
+  return m[1] as string;
+};
+
+describe('CLI sqlite lifecycle across languages', () => {
+  it('setup, create, up, down, checksum drift, and usage errors', async () => {
+    const missingProvider = await loadMessage('errors/missing-provider');
+    const unsupported = await loadMessage('errors/unsupported-provider', { provider: 'nope' });
+    const missingConnection = await loadMessage('errors/missing-connection', {
+      envVars: cliSpec.connection_environment.sqlite.join(cliSpec.env_var_list_separator),
+    });
+    const invalidName = await loadMessage('errors/invalid-name', { name: 'AddUsers' });
+
+    for (const proc of langs) {
+      const dir = await mkdtemp(join(tmpdir(), `migraters-e2e-${proc.lang}-`));
+      const db = join(dir, 'app.sqlite');
+      const migrations = join(dir, 'migrations');
+      const conn = ['--provider', 'sqlite', '--connection', db, '--migrations-path', migrations];
+
+      const setup1 = await run(proc, 'setup', conn);
+      expect(setup1.code, `${proc.lang} setup`).toBe(0);
+      const setup2 = await run(proc, 'setup', conn);
+      expect(setup2.code, `${proc.lang} setup again`).toBe(0);
+
+      const created = await run(proc, 'create', [
+        '--provider',
+        'sqlite',
+        '--name',
+        'add_users',
+        '--migrations-path',
+        migrations,
+      ]);
+      expect(created.code, `${proc.lang} create`).toBe(0);
+      expect(created.stdout).toContain('0001_add_users_up.sql');
+      expect(created.stdout).toContain('0001_add_users_down.sql');
+
+      const up1 = await run(proc, 'up', conn);
+      expect(up1.code, `${proc.lang} up`).toBe(0);
+      expect(up1.stdout).toContain('Applied: 0001_add_users');
+      const upAgain = await run(proc, 'up', conn);
+      expect(upAgain.code, `${proc.lang} up again`).toBe(0);
+      expect(upAgain.stdout).toContain('No pending migrations.');
+
+      const created2 = await run(proc, 'create', [
+        '--provider',
+        'sqlite',
+        '--name',
+        'add_email',
+        '--migrations-path',
+        migrations,
+      ]);
+      expect(created2.code, `${proc.lang} create 2`).toBe(0);
+      const one = await run(proc, 'up', [...conn, '--one']);
+      expect(one.code, `${proc.lang} up --one`).toBe(0);
+      expect(one.stdout).toContain('Applied: 0002_add_email');
+      expect(one.stdout).not.toContain('No pending migrations.');
+
+      const wrong = await run(proc, 'down', [...conn, '--confirm', 'NOPE']);
+      expect(wrong.code, `${proc.lang} down wrong token`).toBe(2);
+      expect(wrong.stderr).toContain('does not match the token printed above');
+      const token = tokenFrom(wrong.stderr);
+      expect(token).toMatch(/^[A-Z]{4}$/);
+      const stillApplied = await run(proc, 'up', conn);
+      expect(stillApplied.stdout).toContain('No pending migrations.');
+
+      const noTty = await run(proc, 'down', conn);
+      expect(noTty.code, `${proc.lang} down no confirm`).toBe(2);
+      expect(noTty.stderr).toMatch(/Confirmation token: [A-Z]{4}/);
+
+      const upFile = join(migrations, '0001_add_users_up.sql');
+      await appendFile(upFile, '-- changed\n');
+      const drift = await run(proc, 'up', conn);
+      expect(drift.code, `${proc.lang} checksum drift`).toBe(1);
+      expect(drift.stderr).toContain('Migration checksum drift detected');
+      expect(await readFile(upFile, 'utf8')).toContain('-- changed');
+
+      const noProvider = await run(proc, 'up', ['--connection', db]);
+      expect(noProvider.code, `${proc.lang} missing provider`).toBe(2);
+      expect(noProvider.stderr).toContain(missingProvider.trim());
+
+      const unknown = await run(proc, 'up', ['--provider', 'nope', '--connection', db]);
+      expect(unknown.code, `${proc.lang} unknown provider`).toBe(2);
+      expect(unknown.stderr).toContain(unsupported.trim());
+
+      const noConn = await run(proc, 'up', ['--provider', 'sqlite']);
+      expect(noConn.code, `${proc.lang} missing connection`).toBe(2);
+      expect(noConn.stderr).toContain(missingConnection.trim());
+
+      const badName = await run(proc, 'create', [
+        '--provider',
+        'sqlite',
+        '--name',
+        'AddUsers',
+        '--migrations-path',
+        migrations,
+      ]);
+      expect(badName.code, `${proc.lang} invalid name`).toBe(2);
+      expect(badName.stderr).toContain(invalidName.trim());
+    }
+  });
+});
+

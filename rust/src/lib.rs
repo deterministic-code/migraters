@@ -9,11 +9,41 @@ pub mod messages;
 pub mod migrations;
 pub mod provider;
 
-pub use abstractions::{try_get, SqlDialect};
+pub use abstractions::{all, try_get, SqlDialect};
 pub use argv::{is_help, take_value};
 pub use checksum::checksum_hex;
+pub use cli_spec::join_env_vars;
 pub use dialects::parse_oracle_connection;
 pub use help::{fill_help_template, program_usage};
 pub use infrastructure::{connection_from_env, MigrationPool};
 pub use messages::{fill_template, message, scaffold, SUPPORTED_PROVIDERS};
-pub use migrations::{assert_no_checksum_drift, catalog_name, discover_up_files, down_path_for};
+pub use migrations::{
+    assert_no_checksum_drift, catalog_name, discover_up_files, down_path_for, is_migration_name,
+    next_sequence,
+};
+
+#[cfg(test)]
+mod api_yaml {
+    const RAW: &str = include_str!("../../api.yaml");
+
+    #[test]
+    fn lists_the_shared_operations() {
+        for op in [
+            "name",
+            "connectionEnvironment",
+            "prerequisite",
+            "prepareSetup",
+            "open",
+            "close",
+            "setupBookkeeping",
+            "applied",
+            "apply",
+            "rollback",
+        ] {
+            assert!(
+                RAW.contains(&format!("  - {op}")),
+                "api.yaml missing operation {op}"
+            );
+        }
+    }
+}

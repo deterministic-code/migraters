@@ -2,10 +2,13 @@ namespace Deterministic.MigrateRunner;
 
 internal sealed class SqlDialectFactory(IEnumerable<ISqlDialect> dialects) : ISqlDialectFactory
 {
+    private readonly ISqlDialect[] _all = [.. dialects];
     private readonly IReadOnlyDictionary<string, ISqlDialect> _byName = dialects.ToDictionary(
         d => d.Name,
         StringComparer.Ordinal
     );
+
+    public IReadOnlyList<ISqlDialect> All() => _all;
 
     public bool TryGet(string name, out ISqlDialect dialect)
     {

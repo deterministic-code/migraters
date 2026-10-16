@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
-import { readFile, readdir } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { readFile, readdir, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import { defaultDialectFactory } from './infrastructure/default-factory.ts';
 import { splitOnGo } from './infrastructure/split-on-go.ts';
 import { fillTemplate, loadMessage } from './infrastructure/message-templates.ts';
 import type { ISqlDialect } from './abstractions/sql-dialect.ts';
 import type { MigrationClient, MigrationRowValue } from './migration-client.ts';
-import { pathExists, type SqlDialect } from './sql.ts';
+import type { SqlDialect } from './sql.ts';
 
 export { normalizeDialect } from './sql.ts';
 export type {
@@ -24,17 +24,25 @@ export interface MigrationDescriptor {
   downPath: string | null;
 }
 
-const ROLLBACK_PREFIX = 'rollback_';
 const UP_SUFFIX = '_up.sql';
 const DOWN_SUFFIX = '_down.sql';
 
-const [checksumDriftTpl, checksumDriftLineTpl, rollbackNotInPathMsg, rollbackNoSiblingTpl] =
-  await Promise.all([
-    loadMessage('checksum-drift'),
-    loadMessage('checksum-drift-line'),
-    loadMessage('errors/rollback-not-in-path'),
-    loadMessage('errors/rollback-no-rollback-sibling'),
-  ]);
+const [
+  checksumDriftTpl,
+  checksumDriftLineTpl,
+  rollbackNotInPathMsg,
+  rollbackNoSiblingTpl,
+  migratePathNotDirTpl,
+] = await Promise.all([
+  loadMessage('checksum-drift'),
+  loadMessage('checksum-drift-line'),
+  loadMessage('errors/rollback-not-in-path'),
+  loadMessage('errors/rollback-no-rollback-sibling'),
+  loadMessage('errors/migrate-path-not-dir'),
+]);
+
+const missingMigrationsDir = (path: string): Error =>
+  new Error(fillTemplate(migratePathNotDirTpl, { path }).trimEnd());
 
 export async function discoverMigrations({
   migratePath,
@@ -43,86 +51,30 @@ export async function discoverMigrations({
   migratePath: string;
   dialect: string;
 }): Promise<MigrationDescriptor[]> {
-  const key = requireDialect(dialect);
-  if (!migratePath || !(await pathExists(migratePath))) return [];
+  requireDialect(dialect);
+  let st;
+  try {
+    st = await stat(migratePath);
+  } catch {
+    throw missingMigrationsDir(migratePath);
+  }
+  if (!st.isDirectory()) throw missingMigrationsDir(migratePath);
 
-  const allFiles = await listSqlFilesRecursive(migratePath);
-  const { ups, downsByUpPath } = classifyMigrationFiles(allFiles, key);
-
+  const entries = await readdir(migratePath, { withFileTypes: true });
+  const files = new Set(entries.filter((e) => e.isFile()).map((e) => e.name));
+  const ups: MigrationDescriptor[] = [];
+  for (const name of files) {
+    if (!name.endsWith(UP_SUFFIX)) continue;
+    const stem = name.slice(0, -UP_SUFFIX.length);
+    const downName = `${stem}${DOWN_SUFFIX}`;
+    ups.push({
+      name: stem,
+      upPath: join(migratePath, name),
+      downPath: files.has(downName) ? join(migratePath, downName) : null,
+    });
+  }
   ups.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-
-  return ups.map(({ file, name }) => ({
-    name,
-    upPath: file,
-    downPath: downsByUpPath.get(file) ?? null,
-  }));
-}
-
-interface ClassifiedMigrationFiles {
-  ups: { file: string; name: string }[];
-  downsByUpPath: Map<string, string>;
-}
-
-type FileClassification = { role: 'up'; name: string } | { role: 'down'; upPath: string } | null;
-
-function classifyMigrationFile(file: string, key: SqlDialect): FileClassification {
-  const base = basename(file);
-  if (base.endsWith(DOWN_SUFFIX)) {
-    const stem = base.slice(0, -DOWN_SUFFIX.length);
-    return {
-      role: 'down',
-      upPath: file.slice(0, -base.length) + `${stem}${UP_SUFFIX}`,
-    };
-  }
-  if (base.endsWith(UP_SUFFIX)) {
-    return { role: 'up', name: base.slice(0, -UP_SUFFIX.length) };
-  }
-  if (base.startsWith(ROLLBACK_PREFIX)) {
-    return {
-      role: 'down',
-      upPath: file.slice(0, -base.length) + base.slice(ROLLBACK_PREFIX.length),
-    };
-  }
-  if (base === `migration.${key}.sql`) {
-    return { role: 'up', name: basename(dirname(file)) };
-  }
-  if (base.endsWith(`.${key}.sql`)) return { role: 'up', name: base };
-  return null;
-}
-
-function classifyMigrationFiles(allFiles: string[], key: SqlDialect): ClassifiedMigrationFiles {
-  const ups: { file: string; name: string }[] = [];
-  const downsByUpPath = new Map<string, string>();
-  for (const file of allFiles) {
-    const c = classifyMigrationFile(file, key);
-    if (c === null) continue;
-    if (c.role === 'up') ups.push({ file, name: c.name });
-    else downsByUpPath.set(c.upPath, file);
-  }
-  return { ups, downsByUpPath };
-}
-
-async function listSqlFilesRecursive(root: string): Promise<string[]> {
-  const out: string[] = [];
-  const stack = [root];
-  while (stack.length > 0) {
-    const dir = stack.pop() as string;
-    let entries;
-    try {
-      entries = await readdir(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const e of entries) {
-      const full = join(dir, e.name);
-      if (e.isDirectory()) {
-        stack.push(full);
-      } else if (e.isFile() && e.name.endsWith('.sql')) {
-        out.push(full);
-      }
-    }
-  }
-  return out;
+  return ups;
 }
 
 export { setupSql } from './setup-sql.ts';

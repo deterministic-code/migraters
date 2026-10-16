@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use std::process;
 
 use deterministic_migraters::{
-    fill_help_template, is_help, message, scaffold, take_value, try_get, SUPPORTED_PROVIDERS,
+    fill_help_template, is_help, is_migration_name, message, next_sequence, scaffold, take_value,
+    try_get,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/create.txt");
@@ -43,10 +44,7 @@ fn parse_args() -> Result<Args, String> {
         }
     }
     let Some(provider) = provider else {
-        return Err(message(
-            "errors/missing-provider-hint",
-            &[("providers", SUPPORTED_PROVIDERS)],
-        ));
+        return Err(message("errors/missing-provider", &[]));
     };
     let Some(dialect) = try_get(&provider) else {
         return Err(message(
@@ -55,9 +53,9 @@ fn parse_args() -> Result<Args, String> {
         ));
     };
     let Some(name) = name else {
-        return Err(message("errors/missing-name-hint", &[]));
+        return Err(message("errors/missing-name", &[]));
     };
-    if !is_snake_case(&name) {
+    if !is_migration_name(&name) {
         return Err(message("errors/invalid-name", &[("name", &name)]));
     }
     let migrations_path =
@@ -68,55 +66,19 @@ fn parse_args() -> Result<Args, String> {
     })
 }
 
-fn is_snake_case(s: &str) -> bool {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_lowercase() => {}
-        _ => return false,
-    }
-    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-}
-
-fn parse_sequence(filename: &str) -> Option<u32> {
-    if !filename.ends_with("_up.sql") {
-        return None;
-    }
-    let bytes = filename.as_bytes();
-    let mut end = 0usize;
-    while end < bytes.len() && end < 4 && bytes[end].is_ascii_digit() {
-        end += 1;
-    }
-    if end == 0 {
-        return None;
-    }
-    if end >= bytes.len() || bytes[end] != b'_' {
-        return None;
-    }
-    if end == 4 && bytes.len() > 4 && bytes[4].is_ascii_digit() {
-        return None;
-    }
-    filename[..end].parse::<u32>().ok()
-}
-
-fn next_sequence(dir: &str) -> Result<u32, Box<dyn std::error::Error>> {
+fn sequence_from_dir(dir: &str) -> Result<u32, Box<dyn std::error::Error>> {
     let path = PathBuf::from(dir);
     if !path.is_dir() {
         return Ok(1);
     }
-    let mut max = 0u32;
+    let mut names = Vec::new();
     for entry in fs::read_dir(&path)? {
         let entry = entry?;
-        let name = match entry.file_name().into_string() {
-            Ok(s) => s,
-            Err(_) => continue,
-        };
-        if let Some(n) = parse_sequence(&name) {
-            if n > max {
-                max = n;
-            }
+        if let Ok(name) = entry.file_name().into_string() {
+            names.push(name);
         }
     }
-    Ok(max + 1)
+    Ok(next_sequence(names))
 }
 
 fn main() {
@@ -136,7 +98,7 @@ fn main() {
 fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let dir = PathBuf::from(&args.migrations_path);
     fs::create_dir_all(&dir)?;
-    let seq = next_sequence(&args.migrations_path)?;
+    let seq = sequence_from_dir(&args.migrations_path)?;
     let prefix = format!("{:04}", seq);
     let up_name = format!("{}_{}_up.sql", prefix, args.name);
     let down_name = format!("{}_{}_down.sql", prefix, args.name);

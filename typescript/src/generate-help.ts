@@ -150,6 +150,9 @@ export const renderHelpTemplates = (raw: unknown): Record<string, string> => {
 export const generateHelpFiles = async (): Promise<string[]> => {
   const files = renderHelpTemplates(parse(await readFile(CLI_YAML, 'utf8')));
   const written: string[] = [];
+  const packagedCli = join(dirname(fileURLToPath(import.meta.url)), '..', 'cli.yaml');
+  await writeFile(packagedCli, await readFile(CLI_YAML, 'utf8'));
+  written.push(packagedCli);
   for (const [verb, text] of Object.entries(files)) {
     const path = join(HELP_DIR, `${verb}.txt`);
     await writeFile(path, text);

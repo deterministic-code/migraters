@@ -91,27 +91,33 @@ internal sealed class MigrateSetup(
                 showHelp = true;
                 return false;
             }
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--provider", out provider))
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--provider", out var takenProvider))
+            {
+                provider = takenProvider;
                 continue;
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--connection", out connection))
+            }
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--connection", out var takenConnection))
+            {
+                connection = takenConnection;
                 continue;
+            }
             if (a == "--and-up")
             {
                 andUp = true;
                 continue;
             }
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out migrationsPath)
-                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out migrationsPath))
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out var takenPath)
+                || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out takenPath))
+            {
+                migrationsPath = takenPath;
                 continue;
+            }
 
-            error = MigrateCli.ParseArgError(
-                a,
-                a.StartsWith("--", StringComparison.Ordinal) && i + 1 >= args.Length
-            );
+            error = MigrateCli.ParseArgError(a, MigrateCli.IsValueFlag(a) && i + 1 >= args.Length);
             return false;
         }
 
-        return !string.IsNullOrEmpty(provider) || MigrateCli.MissingValue("--provider", out error);
+        return !string.IsNullOrEmpty(provider) || MigrateCli.MissingProvider(out error);
     }
 
     private static int WriteHelp()

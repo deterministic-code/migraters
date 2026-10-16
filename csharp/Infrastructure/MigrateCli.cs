@@ -57,7 +57,7 @@ internal static class MigrateCli
                     "errors/missing-connection",
                     new Dictionary<string, string>
                     {
-                        ["envVars"] = string.Join(", ", dialect.ConnectionEnvironmentVariables),
+                        ["envVars"] = EnvVarsList(dialect.ConnectionEnvironmentVariables),
                     }
                 ),
                 out error
@@ -77,33 +77,50 @@ internal static class MigrateCli
         out string value
     )
     {
-        value = string.Empty;
         if (current == flag)
         {
             if (i + 1 >= args.Length)
+            {
+                value = string.Empty;
                 return false;
+            }
             value = args[++i];
             return true;
         }
         var eq = flag + "=";
         if (!current.StartsWith(eq, StringComparison.Ordinal))
+        {
+            value = string.Empty;
             return false;
+        }
         value = current[eq.Length..];
         return true;
     }
 
     internal static string? NormalizeProvider(string raw)
     {
-        var key = string.Concat(raw.Where(c => c is not ' ' and not '_' and not '-')).ToLowerInvariant();
-        return key switch
+        var key = CliSpec.StripKey(raw);
+        foreach (var provider in CliSpec.Providers)
         {
-            "sqlite" or "sqlite3" => "sqlite",
-            "mysql" or "mariadb" => "mysql",
-            "postgres" or "postgresql" or "pg" => "postgres",
-            "sqlserver" or "mssql" or "mssqlserver" => "sqlserver",
-            "oracle" or "ora" => "oracle",
-            _ => null,
-        };
+            if (CliSpec.StripKey(provider) == key)
+                return provider;
+        }
+        return CliSpec.ProviderAliases.TryGetValue(key, out var canonical) ? canonical : null;
+    }
+
+    internal static string EnvVarsList(IEnumerable<string> vars) =>
+        string.Join(CliSpec.EnvVarListSeparator, vars);
+
+    internal static bool MissingProvider(out string error)
+    {
+        error = HelpTemplates.Message("errors/missing-provider");
+        return false;
+    }
+
+    internal static bool MissingName(out string error)
+    {
+        error = HelpTemplates.Message("errors/missing-name");
+        return false;
     }
 
     internal static bool MissingValue(string flag, out string error)
@@ -112,6 +129,27 @@ internal static class MigrateCli
             "errors/missing-value-for-flag",
             new Dictionary<string, string> { ["flag"] = flag }
         );
+        return false;
+    }
+
+    internal static bool IsValueFlag(string arg)
+    {
+        ReadOnlySpan<string> flags =
+        [
+            "--provider",
+            "--connection",
+            "--migrations-path",
+            "--migrate-path",
+            "--migrations-root",
+            "--migrate-root",
+            "--name",
+            "--confirm",
+        ];
+        foreach (var flag in flags)
+        {
+            if (arg == flag || arg.StartsWith(flag + "=", StringComparison.Ordinal))
+                return true;
+        }
         return false;
     }
 

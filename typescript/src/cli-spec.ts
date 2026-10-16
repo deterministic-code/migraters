@@ -19,7 +19,10 @@ export type CliCommand = {
 export type CliSpec = {
   command: string;
   providers: string[];
+  provider_aliases: Record<string, string>;
   aliases: Record<string, string>;
+  env_var_list_separator: string;
+  connection_environment: Record<string, string[]>;
   commands: CliCommand[];
 };
 
