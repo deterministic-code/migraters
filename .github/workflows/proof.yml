@@ -62,8 +62,6 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - uses: oracle-actions/install-oracle-instant-client@v1
-
       - name: Install TypeScript deps
         working-directory: typescript
         run: npm ci
