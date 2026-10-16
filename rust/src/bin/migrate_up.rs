@@ -1,14 +1,11 @@
 // Default: applies ALL pending migrations in sequence, each in its own transaction. Pass --one to apply only the next pending migration (legacy one-shot behavior; useful when wrapping in an external loop or when you want to inspect state between steps).
 
 use std::env;
-use std::fs;
 use std::process;
-use std::time::Instant;
 
 use deterministic_migraters::{
-    assert_no_checksum_drift, checksum_hex, connection_from_env, discover_up_files,
-    fill_help_template, is_help, join_env_vars, message, take_value, try_get, MigrationPool,
-    SqlDialect,
+    connection_from_env, fill_help_template, is_help, join_env_vars, message, take_value, try_get,
+    IMigrater, Migrater, SqlDialect, UpArg,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/up.txt");
@@ -87,74 +84,24 @@ fn parse_args() -> Result<Args, String> {
 }
 
 async fn apply_pending(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    let pool = MigrationPool::connect(args.dialect, &args.connection).await?;
-    let files = discover_up_files(&args.migrate_path)?;
-    let mut applied = pool
-        .fetch_applied(&args.dialect.select_applied_checksum_sql())
+    let names = Migrater::new(args.dialect)
+        .up(UpArg {
+            connection: &args.connection,
+            migrations_path: &args.migrate_path,
+            one: args.one,
+        })
         .await?;
-    assert_no_checksum_drift(&files, &applied)?;
-    let mut applied_count = 0usize;
-    loop {
-        let next = files
-            .iter()
-            .find(|(n, _)| !applied.contains_key(n))
-            .cloned();
-        let (name, path) = match next {
-            Some(t) => t,
-            None => {
-                if applied_count == 0 {
-                    print!("{}", message("status/no-pending", &[]));
-                } else {
-                    print!("{}", message("status/no-more-pending", &[]));
-                }
-                return Ok(());
-            }
-        };
-        let sql = fs::read_to_string(&path)?;
-        let sum = checksum_hex(&sql);
-        let log_id = pool.insert_log_started(args.dialect, &name, "up").await?;
-        let started = Instant::now();
-        match pool
-            .apply_statements(
-                args.dialect,
-                &sql,
-                args.dialect.insert_applied_sql(),
-                &name,
-                Some(&sum),
-            )
-            .await
-        {
-            Ok(()) => {
-                let _ = pool
-                    .update_log(
-                        args.dialect,
-                        log_id,
-                        "success",
-                        started.elapsed().as_millis() as i64,
-                        None,
-                    )
-                    .await;
-            }
-            Err(e) => {
-                let _ = pool
-                    .update_log(
-                        args.dialect,
-                        log_id,
-                        "error",
-                        started.elapsed().as_millis() as i64,
-                        Some(&e.to_string()),
-                    )
-                    .await;
-                return Err(e);
-            }
-        }
-        print!("{}", message("status/applied", &[("name", &name)]));
-        applied.insert(name, Some(sum));
-        applied_count += 1;
-        if args.one {
-            return Ok(());
-        }
+    if names.is_empty() {
+        print!("{}", message("status/no-pending", &[]));
+        return Ok(());
     }
+    for name in &names {
+        print!("{}", message("status/applied", &[("name", name)]));
+    }
+    if !args.one {
+        print!("{}", message("status/no-more-pending", &[]));
+    }
+    Ok(())
 }
 
 #[tokio::main]

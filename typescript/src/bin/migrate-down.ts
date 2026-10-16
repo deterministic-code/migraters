@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
 import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
-import { discoverMigrations, loadHelp, runDown } from '../index.ts';
+import { loadHelp, Migrater } from '../index.ts';
 
 const [
   HELP_TEXT,
@@ -148,18 +148,12 @@ const main = async () => {
   }
 
   const migratePath = resolve(resolveMigratePath(args, dialect.name));
-  const client = await dialect.createClient(connection);
-  try {
-    const migrations = await discoverMigrations({
-      migratePath,
-      dialect: dialect.name,
-    });
-    const r = await runDown({ client, migrations });
-    if (!r.rolledBack) process.stdout.write(noRollbackMsg);
-    else process.stdout.write(fillTemplate(rolledBackTpl, { name: r.name ?? '' }));
-  } finally {
-    await client.close();
-  }
+  const name = await new Migrater(dialect).down({
+    connection,
+    migrationsPath: migratePath,
+  });
+  if (name == null) process.stdout.write(noRollbackMsg);
+  else process.stdout.write(fillTemplate(rolledBackTpl, { name }));
 };
 
 main().catch((e: unknown) => {

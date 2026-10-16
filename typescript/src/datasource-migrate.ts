@@ -77,8 +77,6 @@ export async function discoverMigrations({
   return ups;
 }
 
-export { setupSql } from './setup-sql.ts';
-
 /** Strip pre-refactor `-- deterministic-content-hash: <sha>` header if present so upgrading users carrying the legacy header keep the same checksum migrate:up recorded. */
 const LEGACY_HEADER_RE = /^(?:\/\/|--|#)\s+deterministic-content-hash:\s+[0-9a-f]{64}\s*\r?\n?/;
 
@@ -97,7 +95,7 @@ export async function createClient({
   return defaultDialectFactory.get(provider).createClient(connection);
 }
 
-export async function runUp({
+export async function applyOneUp({
   client,
   migrations,
   env = process.env,
@@ -147,7 +145,7 @@ export async function runUp({
   return { applied: true, name: next.name };
 }
 
-export async function runDown({
+export async function applyOneDown({
   client,
   migrations,
   env = process.env,

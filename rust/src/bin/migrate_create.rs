@@ -1,13 +1,11 @@
 // Scaffolds a new <NNNN>_<name>_{up,down}.sql pair in the migrations directory. Numbering is max(1-4-digit prefix in dir)+1; legacy timestamp prefixes are ignored.
 
 use std::env;
-use std::fs;
-use std::path::PathBuf;
 use std::process;
 
 use deterministic_migraters::{
-    fill_help_template, is_help, is_migration_name, message, next_sequence, scaffold, take_value,
-    try_get,
+    fill_help_template, is_help, is_migration_name, message, take_value, try_get, CreateArg,
+    IMigrater, Migrater, SqlDialect,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/create.txt");
@@ -17,6 +15,7 @@ fn help_text() -> String {
 }
 
 struct Args {
+    dialect: &'static dyn SqlDialect,
     name: String,
     migrations_path: String,
 }
@@ -61,24 +60,10 @@ fn parse_args() -> Result<Args, String> {
     let migrations_path =
         migrations_path.unwrap_or_else(|| format!("./sql/{}/migrations", dialect.name()));
     Ok(Args {
+        dialect,
         name,
         migrations_path,
     })
-}
-
-fn sequence_from_dir(dir: &str) -> Result<u32, Box<dyn std::error::Error>> {
-    let path = PathBuf::from(dir);
-    if !path.is_dir() {
-        return Ok(1);
-    }
-    let mut names = Vec::new();
-    for entry in fs::read_dir(&path)? {
-        let entry = entry?;
-        if let Ok(name) = entry.file_name().into_string() {
-            names.push(name);
-        }
-    }
-    Ok(next_sequence(names))
 }
 
 fn main() {
@@ -96,16 +81,11 @@ fn main() {
 }
 
 fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    let dir = PathBuf::from(&args.migrations_path);
-    fs::create_dir_all(&dir)?;
-    let seq = sequence_from_dir(&args.migrations_path)?;
-    let prefix = format!("{:04}", seq);
-    let up_name = format!("{}_{}_up.sql", prefix, args.name);
-    let down_name = format!("{}_{}_down.sql", prefix, args.name);
-    let name = args.name.as_str();
-    fs::write(dir.join(&up_name), scaffold("up", &[("name", name)]))?;
-    fs::write(dir.join(&down_name), scaffold("down", &[("name", name)]))?;
-    print!("{}", message("status/created", &[("file", &up_name)]));
-    print!("{}", message("status/created", &[("file", &down_name)]));
+    let created = Migrater::new(args.dialect).create(CreateArg {
+        name: &args.name,
+        migrations_path: &args.migrations_path,
+    })?;
+    print!("{}", message("status/created", &[("file", &created.up_name)]));
+    print!("{}", message("status/created", &[("file", &created.down_name)]));
     Ok(())
 }

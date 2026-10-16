@@ -10,6 +10,7 @@ internal static class MigrateRunnerServices
             .AddSingleton<ISqlDialect>(SqlServerDialect.Instance)
             .AddSingleton<ISqlDialect>(OracleDialect.Instance)
             .AddSingleton<ISqlDialectFactory, SqlDialectFactory>()
+            .AddSingleton<IMigraterFactory, MigraterFactory>()
             .AddSingleton<IConnectionResolver, ConnectionResolver>()
             .AddSingleton<IMigrateCommand, MigrateSetup>()
             .AddSingleton<IMigrateCommand, MigrateUp>()

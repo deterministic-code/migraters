@@ -8,56 +8,36 @@ internal sealed class MigrateCreate(ISqlDialectFactory dialects) : IMigrateComma
 
     public string Name => "create";
 
-    public Task<int> RunAsync(string[] args)
+    public async Task<int> RunAsync(string[] args)
     {
         if (!TryParse(args, out var provider, out var name, out var migrationsPath, out var showHelp, out var error))
-            return Task.FromResult(showHelp ? WriteHelp() : Fail(error));
+            return showHelp ? WriteHelp() : Fail(error);
 
         if (!dialects.TryGet(provider, out var dialect))
-            return Task.FromResult(
-                Fail(
-                    HelpTemplates.Message(
-                        "errors/unsupported-provider",
-                        new Dictionary<string, string> { ["provider"] = provider }
-                    )
+            return Fail(
+                HelpTemplates.Message(
+                    "errors/unsupported-provider",
+                    new Dictionary<string, string> { ["provider"] = provider }
                 )
             );
 
         var dir = migrationsPath ?? $"./sql/{dialect.Name}/migrations";
         try
         {
-            Directory.CreateDirectory(dir);
-            var prefix = NextSequenceFromDir(dir).ToString("D4", CultureInfo.InvariantCulture);
-            var upName = $"{prefix}_{name}_up.sql";
-            var downName = $"{prefix}_{name}_down.sql";
-            File.WriteAllText(
-                Path.Combine(dir, upName),
-                HelpTemplates.Scaffold("up", new Dictionary<string, string> { ["name"] = name })
-            );
-            File.WriteAllText(
-                Path.Combine(dir, downName),
-                HelpTemplates.Scaffold("down", new Dictionary<string, string> { ["name"] = name })
+            var created = await new Migrater(dialect).Create(new CreateArg(name, dir)).ConfigureAwait(false);
+            Console.WriteLine(
+                HelpTemplates.Message("status/created", new Dictionary<string, string> { ["file"] = created.UpName })
             );
             Console.WriteLine(
-                HelpTemplates.Message("status/created", new Dictionary<string, string> { ["file"] = upName })
+                HelpTemplates.Message("status/created", new Dictionary<string, string> { ["file"] = created.DownName })
             );
-            Console.WriteLine(
-                HelpTemplates.Message("status/created", new Dictionary<string, string> { ["file"] = downName })
-            );
-            return Task.FromResult(0);
+            return 0;
         }
         catch (Exception ex)
         {
-            return Task.FromResult(Fail($"migrate-create failed: {ex.Message}", 1));
+            return Fail($"migrate-create failed: {ex.Message}", 1);
         }
     }
-
-    private static int NextSequenceFromDir(string dir) =>
-        !Directory.Exists(dir)
-            ? 1
-            : Migrations.NextSequence(
-                Directory.EnumerateFiles(dir).Select(Path.GetFileName).OfType<string>()
-            );
 
     private static bool TryParse(
         string[] args,

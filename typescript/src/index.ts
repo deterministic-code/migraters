@@ -1,4 +1,14 @@
 export * from './datasource-migrate.ts';
+export type {
+  CreateArg,
+  CreateResponse,
+  DownArg,
+  IMigrater,
+  SetupArg,
+  UpArg,
+} from './abstractions/migrater.ts';
+export { MigraterFactory } from './abstractions/migrater-factory.ts';
+export { getMigrater, Migrater } from './migrater.ts';
 export {
   fillHelpTemplate,
   migrateCommand,

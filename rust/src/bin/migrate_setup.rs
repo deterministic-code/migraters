@@ -1,13 +1,11 @@
-// Idempotent CREATE TABLE IF NOT EXISTS migrates+migrate_logs; mirrors scripts/lib/datasource-migrate.mjs:setupSql so rust + TS containers share one migrates contract.
+// Idempotent CREATE TABLE IF NOT EXISTS migrates+migrate_logs via IMigrater.setup.
 
 use std::env;
-use std::fs;
-use std::path::PathBuf;
 use std::process;
 
 use deterministic_migraters::{
     connection_from_env, fill_help_template, is_help, join_env_vars, message, take_value, try_get,
-    MigrationPool, SqlDialect,
+    IMigrater, Migrater, SetupArg, SqlDialect, UpArg,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/setup.txt");
@@ -78,17 +76,6 @@ fn parse_args() -> Result<Args, String> {
     })
 }
 
-fn sibling_migrate_up_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let me = env::current_exe()?;
-    let dir = me.parent().ok_or("current_exe has no parent")?;
-    let mut name = String::from("migrate-up");
-    if let Some(ext) = me.extension().and_then(|e| e.to_str()) {
-        name.push('.');
-        name.push_str(ext);
-    }
-    Ok(dir.join(name))
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match dotenvy::from_path(".env") {
@@ -103,11 +90,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             process::exit(2);
         }
     };
-    args.dialect.prepare_setup(&args.connection)?;
-    let pool = MigrationPool::connect(args.dialect, &args.connection).await?;
-    pool.execute(args.dialect.migrates_ddl()).await?;
-    pool.execute(args.dialect.migrate_logs_ddl()).await?;
-    fs::create_dir_all(PathBuf::from(&args.migrations_path))?;
+    let migrater = Migrater::new(args.dialect);
+    migrater
+        .setup(SetupArg {
+            connection: &args.connection,
+            migrations_path: &args.migrations_path,
+        })
+        .await?;
     print!(
         "{}",
         message(
@@ -134,17 +123,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     if args.and_up {
-        let up = sibling_migrate_up_binary()?;
-        let status = std::process::Command::new(&up)
-            .arg("--provider")
-            .arg(args.dialect.name())
-            .arg("--connection")
-            .arg(&args.connection)
-            .arg("--migrations-path")
-            .arg(&args.migrations_path)
-            .status()?;
-        if !status.success() {
-            process::exit(status.code().unwrap_or(1));
+        let names = migrater
+            .up(UpArg {
+                connection: &args.connection,
+                migrations_path: &args.migrations_path,
+                one: false,
+            })
+            .await?;
+        if names.is_empty() {
+            print!("{}", message("status/no-pending", &[]));
+        } else {
+            for name in &names {
+                print!("{}", message("status/applied", &[("name", name)]));
+            }
+            print!("{}", message("status/no-more-pending", &[]));
         }
     }
     Ok(())

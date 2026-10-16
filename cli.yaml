@@ -1,6 +1,6 @@
 # Source of truth for migrate command names, argv layout, and --help copy.
 # TypeScript, Rust, and C# parsers must match this file.
-# Dialect operations live in api.yaml. SQL spelling is a provider detail.
+# IMigrater (setup, up, down, create) lives in api.yaml. SQL spelling is a provider detail.
 # Help templates in shared/templates/help are generated:
 #   npm run generate:help
 # Usage line for each verb: `Usage: migrate-<verb> ` + args in order.

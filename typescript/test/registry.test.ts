@@ -9,7 +9,7 @@ import { normalizeDialect } from '../src/sql.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-type ApiSpec = { operations: string[]; providers: string[] };
+type ApiSpec = { interface: string; methods: string[]; providers: string[] };
 
 const api = parse(await readFile(join(ROOT, 'api.yaml'), 'utf8')) as ApiSpec;
 
@@ -38,18 +38,8 @@ describe('provider registry matches cli.yaml and api.yaml', () => {
     }
   });
 
-  it('names the dialect operations', () => {
-    expect(api.operations).toEqual([
-      'name',
-      'connectionEnvironment',
-      'prerequisite',
-      'prepareSetup',
-      'open',
-      'close',
-      'setupBookkeeping',
-      'applied',
-      'apply',
-      'rollback',
-    ]);
+  it('names IMigrater and its methods', () => {
+    expect(api.interface).toBe('IMigrater');
+    expect(api.methods).toEqual(['setup', 'up', 'down', 'create']);
   });
 });

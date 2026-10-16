@@ -91,6 +91,7 @@ mod api_tests {
 
     #[tokio::test]
     async fn setup_apply_applied_rollback() {
+        use crate::migrater::{DownArg, IMigrater, Migrater, SetupArg, UpArg};
         let dialect: &dyn SqlDialect = &SqliteDialect;
         let dir = std::env::temp_dir().join(format!(
             "migraters-api-{}-{}",
@@ -103,39 +104,44 @@ mod api_tests {
         std::fs::create_dir_all(&dir).unwrap();
         let db = dir.join("app.sqlite");
         let connection = db.to_str().unwrap();
-        dialect.prepare_setup(connection).unwrap();
+        let migrations_path = dir.join("migrations");
+        let migrater = Migrater::new(dialect);
+        migrater
+            .setup(SetupArg {
+                connection,
+                migrations_path: migrations_path.to_str().unwrap(),
+            })
+            .await
+            .unwrap();
+        let sql = "CREATE TABLE t (id INTEGER);\n";
+        std::fs::write(migrations_path.join("0001_init_up.sql"), sql).unwrap();
+        std::fs::write(migrations_path.join("0001_init_down.sql"), "DROP TABLE t;\n").unwrap();
+        let names = migrater
+            .up(UpArg {
+                connection,
+                migrations_path: migrations_path.to_str().unwrap(),
+                one: false,
+            })
+            .await
+            .unwrap();
+        assert_eq!(names, vec!["0001_init".to_string()]);
         let pool = MigrationPool::connect(dialect, connection).await.unwrap();
-        pool.execute(dialect.migrates_ddl()).await.unwrap();
-        pool.execute(dialect.migrate_logs_ddl()).await.unwrap();
-        pool.execute(dialect.migrates_ddl()).await.unwrap();
-        let sql = "CREATE TABLE t (id INTEGER);";
-        let sum = checksum_hex(sql);
-        pool.apply_statements(
-            dialect,
-            sql,
-            dialect.insert_applied_sql(),
-            "0001_init",
-            Some(&sum),
-        )
-        .await
-        .unwrap();
         let applied = pool
             .fetch_applied(&dialect.select_applied_checksum_sql())
             .await
             .unwrap();
         assert_eq!(
             applied.get("0001_init").cloned().flatten().as_deref(),
-            Some(sum.as_str())
+            Some(checksum_hex(sql).as_str())
         );
-        pool.apply_statements(
-            dialect,
-            "DROP TABLE t;",
-            dialect.delete_applied_sql(),
-            "0001_init",
-            None,
-        )
-        .await
-        .unwrap();
+        let rolled = migrater
+            .down(DownArg {
+                connection,
+                migrations_path: migrations_path.to_str().unwrap(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(rolled.as_deref(), Some("0001_init"));
         let applied = pool
             .fetch_applied(&dialect.select_applied_checksum_sql())
             .await

@@ -1,12 +1,9 @@
-// Idempotent CREATE TABLE IF NOT EXISTS migrates+migrate_logs; DDL constants mirror scripts/lib/datasource-migrate.mjs:setupSql so the csharp + rust + ts runners share one migrates contract.
+// Idempotent CREATE TABLE IF NOT EXISTS migrates+migrate_logs via IMigrater.Setup.
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateSetup(
-    ISqlDialectFactory dialects,
-    IConnectionResolver connections,
-    IServiceProvider services
-) : IMigrateCommand
+internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResolver connections)
+    : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("setup");
 
@@ -21,15 +18,11 @@ internal sealed class MigrateSetup(
             return Fail(error);
 
         var resolvedMigrationsPath = migrationsPath ?? $"./sql/{dialect.Name}/migrations";
+        var migrater = new Migrater(dialect);
 
         try
         {
-            dialect.PrepareSetup(connection);
-            await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(connection));
-            await conn.OpenAsync().ConfigureAwait(false);
-            await DbExecute.NonQueryAsync(conn, null, dialect.MigratesDdl).ConfigureAwait(false);
-            await DbExecute.NonQueryAsync(conn, null, dialect.MigrateLogsDdl).ConfigureAwait(false);
-            Directory.CreateDirectory(resolvedMigrationsPath);
+            await migrater.Setup(new SetupArg(connection, resolvedMigrationsPath)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -52,18 +45,25 @@ internal sealed class MigrateSetup(
         );
         if (!andUp)
             return 0;
-        var up = services.GetServices<IMigrateCommand>().First(c => c.Name == "up");
-        return await up.RunAsync(
-                [
-                    "--provider",
-                    dialect.Name,
-                    "--connection",
-                    connection,
-                    "--migrations-path",
-                    resolvedMigrationsPath,
-                ]
-            )
-            .ConfigureAwait(false);
+        try
+        {
+            var names = await migrater.Up(new UpArg(connection, resolvedMigrationsPath)).ConfigureAwait(false);
+            if (names.Count == 0)
+                Console.WriteLine(HelpTemplates.Message("status/no-pending"));
+            else
+            {
+                foreach (var name in names)
+                    Console.WriteLine(
+                        HelpTemplates.Message("status/applied", new Dictionary<string, string> { ["name"] = name })
+                    );
+                Console.WriteLine(HelpTemplates.Message("status/no-more-pending"));
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            return Fail($"migrate-up failed: {ex.Message}", 1);
+        }
     }
 
     private bool TryParse(

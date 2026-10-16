@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 // Scaffolds a new <NNNN>_<name>_{up,down}.sql pair in the migrations directory. Numbering is max(1-4-digit prefix in dir)+1; legacy timestamp prefixes are ignored.
 
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { missingProviderMsg, requireDialect, takeFlag } from '../cli.ts';
-import { isMigrationName, nextSequence, pad4 } from '../create-sequence.ts';
-import { fillTemplate, loadMessage, loadScaffold } from '../infrastructure/message-templates.ts';
-import { loadHelp } from '../index.ts';
+import { isMigrationName } from '../create-sequence.ts';
+import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
+import { loadHelp, Migrater } from '../index.ts';
 
 const [HELP_TEXT, unknownArgTpl, missingNameMsg, invalidNameTpl, createdTpl] = await Promise.all([
   loadHelp('migrate-create'),
@@ -49,19 +48,6 @@ const parseArgs = (argv: string[]) => {
   return args;
 };
 
-const sequenceFromDir = async (dir: string): Promise<number> => {
-  let entries: string[];
-  try {
-    entries = await readdir(dir);
-  } catch (err) {
-    if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
-      return 1;
-    }
-    throw err;
-  }
-  return nextSequence(entries);
-};
-
 const main = async () => {
   const args = parseArgs(process.argv);
   if (!args.provider) {
@@ -79,13 +65,10 @@ const main = async () => {
   }
 
   const migrationsPath = args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
-  await mkdir(migrationsPath, { recursive: true });
-
-  const seq = pad4(await sequenceFromDir(migrationsPath));
-  const upName = `${seq}_${args.name}_up.sql`;
-  const downName = `${seq}_${args.name}_down.sql`;
-  await writeFile(`${migrationsPath}/${upName}`, await loadScaffold('up', { name: args.name }));
-  await writeFile(`${migrationsPath}/${downName}`, await loadScaffold('down', { name: args.name }));
+  const { upName, downName } = await new Migrater(dialect).create({
+    name: args.name,
+    migrationsPath,
+  });
   process.stdout.write(fillTemplate(createdTpl, { file: upName }));
   process.stdout.write(fillTemplate(createdTpl, { file: downName }));
 };

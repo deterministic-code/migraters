@@ -1,14 +1,9 @@
 #!/usr/bin/env node
 // Idempotent migrate-setup — creates the migrates + migrate_logs tracking tables per dialect.
 
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { mkdir } from 'node:fs/promises';
-import { dirname, resolve as pathResolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
 import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
-import { loadHelp } from '../index.ts';
+import { loadHelp, Migrater } from '../index.ts';
 
 const [HELP_TEXT, unknownArgTpl, setupCompleteTpl] = await Promise.all([
   loadHelp('migrate-setup'),
@@ -70,36 +65,29 @@ const main = async () => {
   const connection = requireConnection(dialect, args.connection);
 
   const migrationsPath = args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
-
-  await dialect.prepareSetup(connection);
-
-  const client = await dialect.createClient(connection);
-  try {
-    for (const stmt of [dialect.migratesDdl, dialect.migrateLogsDdl]) {
-      await client.exec(stmt);
-    }
-    await mkdir(migrationsPath, { recursive: true });
-    process.stdout.write(
-      fillTemplate(setupCompleteTpl, {
-        dialect: dialect.name,
-        migrationsPath,
-        createExample: `  migrate-create --provider ${dialect.name} --name add_users`,
-        upExample: `  migrate-up --provider ${dialect.name} --connection ${connection}`,
-      }),
-    );
-  } finally {
-    await client.close();
-  }
+  const migrater = new Migrater(dialect);
+  await migrater.setup({ connection, migrationsPath });
+  process.stdout.write(
+    fillTemplate(setupCompleteTpl, {
+      dialect: dialect.name,
+      migrationsPath,
+      createExample: `  migrate-create --provider ${dialect.name} --name add_users`,
+      upExample: `  migrate-up --provider ${dialect.name} --connection ${connection}`,
+    }),
+  );
 
   if (args.andUp) {
-    const upScript = pathResolve(dirname(fileURLToPath(import.meta.url)), 'migrate-up.js');
-    const childArgs = [upScript, '--provider', dialect.name, '--connection', connection];
-    if (args.migrationsPath) {
-      childArgs.push('--migrations-path', args.migrationsPath);
+    const names = await migrater.up({ connection, migrationsPath });
+    const [noPendingMsg, noMorePendingMsg, appliedTpl] = await Promise.all([
+      loadMessage('status/no-pending'),
+      loadMessage('status/no-more-pending'),
+      loadMessage('status/applied'),
+    ]);
+    if (names.length === 0) process.stdout.write(noPendingMsg);
+    else {
+      for (const name of names) process.stdout.write(fillTemplate(appliedTpl, { name }));
+      process.stdout.write(noMorePendingMsg);
     }
-    const child = spawn(process.execPath, childArgs, { stdio: 'inherit' });
-    const [code] = (await once(child, 'exit')) as [number | null];
-    if (code !== 0) process.exit(code ?? 1);
   }
 };
 

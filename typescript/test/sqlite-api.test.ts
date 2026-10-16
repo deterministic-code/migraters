@@ -1,34 +1,36 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checksum, runDown, runUp } from '../src/datasource-migrate.ts';
+import { checksum } from '../src/datasource-migrate.ts';
+import { getMigrater } from '../src/migrater.ts';
 import { SqliteDialect } from '../src/dialects/sqlite-dialect.ts';
 
-describe('sqlite dialect operations', () => {
-  it('setup, apply, applied, rollback', async () => {
+describe('sqlite IMigrater', () => {
+  it('setup, up, down', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'migraters-api-'));
-    const db = join(dir, 'app.sqlite');
-    const dialect = new SqliteDialect();
-    await dialect.prepareSetup(db);
-    const client = await dialect.createClient(db);
+    const connection = join(dir, 'app.sqlite');
+    const migrationsPath = join(dir, 'migrations');
+    const migrater = getMigrater('sqlite');
+    expect(migrater.name).toBe(new SqliteDialect().name);
+    await migrater.setup({ connection, migrationsPath });
+    const upSql = 'CREATE TABLE t (id INTEGER);\n';
+    await writeFile(join(migrationsPath, '0001_init_up.sql'), upSql);
+    await writeFile(join(migrationsPath, '0001_init_down.sql'), 'DROP TABLE t;\n');
+    expect(await migrater.up({ connection, migrationsPath })).toEqual(['0001_init']);
+    const client = await new SqliteDialect().createClient(connection);
     try {
-      await client.exec(dialect.migratesDdl);
-      await client.exec(dialect.migrateLogsDdl);
-      await client.exec(dialect.migratesDdl);
-      const upPath = join(dir, '0001_init_up.sql');
-      const downPath = join(dir, '0001_init_down.sql');
-      const upSql = 'CREATE TABLE t (id INTEGER);\n';
-      await writeFile(upPath, upSql);
-      await writeFile(downPath, 'DROP TABLE t;\n');
-      const migrations = [{ name: '0001_init', upPath, downPath }];
-      await runUp({ client, migrations, env: {} });
       const applied = await client.query('SELECT name, checksum FROM migrates');
       expect(applied).toEqual([{ name: '0001_init', checksum: checksum(upSql) }]);
-      await runDown({ client, migrations, env: {} });
-      expect(await client.query('SELECT name FROM migrates')).toEqual([]);
     } finally {
       await client.close();
+    }
+    expect(await migrater.down({ connection, migrationsPath })).toBe('0001_init');
+    const after = await new SqliteDialect().createClient(connection);
+    try {
+      expect(await after.query('SELECT name FROM migrates')).toEqual([]);
+    } finally {
+      await after.close();
     }
   });
 });

@@ -22,82 +22,23 @@ internal sealed class MigrateUp(ISqlDialectFactory dialects, IConnectionResolver
 
         try
         {
-            return await ApplyPendingAsync(dialect, migratePath, connection, one).ConfigureAwait(false);
+            var names = await new Migrater(dialect).Up(new UpArg(connection, migratePath, one)).ConfigureAwait(false);
+            if (names.Count == 0)
+                Console.WriteLine(HelpTemplates.Message("status/no-pending"));
+            else
+            {
+                foreach (var name in names)
+                    Console.WriteLine(
+                        HelpTemplates.Message("status/applied", new Dictionary<string, string> { ["name"] = name })
+                    );
+                if (!one)
+                    Console.WriteLine(HelpTemplates.Message("status/no-more-pending"));
+            }
+            return 0;
         }
         catch (Exception ex)
         {
             return Fail($"migrate-up failed: {ex.Message}", 1);
-        }
-    }
-
-    private static async Task<int> ApplyPendingAsync(
-        ISqlDialect dialect,
-        string migratePath,
-        string connection,
-        bool one
-    )
-    {
-        await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(connection));
-        await conn.OpenAsync().ConfigureAwait(false);
-
-        var files = Migrations.OrderedUpFiles(migratePath);
-        var applied = await Migrations.AppliedChecksumsAsync(conn, dialect.SelectAppliedChecksumSql).ConfigureAwait(false);
-        Migrations.AssertNoChecksumDrift(files, applied);
-        var appliedCount = 0;
-        while (true)
-        {
-            var next = files.FirstOrDefault(f => !applied.ContainsKey(f.Name));
-            if (next is null)
-            {
-                Console.WriteLine(
-                    appliedCount == 0
-                        ? HelpTemplates.Message("status/no-pending")
-                        : HelpTemplates.Message("status/no-more-pending")
-                );
-                return 0;
-            }
-
-            var sql = await File.ReadAllTextAsync(next.UpPath).ConfigureAwait(false);
-            var checksum = Checksum.Hex(sql);
-            var logId = await MigrateLog.InsertStartedAsync(conn, dialect, next.Name, "up").ConfigureAwait(false);
-            var started = DateTime.UtcNow;
-            try
-            {
-                await DbExecute
-                    .ApplyStatementsAsync(
-                        conn,
-                        dialect,
-                        sql,
-                        tx =>
-                            DbExecute.CatalogWriteAsync(
-                                conn,
-                                tx,
-                                dialect,
-                                dialect.InsertAppliedSql,
-                                ("p1", next.Name),
-                                ("p2", checksum)
-                            )
-                    )
-                    .ConfigureAwait(false);
-                await MigrateLog
-                    .UpdateAsync(conn, dialect, logId, "success", (long)(DateTime.UtcNow - started).TotalMilliseconds, null)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                await MigrateLog
-                    .UpdateAsync(conn, dialect, logId, "error", (long)(DateTime.UtcNow - started).TotalMilliseconds, ex.Message)
-                    .ConfigureAwait(false);
-                throw;
-            }
-
-            Console.WriteLine(
-                HelpTemplates.Message("status/applied", new Dictionary<string, string> { ["name"] = next.Name })
-            );
-            applied[next.Name] = checksum;
-            appliedCount++;
-            if (one)
-                return 0;
         }
     }
 
