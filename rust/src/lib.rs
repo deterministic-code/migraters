@@ -16,12 +16,10 @@ pub use checksum::checksum_hex;
 pub use cli_spec::join_env_vars;
 #[cfg(feature = "oracle")]
 pub use dialects::parse_oracle_connection;
-pub use help::{fill_help_template, program_usage};
+pub use help::fill_help_template;
 pub use infrastructure::{connection_from_env, MigrationPool};
-pub use messages::{fill_template, message, scaffold, SUPPORTED_PROVIDERS};
-pub use migrater::{
-    get_migrater, CreateArg, CreateResponse, DownArg, IMigrater, Migrater, SetupArg, UpArg,
-};
+pub use messages::{fill_template, message, scaffold};
+pub use migrater::{CreateArg, CreateResponse, DownArg, IMigrater, Migrater, SetupArg, UpArg};
 pub use migrations::{
     assert_no_checksum_drift, catalog_name, discover_up_files, down_path_for, is_migration_name,
     next_sequence,

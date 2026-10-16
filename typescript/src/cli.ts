@@ -1,26 +1,13 @@
 import { connectionResolver, defaultDialectFactory } from './infrastructure/default-factory.ts';
 import type { ISqlDialect } from './abstractions/sql-dialect.ts';
 import { cliSpec } from './cli-spec.ts';
-import { sqliteFilesystemPath } from './dialects/sqlite-dialect.ts';
 import { fillTemplate, loadMessage } from './infrastructure/message-templates.ts';
-
-export { sqliteFilesystemPath };
-
-export const ENV_VARS_BY_DIALECT: Record<string, string[]> = Object.fromEntries(
-  defaultDialectFactory.all().map((d) => [d.name, [...d.connectionEnvironmentVariables]]),
-);
 
 const missingProviderMsg = await loadMessage('errors/missing-provider');
 const unsupportedProviderTpl = await loadMessage('errors/unsupported-provider');
 const missingConnectionTpl = await loadMessage('errors/missing-connection');
 
 export { missingProviderMsg };
-
-export const resolveConn = (dialect: string, fromFlag: string | null): string | null => {
-  const d = defaultDialectFactory.tryGet(dialect);
-  if (!d) return fromFlag;
-  return connectionResolver.resolve(d, fromFlag);
-};
 
 export const requireDialect = (provider: string | null): ISqlDialect => {
   if (!provider) {

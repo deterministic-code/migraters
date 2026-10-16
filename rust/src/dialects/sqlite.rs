@@ -19,12 +19,6 @@ impl SqlDialect for SqliteDialect {
     fn use_transaction(&self) -> bool {
         true
     }
-    fn select_applied_sql(&self) -> &'static str {
-        r#"SELECT "name" FROM "migrates""#
-    }
-    fn select_last_applied_sql(&self) -> &'static str {
-        r#"SELECT "name" FROM "migrates" ORDER BY "name" DESC LIMIT 1"#
-    }
     fn insert_applied_sql(&self) -> &'static str {
         r#"INSERT INTO "migrates" ("name", "checksum") VALUES (?, ?)"#
     }
@@ -44,9 +38,6 @@ impl SqlDialect for SqliteDialect {
             return None;
         }
         Some(message("errors/sqlite-prerequisite", &[("path", &path)]))
-    }
-    fn uses_last_insert_rowid(&self) -> bool {
-        true
     }
     fn prepare_setup(&self, connection: &str) -> std::io::Result<()> {
         if let Some(path) = filesystem_path(connection) {

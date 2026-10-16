@@ -22,7 +22,6 @@ internal static class MigrateRunnerServices
 #endif
         return builder
             .AddSingleton<ISqlDialectFactory, SqlDialectFactory>()
-            .AddSingleton<IMigraterFactory, MigraterFactory>()
             .AddSingleton<IConnectionResolver, ConnectionResolver>()
             .AddSingleton<IMigrateCommand, MigrateSetup>()
             .AddSingleton<IMigrateCommand, MigrateUp>()

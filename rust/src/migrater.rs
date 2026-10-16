@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use crate::abstractions::{try_get, SqlDialect};
+use crate::abstractions::SqlDialect;
 use crate::checksum::checksum_hex;
 use crate::infrastructure::MigrationPool;
 use crate::messages::{message, scaffold};
@@ -55,10 +55,6 @@ impl Migrater {
     pub fn new(dialect: &'static dyn SqlDialect) -> Self {
         Self { dialect }
     }
-}
-
-pub fn get_migrater(name: &str) -> Option<Migrater> {
-    try_get(name).map(Migrater::new)
 }
 
 impl IMigrater for Migrater {

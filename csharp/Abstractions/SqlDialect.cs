@@ -46,12 +46,8 @@ internal sealed class SqlDialect : ISqlDialect
     public string NowExpr { get; }
     public string MigratesDdl => SqlTemplates.Read(Name, "migrates");
     public string MigrateLogsDdl => SqlTemplates.Read(Name, "migrate_logs");
-    public string SelectAppliedNamesSql =>
-        $"SELECT {_quoteIdent("name")} FROM {_quoteIdent("migrates")}";
     public string SelectAppliedChecksumSql =>
         $"SELECT {_quoteIdent("name")} AS name, {_quoteIdent("checksum")} AS checksum FROM {_quoteIdent("migrates")}";
-    public string SelectLastAppliedNameSql =>
-        $"SELECT {_quoteIdent("name")} FROM {_quoteIdent("migrates")} ORDER BY {_quoteIdent("name")} DESC {_limitClause(1)}";
     public string InsertAppliedSql =>
         $"INSERT INTO {_quoteIdent("migrates")} ({_quoteIdent("name")}, {_quoteIdent("checksum")}) VALUES ({_placeholder("p1")}, {_placeholder("p2")})";
     public string DeleteAppliedSql =>
