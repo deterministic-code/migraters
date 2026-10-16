@@ -44,14 +44,14 @@ migrate-create --provider <…> --name <snake_case_slug> [--migrations-path <dir
 
 The four verbs are one contract in every language: argv in [`cli.yaml`](cli.yaml), dialect operations in [`api.yaml`](api.yaml). TypeScript publishes library functions (`setupSql`, `runUp`, `runDown`, `nextSequence`). Rust and C# run the same operations on the dialect and pool the commands already use.
 
-Tabbed TypeScript / Rust / C# / CLI interfaces live in the Cursor canvas [Command API](/Users/ryan/.cursor/projects/Users-ryan-Projects-migraters/canvases/migrate-command-api.canvas.tsx) (open beside chat). Each card names the source of the call:
+Tabbed TypeScript / Rust / C# interfaces live in the Cursor canvas [Command API](/Users/ryan/.cursor/projects/Users-ryan-Projects-migraters/canvases/migrate-command-api.canvas.tsx) (open beside chat). Each card names the source of the call:
 
-| Verb | TypeScript | Rust | C# | CLI |
-|---|---|---|---|---|
-| setup | [`sql-dialect.ts`](typescript/src/abstractions/sql-dialect.ts) `prepareSetup`, [`setup-sql.ts`](typescript/src/setup-sql.ts) | [`SqlDialect`](rust/src/abstractions/sql_dialect.rs) | [`ISqlDialect`](csharp/Abstractions/ISqlDialect.cs) | [`cli.yaml`](cli.yaml) `setup` |
-| up | [`runUp`](typescript/src/datasource-migrate.ts) | [`MigrationPool::apply_statements`](rust/src/infrastructure/pool.rs) + `insert_applied_sql` | [`DbExecute.ApplyStatementsAsync`](csharp/Infrastructure/DbExecute.cs) + `InsertAppliedSql` | [`cli.yaml`](cli.yaml) `up` |
-| down | [`runDown`](typescript/src/datasource-migrate.ts) | `apply_statements` + `delete_applied_sql` | `ApplyStatementsAsync` + `DeleteAppliedSql` | [`cli.yaml`](cli.yaml) `down` |
-| create | [`create-sequence.ts`](typescript/src/create-sequence.ts) | [`migrations.rs`](rust/src/migrations.rs) | [`Migrations`](csharp/Infrastructure/Migrations.cs) | [`cli.yaml`](cli.yaml) `create` |
+| Verb | TypeScript | Rust | C# |
+|---|---|---|---|
+| setup | [`sql-dialect.ts`](typescript/src/abstractions/sql-dialect.ts) `prepareSetup`, [`setup-sql.ts`](typescript/src/setup-sql.ts) | [`SqlDialect`](rust/src/abstractions/sql_dialect.rs) | [`ISqlDialect`](csharp/Abstractions/ISqlDialect.cs) |
+| up | [`runUp`](typescript/src/datasource-migrate.ts) | [`MigrationPool::apply_statements`](rust/src/infrastructure/pool.rs) + `insert_applied_sql` | [`DbExecute.ApplyStatementsAsync`](csharp/Infrastructure/DbExecute.cs) + `InsertAppliedSql` |
+| down | [`runDown`](typescript/src/datasource-migrate.ts) | `apply_statements` + `delete_applied_sql` | `ApplyStatementsAsync` + `DeleteAppliedSql` |
+| create | [`create-sequence.ts`](typescript/src/create-sequence.ts) | [`migrations.rs`](rust/src/migrations.rs) | [`Migrations`](csharp/Infrastructure/Migrations.cs) |
 
 ## Language support
 
