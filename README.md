@@ -18,6 +18,20 @@ Agent skill for Claude or Cursor: [skill/SKILL.md](skill/SKILL.md).
 npx skills add https://github.com/deterministic-code/migraters/tree/main/skill -g -a cursor -a claude-code -y --copy
 ```
 
+## Skill Prompts
+
+Natural-language prompts the [skill](skill/SKILL.md) maps straight to CLI commands:
+
+| Prompt | Runs |
+| --- | --- |
+| Install migraters and build for csharp for sqlite and postgres | `npm install` → `migrate-init --dialect sqlite --dialect postgres` → `./build csharp` |
+| Add driver oracle | `migrate-init` with prior dialects **plus** `oracle` → `./build` (same language) |
+| Create a new migrate | `migrate-create` |
+| migrate up | `migrate-up` |
+| migrate down | `migrate-down` |
+
+`migrate-init` replaces the dialect set, so “add driver” means re-run init with the previously enabled dialects and the new one (for example `migrate-init --dialect sqlite --dialect postgres --dialect oracle` after a sqlite+postgres install). Flag details are under [Commands](#commands).
+
 ## Commands
 
 ### init
