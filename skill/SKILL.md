@@ -14,6 +14,38 @@ Migraters tracks SQL changes and applies them through development. The same six 
 
 Shared argv lives in `cli.yaml`. The library API (`setup`, `up`, `down`, `create`) lives in `api.yaml`. `migrate-init` and `./build` are CLI-only.
 
+## Skill Prompts
+
+When the user prompt matches a row below, **run those CLI commands**. Do not reconstruct install/init/build from memory. Open `references/*.md` only for missing flags (`--provider`, `--connection`, `--name`) or API samples. For create/up/down: if provider, name, or connection are missing, ask once or use the dialect env vars below — still call the CLI; do not invent library API usage unless the user asked for code.
+
+| Prompt | Run |
+| --- | --- |
+| Install migraters and build for csharp for sqlite and postgres | `npm install @deterministic-code/migraters` (or `npm install` in-repo) → `migrate-init --dialect sqlite --dialect postgres` → `./build csharp` |
+| Add driver \<dialect\> (e.g. oracle) | Read current enabled dialects (Cargo `default` features / last init stdout) → `migrate-init --dialect <existing…> --dialect <new>` → `./build <language>` |
+| Create a new migrate | `migrate-create --provider … --name …` |
+| migrate up | `migrate-up --provider … [--connection …]` |
+| migrate down | `migrate-down --provider … [--connection …]` |
+
+Concrete sequences:
+
+```text
+Install … csharp … sqlite and postgres
+  → npm install @deterministic-code/migraters   # or npm install in-repo
+  → migrate-init --dialect sqlite --dialect postgres
+  → ./build csharp
+
+Add driver <dialect>
+  → read current enabled dialects
+  → migrate-init --dialect <existing…> --dialect <new>
+  → ./build <language>
+
+Create a new migrate → migrate-create --provider … --name …
+migrate up           → migrate-up --provider … [--connection …]
+migrate down         → migrate-down --provider … [--connection …]
+```
+
+`migrate-init` replaces the dialect set. “Add driver” means re-init with prior dialects plus the new one, then build the same language as last time (or as the user stated).
+
 ## Commands
 
 - **init** — select which dialects this tree compiles and installs. Not an `IMigrater` method. No `--connection`.
