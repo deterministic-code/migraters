@@ -3,7 +3,22 @@
   "version": "0.0.1",
   "private": true,
   "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
+  "type": "module",
+  "bin": {
+    "migrate-init": "./typescript/dist/bin/migrate-init.js",
+    "migrate-setup": "./typescript/dist/bin/migrate-setup.js",
+    "migrate-up": "./typescript/dist/bin/migrate-up.js",
+    "migrate-down": "./typescript/dist/bin/migrate-down.js",
+    "migrate-create": "./typescript/dist/bin/migrate-create.js"
+  },
+  "files": [
+    "typescript/dist",
+    "/cli.yaml",
+    "/bundle.yaml",
+    "shared/templates"
+  ],
   "scripts": {
+    "prepare": "npm run build --prefix typescript",
     "build": "npm run build --prefix typescript",
     "typecheck": "npm run typecheck --prefix typescript",
     "test": "npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
@@ -14,10 +29,9 @@
     "format": "npm run format --prefix typescript"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
-    "mssql": "^12.7.9",
-    "mysql2": "^3.24.6",
-    "oracledb": "^6.10.0",
-    "pg": "^8.23.1"
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
   }
 }
