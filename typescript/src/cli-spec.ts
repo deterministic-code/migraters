@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,9 +27,21 @@ export type CliSpec = {
   commands: CliCommand[];
 };
 
-const CLI_YAML = join(dirname(fileURLToPath(import.meta.url)), '..', 'cli.yaml');
+export const cliYamlPath = (): string => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(here, '..', 'cli.yaml'),
+    join(here, '..', '..', 'cli.yaml'),
+    join(process.cwd(), 'cli.yaml'),
+  ];
+  const found = candidates.find((candidate) => existsSync(candidate));
+  if (!found) {
+    throw new Error('cli.yaml not found');
+  }
+  return found;
+};
 
-export const cliSpec = parse(await readFile(CLI_YAML, 'utf8')) as CliSpec;
+export const cliSpec = parse(await readFile(cliYamlPath(), 'utf8')) as CliSpec;
 
 export const migrateCommand = (verb: MigrateVerb): string =>
   cliSpec.command.replace('{verb}', verb);

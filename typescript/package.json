@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R ../shared/templates dist/templates",
-    "prepare": "npm run generate:help && npm run build",
+    "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest run --coverage",
     "test:proof": "vitest run --config vitest.proof.config.ts",

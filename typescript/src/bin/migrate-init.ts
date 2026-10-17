@@ -47,6 +47,8 @@ const parseArgs = (argv: string[]) => {
   return { dialects, all };
 };
 
+const npmFlags = ['--no-audit', '--no-fund', '--loglevel=error'];
+
 const npm = (args: string[]): void => {
   const cmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const result = spawnSync(cmd, args, { stdio: 'inherit', cwd: process.cwd() });
@@ -68,13 +70,13 @@ const main = async () => {
   const selected = await loadSelectedPackages(names);
   const specs = selected.packages.map((p) => `${p.name}@${p.version}`);
   if (specs.length > 0) {
-    npm(['install', ...specs]);
+    npm(['install', ...npmFlags, ...specs]);
   }
   const remove = selected.allDriverPackages.filter(
     (name) => !selected.packages.some((p) => p.name === name),
   );
   if (remove.length > 0) {
-    npm(['uninstall', ...remove]);
+    npm(['uninstall', ...npmFlags, ...remove]);
   }
   process.stdout.write(`Enabled dialects: ${selected.names.join(', ')}\n`);
 };
