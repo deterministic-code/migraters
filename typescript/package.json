@@ -29,7 +29,7 @@
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest run --coverage",
-    "test:proof": "vitest run --config vitest.proof.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:coverage": "vitest run --coverage",
     "generate:help": "node --experimental-strip-types src/generate-help.ts",
     "format": "prettier --write ."

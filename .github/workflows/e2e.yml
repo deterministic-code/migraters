@@ -1,0 +1,63 @@
+name: e2e
+
+on:
+  schedule:
+    - cron: '0 21 * * *'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Increase swap
+        run: |
+          sudo swapoff -a || true
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Skip if no pushes in the last 24 hours
+        id: recent
+        run: |
+          if [ -z "$(git log --since='24 hours ago' --pretty=%H)" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "No pushes in the last 24 hours"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.recent.outputs.skip != 'true'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.recent.outputs.skip != 'true'
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.recent.outputs.skip != 'true'
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install TypeScript deps
+        if: steps.recent.outputs.skip != 'true'
+        working-directory: typescript
+        run: npm ci
+
+      - name: Run e2e
+        if: steps.recent.outputs.skip != 'true'
+        run: npm run test:e2e
+
+      - name: Upload proof report
+        if: always() && steps.recent.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof-report
+          path: proof/report.md
