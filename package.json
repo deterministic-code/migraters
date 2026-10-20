@@ -24,7 +24,7 @@
     "test": "npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
     "test:rust": "CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
     "test:csharp": "dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
-    "test:proof": "docker compose -f proof/docker-compose.yml up -d --wait && bash proof/ensure-instant-client.sh && cargo build --manifest-path rust/Cargo.toml --target-dir rust/target && dotnet build csharp && npm run build --prefix typescript && npm run test:proof --prefix typescript",
+    "test:e2e": "docker compose -f proof/docker-compose.yml up -d --wait && bash proof/ensure-instant-client.sh && npm run test:e2e --prefix typescript",
     "generate:help": "npm run generate:help --prefix typescript",
     "format": "npm run format --prefix typescript"
   },
