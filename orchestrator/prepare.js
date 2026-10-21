@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const orch = dirname(fileURLToPath(import.meta.url));
+const root = join(orch, '..');
 const src = join(orch, 'src', 'migrate-init.ts');
 const built = join(orch, 'dist', 'migrate-init.js');
 if (!existsSync(src)) {
@@ -14,8 +15,12 @@ if (!existsSync(src)) {
   }
   process.exit(0);
 }
-const result = spawnSync('npx', ['tsc', '-p', join(orch, 'tsconfig.json')], {
+const tsc = join(root, 'node_modules', 'typescript', 'bin', 'tsc');
+if (!existsSync(tsc)) {
+  process.stderr.write('typescript is not installed; run npm ci at the repo root\n');
+  process.exit(1);
+}
+const result = spawnSync(process.execPath, [tsc, '-p', join(orch, 'tsconfig.json')], {
   stdio: 'inherit',
-  shell: process.platform === 'win32',
 });
 process.exit(result.status ?? 1);

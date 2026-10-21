@@ -15,7 +15,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: typescript/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            typescript/package-lock.json
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -28,6 +30,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+
+      - name: Install root deps
+        run: npm ci
 
       - name: Install TypeScript deps
         working-directory: typescript

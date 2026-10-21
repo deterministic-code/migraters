@@ -1,5 +1,7 @@
 # Migraters
 
+[![CI](https://github.com/deterministic-code/migraters/actions/workflows/proof.yml/badge.svg)](https://github.com/deterministic-code/migraters/actions/workflows/proof.yml)
+
 Migraters allows you to save SQL changes during development so they can be applied upstream later. As a codebase grows in complexity and team size, keeping those changes tracked and in sync becomes harder. Migraters is built for that.
 
 The typical workflow is:
