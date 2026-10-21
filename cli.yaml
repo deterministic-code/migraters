@@ -92,6 +92,9 @@ commands:
       and the migrations directory (mkdir -p). Idempotent — re-running against an
       already-setup database is a no-op. For sqlite, also mkdir -p of the parent
       directory of --connection so a fresh-tree path like ./.test/foo.sqlite works.
+      Pass --create-database to create the database named in --connection if it
+      does not exist (postgres, mysql, sqlserver). sqlite creates the file on
+      connect. oracle uses the existing service.
     examples: |
       # sqlite — bare path or sqlite:// URL; both create a file on disk.
       {{command}} --provider sqlite --connection ./app.sqlite
@@ -130,6 +133,9 @@ commands:
       - flag: --and-up
         required: false
         help: "After setup, immediately invoke migrate-up so the chain is applied in one step."
+      - flag: --create-database
+        required: false
+        help: "Create the database named in --connection if it does not exist."
 
   - verb: up
     show_connection_env: true
@@ -186,9 +192,8 @@ commands:
   - verb: down
     show_connection_env: true
     summary: |
-      Rolls back the MOST RECENTLY applied migration (one step). DESTRUCTIVE: prints a
-      random 4-letter uppercase token on stderr and refuses to proceed unless the
-      operator types it back on stdin (or passes --confirm <TOKEN> matching it).
+      Rolls back the MOST RECENTLY applied migration (one step). DESTRUCTIVE: refuses
+      to proceed unless the operator types confirm on stdin, or passes --confirm.
     examples: |
       # sqlite — bare path or sqlite:// URL.
       {{command}} --provider sqlite --connection ./app.sqlite
@@ -230,11 +235,8 @@ commands:
           Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
           Defaults to 'sql'. Ignored when --migrations-path is also set.
       - flag: --confirm
-        placeholder: TOKEN
         required: false
-        help: |
-          Skip the interactive prompt. The TOKEN must match the value
-          printed on stderr at runtime — there is no fixed bypass value.
+        help: Skip the interactive prompt.
 
   - verb: create
     summary: |

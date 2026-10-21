@@ -134,7 +134,6 @@ internal static class MigrateCli
             "--migrations-root",
             "--migrate-root",
             "--name",
-            "--confirm",
         ];
         foreach (var flag in flags)
         {

@@ -1,16 +1,14 @@
 {{usage}}
 
-Rolls back the MOST RECENTLY applied migration (one step). DESTRUCTIVE: prints a
-random 4-letter uppercase token on stderr and refuses to proceed unless the
-operator types it back on stdin (or passes --confirm <TOKEN> matching it).
+Rolls back the MOST RECENTLY applied migration (one step). DESTRUCTIVE: refuses
+to proceed unless the operator types confirm on stdin, or passes --confirm.
 
   --provider         Database dialect. Required.
   --connection       Connection string. Required (or set the per-dialect env var below).
   --migrations-path  Full path to the migrations directory.
   --migrations-root  Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
                      Defaults to 'sql'. Ignored when --migrations-path is also set.
-  --confirm          Skip the interactive prompt. The TOKEN must match the value
-                     printed on stderr at runtime — there is no fixed bypass value.
+  --confirm          Skip the interactive prompt.
 
 Examples:
   # sqlite — bare path or sqlite:// URL.

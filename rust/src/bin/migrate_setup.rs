@@ -4,8 +4,8 @@ use std::env;
 use std::process;
 
 use deterministic_migraters::{
-    connection_from_env, fill_help_template, is_help, join_env_vars, message, take_value, try_get,
-    IMigrater, Migrater, SetupArg, SqlDialect, UpArg,
+    connection_from_env, create_database, fill_help_template, is_help, join_env_vars, message,
+    take_value, try_get, IMigrater, Migrater, SetupArg, SqlDialect, UpArg,
 };
 
 const HELP_TEMPLATE: &str = include_str!("../../../shared/templates/help/setup.txt");
@@ -19,6 +19,7 @@ struct Args {
     connection: String,
     migrations_path: String,
     and_up: bool,
+    create_database: bool,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -26,6 +27,7 @@ fn parse_args() -> Result<Args, String> {
     let mut connection: Option<String> = None;
     let mut migrations_path: Option<String> = None;
     let mut and_up = false;
+    let mut create_database = false;
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
         if is_help(&a) {
@@ -34,6 +36,10 @@ fn parse_args() -> Result<Args, String> {
         }
         if a == "--and-up" {
             and_up = true;
+            continue;
+        }
+        if a == "--create-database" {
+            create_database = true;
             continue;
         }
         if let Some(v) = take_value(&a, &mut iter, "--provider") {
@@ -73,6 +79,7 @@ fn parse_args() -> Result<Args, String> {
         connection,
         migrations_path,
         and_up,
+        create_database,
     })
 }
 
@@ -90,6 +97,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             process::exit(2);
         }
     };
+    if args.create_database {
+        create_database(args.dialect.name(), &args.connection).await?;
+    }
     let migrater = Migrater::new(args.dialect);
     migrater
         .setup(SetupArg {

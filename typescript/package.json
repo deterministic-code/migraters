@@ -25,11 +25,10 @@
     "tsconfig.build.json"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R ../shared/templates dist/templates && cp ../cli.yaml dist/cli.yaml",
+    "build": "rm -rf dist.tmp && tsc -p tsconfig.build.json --outDir dist.tmp && cp -R ../shared/templates dist.tmp/templates && cp ../cli.yaml dist.tmp/cli.yaml && rm -rf dist && mv dist.tmp dist",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest run --coverage",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:coverage": "vitest run --coverage",
     "generate:help": "node --experimental-strip-types src/generate-help.ts",
     "format": "prettier --write ."

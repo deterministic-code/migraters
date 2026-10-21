@@ -17,7 +17,7 @@ pub use cli_spec::join_env_vars;
 #[cfg(feature = "oracle")]
 pub use dialects::parse_oracle_connection;
 pub use help::fill_help_template;
-pub use infrastructure::{connection_from_env, MigrationPool};
+pub use infrastructure::{connection_from_env, create_database, MigrationPool};
 pub use messages::{fill_template, message, scaffold};
 pub use migrater::{CreateArg, CreateResponse, DownArg, IMigrater, Migrater, SetupArg, UpArg};
 pub use migrations::{

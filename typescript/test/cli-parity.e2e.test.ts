@@ -208,12 +208,6 @@ describe('CLI e2e parity across languages', () => {
   });
 });
 
-const tokenFrom = (stderr: string): string => {
-  const m = /Confirmation token: ([A-Z]{4})/.exec(stderr);
-  if (!m) throw new Error(`no confirmation token in stderr:\n${stderr}`);
-  return m[1] as string;
-};
-
 describe('CLI sqlite lifecycle across languages', () => {
   it('setup, create, up, down, checksum drift, and usage errors', async () => {
     const missingProvider = await loadMessage('errors/missing-provider');
@@ -267,17 +261,15 @@ describe('CLI sqlite lifecycle across languages', () => {
       expect(one.stdout).toContain('Applied: 0002_add_email');
       expect(one.stdout).not.toContain('No pending migrations.');
 
-      const wrong = await run(proc, 'down', [...conn, '--confirm', 'NOPE']);
-      expect(wrong.code, `${proc.lang} down wrong token`).toBe(2);
-      expect(wrong.stderr).toContain('does not match the token printed above');
-      const token = tokenFrom(wrong.stderr);
-      expect(token).toMatch(/^[A-Z]{4}$/);
+      const noTty = await run(proc, 'down', conn);
+      expect(noTty.code, `${proc.lang} down no confirm`).toBe(2);
+      expect(noTty.stderr).toContain('pass --confirm');
       const stillApplied = await run(proc, 'up', conn);
       expect(stillApplied.stdout).toContain('No pending migrations.');
 
-      const noTty = await run(proc, 'down', conn);
-      expect(noTty.code, `${proc.lang} down no confirm`).toBe(2);
-      expect(noTty.stderr).toMatch(/Confirmation token: [A-Z]{4}/);
+      const okDown = await run(proc, 'down', [...conn, '--confirm']);
+      expect(okDown.code, `${proc.lang} down --confirm`).toBe(0);
+      expect(okDown.stdout).toContain('Rolled back');
 
       const upFile = join(migrations, '0001_add_users_up.sql');
       await appendFile(upFile, '-- changed\n');

@@ -11,7 +11,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
 
     public async Task<int> RunAsync(string[] args)
     {
-        if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var andUp, out var showHelp, out var error))
+        if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var andUp, out var createDatabase, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
         if (!MigrateCli.TryResolveProvider(dialects, connections, provider, connection, out var dialect, out connection, out error))
@@ -22,6 +22,8 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
 
         try
         {
+            if (createDatabase)
+                await CreateDatabase.RunAsync(dialect.Name, connection).ConfigureAwait(false);
             await migrater.Setup(new SetupArg(connection, resolvedMigrationsPath)).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -72,6 +74,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
         out string? connection,
         out string? migrationsPath,
         out bool andUp,
+        out bool createDatabase,
         out bool showHelp,
         out string error
     )
@@ -80,6 +83,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
         connection = null;
         migrationsPath = null;
         andUp = false;
+        createDatabase = false;
         showHelp = false;
         error = string.Empty;
 
@@ -104,6 +108,11 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
             if (a == "--and-up")
             {
                 andUp = true;
+                continue;
+            }
+            if (a == "--create-database")
+            {
+                createDatabase = true;
                 continue;
             }
             if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out var takenPath)

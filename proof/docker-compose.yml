@@ -56,3 +56,21 @@ services:
       timeout: 10s
       retries: 40
       start_period: 90s
+
+  typescript:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ..:/app
+
+  rust:
+    image: rust:1-bookworm
+    working_dir: /app
+    volumes:
+      - ..:/app
+
+  csharp:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    working_dir: /app
+    volumes:
+      - ..:/app
