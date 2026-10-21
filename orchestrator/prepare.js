@@ -23,4 +23,12 @@ if (!existsSync(tsc)) {
 const result = spawnSync(process.execPath, [tsc, '-p', join(orch, 'tsconfig.json')], {
   stdio: 'inherit',
 });
-process.exit(result.status ?? 1);
+if ((result.status ?? 1) !== 0) {
+  process.exit(result.status ?? 1);
+}
+const gitDir = join(root, '.git');
+const hooks = join(root, '.githooks');
+if (existsSync(src) && existsSync(gitDir) && existsSync(hooks)) {
+  spawnSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root, stdio: 'ignore' });
+}
+process.exit(0);

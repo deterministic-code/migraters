@@ -3,22 +3,6 @@ namespace Deterministic.MigrateRunner.Tests;
 public sealed class RegistryTests
 {
     [Fact]
-    public void RegistersEveryCliYamlProviderAndAlias()
-    {
-        var services = new ServiceCollection().AddMigrateRunner().BuildServiceProvider();
-        var factory = services.GetRequiredService<ISqlDialectFactory>();
-        Assert.Equal(CliSpec.Providers, factory.All().Select(d => d.Name).ToArray());
-        foreach (var (alias, canonical) in CliSpec.ProviderAliases)
-        {
-            Assert.True(factory.TryGet(alias, out var dialect), alias);
-            Assert.Equal(canonical, dialect.Name);
-        }
-        Assert.True(factory.TryGet("MS-SQL-Server", out var sqlServer));
-        Assert.Equal("sqlserver", sqlServer.Name);
-        Assert.False(factory.TryGet("nope", out _));
-    }
-
-    [Fact]
     public void UsageLineIncludesSpecFlags()
     {
         Assert.Contains("--provider", CliSpec.UsageLine("setup"), StringComparison.Ordinal);

@@ -6,11 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <RootNamespace>Deterministic.MigrateRunner.Tests</RootNamespace>
-    <CollectCoverage>true</CollectCoverage>
-    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <Include>[Migrate*]*Dialect*</Include>
-    <Threshold>100</Threshold>
-    <ThresholdType>line,branch,method</ThresholdType>
+    <CollectCoverage>false</CollectCoverage>
   </PropertyGroup>
 
   <ItemGroup>

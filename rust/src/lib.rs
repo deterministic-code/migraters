@@ -60,8 +60,16 @@ mod sqlite_lifecycle {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        let db = dir.join("app.sqlite");
-        let connection = db.to_str().unwrap();
+        let connection = format!(
+            "sqlite://file:migraters-api-{}-{}?mode=memory&cache=shared",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let connection = connection.as_str();
+        let _keep = dialect.connect(connection).await.unwrap();
         let migrations_path = dir.join("migrations");
         let migrater = Migrater::new(dialect);
         migrater

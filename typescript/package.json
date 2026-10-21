@@ -28,8 +28,9 @@
   "scripts": {
     "build": "rm -rf dist.tmp && tsc -p tsconfig.build.json --outDir dist.tmp && cp -R ../shared/templates dist.tmp/templates && cp ../cli.yaml dist.tmp/cli.yaml && rm -rf dist && mv dist.tmp dist",
     "typecheck": "tsc -p tsconfig.src.json --noEmit",
-    "test": "npm run build && node ../orchestrator/dist/migrate-init.js --language typescript --all && vitest run --coverage",
-    "test:coverage": "vitest run --coverage",
+    "test": "npm run build && node ../orchestrator/dist/migrate-init.js --language typescript --dialect sqlite && vitest run --config vitest.unit.config.ts",
+    "integration": "npm run build && node ../orchestrator/dist/migrate-init.js --language typescript --all && vitest run --config vitest.integration.config.ts --coverage",
+    "test:coverage": "vitest run --config vitest.integration.config.ts --coverage",
     "generate:help": "node --experimental-strip-types src/generate-help.ts",
     "format": "prettier --write ."
   },
