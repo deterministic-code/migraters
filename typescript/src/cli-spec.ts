@@ -30,6 +30,7 @@ export type CliSpec = {
 export const cliYamlPath = (): string => {
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [
+    join(here, 'cli.yaml'),
     join(here, '..', 'cli.yaml'),
     join(here, '..', '..', 'cli.yaml'),
     join(process.cwd(), 'cli.yaml'),
