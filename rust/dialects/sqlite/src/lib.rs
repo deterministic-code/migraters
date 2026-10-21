@@ -183,12 +183,34 @@ async fn catalog_exec_pool(
     Ok(())
 }
 
+fn is_memory(connection: &str) -> bool {
+    let s = connection.trim();
+    if s.is_empty() || s == ":memory:" {
+        return true;
+    }
+    let compact: String = s
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .flat_map(|c| c.to_lowercase())
+        .collect();
+    compact.contains(":memory:")
+        || compact.contains("?mode=memory")
+        || compact.contains("&mode=memory")
+        || compact.contains(";mode=memory")
+}
+
 fn filesystem_path(connection: &str) -> Option<String> {
+    if is_memory(connection) {
+        return None;
+    }
     let mut s = connection.trim().to_string();
     if let Some(eq) = s.find('=') {
         let key = s[..eq].trim().to_ascii_lowercase();
         if key.replace(' ', "") == "datasource" {
             s = s[eq + 1..].trim().to_string();
+            if let Some(semi) = s.find(';') {
+                s = s[..semi].trim().to_string();
+            }
         }
     }
     let lower = s.to_ascii_lowercase();
@@ -198,6 +220,9 @@ fn filesystem_path(connection: &str) -> Option<String> {
         s = s["sqlite:".len()..].to_string();
     } else if lower.starts_with("file:") {
         s = s["file:".len()..].to_string();
+    }
+    if let Some(q) = s.find('?') {
+        s = s[..q].to_string();
     }
     if s == ":memory:" || s.is_empty() {
         return None;
@@ -239,11 +264,24 @@ mod tests {
         assert!(d.prerequisite_error("file:").is_none());
         assert!(d.prerequisite_error("Data Source=:memory:").is_none());
         assert!(d.prerequisite_error("data source = :memory:").is_none());
+        assert!(d
+            .prerequisite_error("sqlite://file:migraters-test?mode=memory&cache=shared")
+            .is_none());
+        assert!(d
+            .prerequisite_error("Data Source=migraters-test;Mode=Memory;Cache=Shared")
+            .is_none());
         assert!(d.prerequisite_error("SQLITE://").is_none());
         assert!(d.prerequisite_error("FILE:").is_none());
         d.prepare_setup(":memory:").unwrap();
-        d.prepare_setup("app.sqlite").unwrap();
+        d.prepare_setup("sqlite://file:migraters-test?mode=memory&cache=shared")
+            .unwrap();
         d.prepare_setup("/").unwrap();
+    }
+
+    #[test]
+    fn file_path_io() {
+        let d = SqliteDialect;
+        d.prepare_setup("app.sqlite").unwrap();
 
         let dir = std::env::temp_dir().join(format!(
             "migraters-sqlite-paths-{}",

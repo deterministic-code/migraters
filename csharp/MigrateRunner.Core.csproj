@@ -14,6 +14,10 @@
   <ItemGroup>
     <InternalsVisibleTo Include="MigrateRunner" />
     <InternalsVisibleTo Include="MigrateRunner.Tests" />
+    <InternalsVisibleTo Include="MigrateRunner.ProviderTests" />
+    <Compile Remove="MigrateRunner.ProviderTests/**" />
+    <Content Remove="MigrateRunner.ProviderTests/**" />
+    <None Remove="MigrateRunner.ProviderTests/**" />
     <InternalsVisibleTo Include="MigrateSqlite" />
     <InternalsVisibleTo Include="MigratePostgres" />
     <InternalsVisibleTo Include="MigrateMysql" />

@@ -8,8 +8,10 @@ public sealed class SqliteApiTests
         var dialect = SqliteDialect.Instance;
         var dir = Path.Combine(Path.GetTempPath(), $"migraters-api-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
-        var connection = Path.Combine(dir, "app.sqlite");
+        var connection = $"Data Source=migraters-api-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
         var migrationsPath = Path.Combine(dir, "migrations");
+        await using var keep = dialect.CreateConnection(dialect.NormalizeConnectionString(connection));
+        await keep.OpenAsync();
         try
         {
             IMigrater migrater = new Migrater(dialect);

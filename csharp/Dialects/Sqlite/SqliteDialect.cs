@@ -55,9 +55,24 @@ public static class SqliteDialect
         return string.IsNullOrEmpty(c) ? "Data Source=:memory:" : $"Data Source={c}";
     }
 
-    private static string? FilesystemPath(string? connection)
+    private static bool IsMemory(string? connection)
     {
         var s = (connection ?? string.Empty).Trim();
+        if (s.Length == 0 || string.Equals(s, ":memory:", StringComparison.Ordinal))
+            return true;
+        var compact = s.Replace(" ", string.Empty, StringComparison.Ordinal);
+        return compact.Contains(":memory:", StringComparison.OrdinalIgnoreCase)
+            || compact.Contains("?mode=memory", StringComparison.OrdinalIgnoreCase)
+            || compact.Contains("&mode=memory", StringComparison.OrdinalIgnoreCase)
+            || compact.Contains(";mode=memory", StringComparison.OrdinalIgnoreCase)
+            || compact.StartsWith("mode=memory", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? FilesystemPath(string? connection)
+    {
+        if (IsMemory(connection))
+            return null;
+        var s = connection!.Trim();
         var eq = s.IndexOf('=', StringComparison.Ordinal);
         if (eq >= 0)
         {
@@ -78,6 +93,9 @@ public static class SqliteDialect
                 break;
             }
         }
-        return s.Length == 0 || string.Equals(s, ":memory:", StringComparison.Ordinal) ? null : s;
+        var q = s.IndexOf('?', StringComparison.Ordinal);
+        if (q >= 0)
+            s = s[..q];
+        return s.Length == 0 ? null : s;
     }
 }

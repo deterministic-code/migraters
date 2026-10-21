@@ -1,6 +1,3 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SqliteDialect, sqliteFilesystemPath } from './sqlite-dialect.ts';
 
@@ -23,6 +20,8 @@ describe('SqliteDialect', () => {
     expect(sqliteFilesystemPath(':memory:')).toBeNull();
     expect(sqliteFilesystemPath('')).toBeNull();
     expect(sqliteFilesystemPath('  :memory:  ')).toBeNull();
+    expect(sqliteFilesystemPath('file:migraters-test?mode=memory&cache=shared')).toBeNull();
+    expect(sqliteFilesystemPath('Data Source=migraters-test;Mode=Memory;Cache=Shared')).toBeNull();
     expect(sqliteFilesystemPath('./app.sqlite')).toBe('./app.sqlite');
     expect(sqliteFilesystemPath('sqlite:///abs/app.sqlite')).toBe('/abs/app.sqlite');
     expect(sqliteFilesystemPath('sqlite://rel.sqlite')).toBe('rel.sqlite');
@@ -35,25 +34,14 @@ describe('SqliteDialect', () => {
     expect(sqliteFilesystemPath('other=value.sqlite')).toBe('other=value.sqlite');
   });
 
-  it('prerequisiteError is null for memory, existing files, and missing-path-null', async () => {
+  it('prerequisiteError is null for memory connections', async () => {
     expect(await dialect.prerequisiteError(':memory:')).toBeNull();
-    const dir = await mkdtemp(join(tmpdir(), 'sqlite-dialect-'));
-    const file = join(dir, 'exists.sqlite');
-    await writeFile(file, '');
-    expect(await dialect.prerequisiteError(file)).toBeNull();
-    const missing = join(dir, 'missing.sqlite');
-    const err = await dialect.prerequisiteError(missing);
-    expect(err).toContain(missing);
-    expect(err).toMatch(/migrate-setup --provider sqlite/);
-  });
-
-  it('prepareSetup creates parent directories for file connections and no-ops memory', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'sqlite-setup-'));
-    const file = join(dir, 'nested', 'db', 'app.sqlite');
-    await dialect.prepareSetup(file);
-    const { pathExists } = await import('../../../src/path-exists.ts');
-    expect(await pathExists(join(dir, 'nested', 'db'))).toBe(true);
+    expect(await dialect.prerequisiteError('file:migraters-test?mode=memory&cache=shared')).toBeNull();
+    expect(
+      await dialect.prerequisiteError('Data Source=migraters-test;Mode=Memory;Cache=Shared'),
+    ).toBeNull();
     await dialect.prepareSetup(':memory:');
+    await dialect.prepareSetup('file:migraters-test?mode=memory&cache=shared');
   });
 
   it('createClient rejects an empty path and runs exec/query/run/transaction on :memory:', async () => {

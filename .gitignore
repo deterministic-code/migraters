@@ -28,10 +28,12 @@ build/
 *.tsbuildinfo
 coverage/
 .nyc_output/
+/typescript/file:*
 
 # Rust
 **/target/
 **/*.rs.bk
+/rust/dialects/**/Cargo.lock
 
 # Proof Instant Client cache
 proof/.instantclient/
