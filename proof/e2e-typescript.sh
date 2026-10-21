@@ -23,6 +23,7 @@ if [[ -d "$instant" ]]; then
 fi
 
 export PATH="$bindir:$PATH"
+bash "$root/proof/e2e-consumer.sh"
 migrate-init --all
 rm -f app.sqlite
 bash "$root/proof/e2e-providers.sh"

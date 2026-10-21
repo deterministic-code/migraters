@@ -33,5 +33,8 @@ jobs:
         working-directory: typescript
         run: npm ci
 
+      - name: Consumer migrate-init
+        run: bash proof/e2e-consumer.sh
+
       - name: Unit tests with 100% dialect coverage
         run: npm test
