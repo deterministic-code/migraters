@@ -5,11 +5,11 @@
   "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
   "type": "module",
   "bin": {
-    "migrate-init": "./typescript/dist/bin/migrate-init.js",
-    "migrate-setup": "./typescript/dist/bin/migrate-setup.js",
-    "migrate-up": "./typescript/dist/bin/migrate-up.js",
-    "migrate-down": "./typescript/dist/bin/migrate-down.js",
-    "migrate-create": "./typescript/dist/bin/migrate-create.js"
+    "migrate-init": "./typescript/dist/orchestrator/migrate-init.js",
+    "migrate-setup": "./typescript/dist/orchestrator/migrate-setup.js",
+    "migrate-up": "./typescript/dist/orchestrator/migrate-up.js",
+    "migrate-down": "./typescript/dist/orchestrator/migrate-down.js",
+    "migrate-create": "./typescript/dist/orchestrator/migrate-create.js"
   },
   "files": [
     "typescript/dist",
@@ -22,8 +22,8 @@
     "build": "npm run build --prefix typescript",
     "typecheck": "npm run typecheck --prefix typescript",
     "test": "npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
-    "test:rust": "CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
-    "test:csharp": "dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
+    "test:rust": "CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --all-features --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
+    "test:csharp": "node typescript/dist/orchestrator/migrate-init.js --language csharp --all && dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
     "e2e:sqlite": "bash proof/e2e-sqlite.sh",
     "e2e:postgres": "bash proof/e2e-postgres.sh",
     "e2e:mysql": "bash proof/e2e-mysql.sh",
@@ -38,19 +38,10 @@
     "format": "npm run format --prefix typescript"
   },
   "dependencies": {
-    "better-sqlite3": "*",
-    "mssql": "*",
-    "oracledb": "*",
-    "pg": "*",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "*",
-    "@types/mssql": "*",
     "@types/node": "^22.10.0",
-    "@types/oracledb": "*",
-    "@types/pg": "*",
-    "mysql2": "*",
     "typescript": "^5.8.0"
   }
 }

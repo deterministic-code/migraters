@@ -6,20 +6,27 @@ internal static class CreateDatabase
     {
         if (provider is "sqlite" or "oracle")
             return;
+#if DIALECT_POSTGRES
         if (provider == "postgres")
         {
             await Postgres(connection).ConfigureAwait(false);
             return;
         }
+#endif
+#if DIALECT_MYSQL
         if (provider == "mysql")
         {
             await Mysql(connection).ConfigureAwait(false);
             return;
         }
+#endif
+#if DIALECT_SQLSERVER
         if (provider == "sqlserver")
             await SqlServer(connection).ConfigureAwait(false);
+#endif
     }
 
+#if DIALECT_POSTGRES
     private static async Task Postgres(string connection)
     {
         if (ConnectionStringUrl.TryUri(connection, "postgres", "postgresql") is not { } url)
@@ -44,7 +51,9 @@ internal static class CreateDatabase
         {
         }
     }
+#endif
 
+#if DIALECT_MYSQL
     private static async Task Mysql(string connection)
     {
         var normalized = MysqlDialect.Instance.NormalizeConnectionString(connection);
@@ -59,7 +68,9 @@ internal static class CreateDatabase
         cmd.CommandText = $"CREATE DATABASE IF NOT EXISTS `{name.Replace("`", "``")}`";
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
+#endif
 
+#if DIALECT_SQLSERVER
     private static async Task SqlServer(string connection)
     {
         var b = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection);
@@ -74,4 +85,5 @@ internal static class CreateDatabase
             $"IF DB_ID(N'{name.Replace("'", "''")}') IS NULL CREATE DATABASE [{name.Replace("]", "]]")}]";
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
+#endif
 }

@@ -13,17 +13,24 @@ type CliArg = { flag: string; placeholder?: string; required: boolean };
 type CliSpec = {
   command: string;
   providers: string[];
+  languages: string[];
   commands: { verb: MigrateVerb; args: CliArg[] }[];
 };
 
 const spec = parse(await readFile(SPEC_PATH, 'utf8')) as CliSpec;
 const providers = spec.providers.join('|');
+const languages = spec.languages.join('|');
 
 const usageLine = (verb: MigrateVerb): string => {
   const command = spec.commands.find((c) => c.verb === verb);
   if (!command) throw new Error(`missing ${verb}`);
   const args = command.args.map((arg) => {
-    const ph = arg.placeholder === 'providers' ? providers : arg.placeholder;
+    const ph =
+      arg.placeholder === 'providers'
+        ? providers
+        : arg.placeholder === 'languages'
+          ? languages
+          : arg.placeholder;
     const body = ph ? `${arg.flag} <${ph}>` : arg.flag;
     return arg.required ? body : `[${body}]`;
   });

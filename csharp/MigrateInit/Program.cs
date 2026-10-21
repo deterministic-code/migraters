@@ -13,6 +13,12 @@ if (parsed.Error is not null)
     return parsed.ExitCode;
 }
 
+if (parsed.Language is not null && parsed.Language != "csharp")
+{
+    Console.Error.Write($"unsupported language: {parsed.Language}\n");
+    return 2;
+}
+
 var dialects = ResolveDialects(parsed);
 if (dialects.Error is not null)
 {
@@ -28,15 +34,6 @@ if (csharpDir is null)
 }
 
 var propsPath = Path.Combine(csharpDir, "dialects.props");
-if (parsed.All)
-{
-    if (File.Exists(propsPath))
-        File.Delete(propsPath);
-    Console.WriteLine($"Enabled dialects: {string.Join(", ", dialects.Names)}");
-    Console.WriteLine($"Removed {propsPath}");
-    return 0;
-}
-
 File.WriteAllText(propsPath, RenderProps(dialects.Names));
 Console.WriteLine($"Enabled dialects: {string.Join(", ", dialects.Names)}");
 Console.WriteLine($"Wrote {propsPath}");
@@ -45,21 +42,34 @@ return 0;
 static Parsed ParseArgs(string[] args)
 {
     var dialects = new List<string>();
+    string? language = null;
     var all = false;
     for (var i = 0; i < args.Length; i++)
     {
         var arg = args[i];
         if (arg is "-h" or "--help")
-            return new Parsed(true, false, dialects, null, 0);
+            return new Parsed(true, false, dialects, null, null, 0);
         if (arg == "--all")
         {
             all = true;
             continue;
         }
+        if (arg == "--language")
+        {
+            if (i + 1 >= args.Length)
+                return new Parsed(false, false, dialects, null, "unknown arg: --language\n", 2);
+            language = NormalizeKey(args[++i]);
+            continue;
+        }
+        if (arg.StartsWith("--language=", StringComparison.Ordinal))
+        {
+            language = NormalizeKey(arg["--language=".Length..]);
+            continue;
+        }
         if (arg == "--dialect")
         {
             if (i + 1 >= args.Length)
-                return new Parsed(false, false, dialects, "unknown arg: --dialect\n", 2);
+                return new Parsed(false, false, dialects, null, "unknown arg: --dialect\n", 2);
             dialects.Add(args[++i]);
             continue;
         }
@@ -68,9 +78,9 @@ static Parsed ParseArgs(string[] args)
             dialects.Add(arg["--dialect=".Length..]);
             continue;
         }
-        return new Parsed(false, false, dialects, $"unknown arg: {arg}\n", 2);
+        return new Parsed(false, false, dialects, null, $"unknown arg: {arg}\n", 2);
     }
-    return new Parsed(false, all, dialects, null, 0);
+    return new Parsed(false, all, dialects, language, null, 0);
 }
 
 static (IReadOnlyList<string> Names, string? Error, int ExitCode) ResolveDialects(Parsed parsed)
@@ -177,6 +187,21 @@ static string RenderProps(IReadOnlyList<string> enabled)
         sb.AppendLine($"    <{property}>{value}</{property}>");
     }
     sb.AppendLine("  </PropertyGroup>");
+    sb.AppendLine("  <ItemGroup>");
+    foreach (var (name, package, version) in new (string, string, string)[]
+    {
+        ("sqlite", "Microsoft.Data.Sqlite", "9.0.0"),
+        ("postgres", "Npgsql", "9.0.2"),
+        ("mysql", "MySqlConnector", "2.4.0"),
+        ("sqlserver", "Microsoft.Data.SqlClient", "6.0.2"),
+        ("oracle", "Oracle.ManagedDataAccess.Core", "23.9.1"),
+    })
+    {
+        if (!set.Contains(name))
+            continue;
+        sb.AppendLine($"    <PackageReference Include=\"{package}\" Version=\"{version}\" />");
+    }
+    sb.AppendLine("  </ItemGroup>");
     sb.AppendLine("</Project>");
     return sb.ToString();
 }
@@ -199,7 +224,8 @@ static string? FindCSharpRoot()
 static string HelpText()
 {
     var (providers, _) = LoadProviders();
-    var usage = $"Usage: migrate-init [--dialect <{string.Join('|', providers)}>] [--all]";
+    var usage =
+        $"Usage: migrate-init --language <typescript|csharp|rust> [--dialect <{string.Join('|', providers)}>] [--all]";
     var template = File.ReadAllText(
         Path.Combine(AppContext.BaseDirectory, "templates", "help", "init.txt")
     );
@@ -207,4 +233,11 @@ static string HelpText()
         .Replace("{{command}}", "migrate-init", StringComparison.Ordinal);
 }
 
-sealed record Parsed(bool Help, bool All, List<string> Dialects, string? Error, int ExitCode);
+sealed record Parsed(
+    bool Help,
+    bool All,
+    List<string> Dialects,
+    string? Language,
+    string? Error,
+    int ExitCode
+);

@@ -24,6 +24,15 @@ fi
 
 export PATH="$bindir:$PATH"
 bash "$root/proof/e2e-consumer.sh"
-migrate-init --all
+migrate-init --language typescript --all
 rm -f app.sqlite
 bash "$root/proof/e2e-providers.sh"
+
+orch="$root/.e2e-orch"
+mkdir -p "$orch"
+for cmd in migrate-init migrate-setup migrate-up migrate-down migrate-create; do
+  ln -sfn "$root/typescript/dist/orchestrator/${cmd}.js" "$orch/$cmd"
+done
+chmod +x "$root"/typescript/dist/orchestrator/*.js
+PATH="$orch:$PATH" migrate-init --language typescript --all
+test -f "$root/.migraters.yaml"

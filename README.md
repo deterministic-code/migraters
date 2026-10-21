@@ -15,7 +15,7 @@ The same migrate commands and a consistent API are available in multiple program
 
 ```shell
 npm install @deterministic-code/migraters
-npx migrate-init --dialect sqlite --dialect postgres
+npx migrate-init --language typescript --dialect sqlite --dialect postgres
 ```
 
 ### Install skill
@@ -32,13 +32,13 @@ Natural-language prompts the [skill](skill/SKILL.md) maps straight to CLI comman
 
 | Prompt | Runs |
 | --- | --- |
-| Install migraters for sqlite and postgres | `npm install` → `npx migrate-init --dialect sqlite --dialect postgres` |
-| Add driver oracle | `npx migrate-init` with prior dialects **plus** `oracle` |
+| Install migraters for sqlite and postgres | `npm install` → `npx migrate-init --language typescript --dialect sqlite --dialect postgres` |
+| Add driver oracle | `npx migrate-init --language <language>` with prior dialects **plus** `oracle` |
 | Create a new migrate | `npx migrate-create` |
 | migrate up | `npx migrate-up` |
 | migrate down | `npx migrate-down` |
 
-`npx migrate-init` replaces the dialect set, so “add driver” means re-run init with the previously enabled dialects and the new one (for example `npx migrate-init --dialect sqlite --dialect postgres --dialect oracle` after a sqlite+postgres install). Flag details are under [Commands](#commands).
+`npx migrate-init` replaces the language and dialect set, so “add driver” means re-run init with the same `--language`, the previously enabled dialects, and the new one (for example `npx migrate-init --language typescript --dialect sqlite --dialect postgres --dialect oracle` after a sqlite+postgres install). Flag details are under [Commands](#commands).
 
 ## Quick example
 
@@ -52,7 +52,7 @@ CREATE TABLE users (
 ```
 
 ```shell
-npx migrate-init --dialect sqlite
+npx migrate-init --language typescript --dialect sqlite
 npx migrate-setup --provider sqlite --connection ./app.sqlite
 npx migrate-create --provider sqlite --name add_users
 cat user.sql > sql/sqlite/migrations/0001_add_users_up.sql
@@ -63,15 +63,15 @@ npx migrate-up --provider sqlite --connection ./app.sqlite
 
 ### init
 
-Selects the dialects this tree will compile and install. `migrate-init` is project setup, not an `IMigrater` method, and it does not take `--connection`. Repeat `--dialect` once per provider (aliases from [`cli.yaml`](cli.yaml) apply: `pg`, `mssql`, `ora`, and the rest). Re-running replaces the previous set. `--all` restores every dialect.
+Selects the programming language and dialects this tree will compile and install. `migrate-init` is project setup, not an `IMigrater` method, and it does not take `--connection`. `--language` is required (`typescript`, `csharp`, or `rust`). Repeat `--dialect` once per provider (aliases from [`cli.yaml`](cli.yaml) apply: `pg`, `mssql`, `ora`, and the rest). Re-running replaces the previous language and dialect set. `--all` restores every dialect. Init installs that language’s driver dependencies and builds `migrate-setup`, `migrate-up`, `migrate-down`, and `migrate-create`. Later commands dispatch to those binaries.
 
 ```shell
-npx migrate-init --dialect sqlite --dialect postgres
-npx migrate-init --dialect oracle
-npx migrate-init --all
+npx migrate-init --language typescript --dialect sqlite --dialect postgres
+npx migrate-init --language csharp --dialect sqlite
+npx migrate-init --language rust --dialect sqlite
 ```
 
-Committed manifests keep every dialect, so a clone that never runs init still builds and tests with all providers. Init is what makes a local or vendored tree light: Rust compiles only the selected Cargo features, C# restores only the selected driver packages, and TypeScript installs only the selected native drivers. Run init before `cargo build`, `dotnet build`, or `npm install` when you want a slim tree.
+`migrate-init` is what adds that language’s driver dependencies and builds the binaries. TypeScript `package.json` gets only the selected npm drivers. C# `dialects.props` is generated with only the selected `PackageReference`s (it is not committed). Rust `Cargo.toml` `default` features list only the selected dialects. A clone does not ship or build the full dialect matrix.
 
 ### setup
 

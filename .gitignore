@@ -37,6 +37,7 @@ coverage/
 proof/.instantclient/
 proof/report.md
 .e2e-bin/
+.migraters.yaml
 /app.sqlite
 /sql/
 

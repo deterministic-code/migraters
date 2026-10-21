@@ -191,6 +191,7 @@ languages:
         apk: sqlite
         packages:
           - name: Microsoft.Data.Sqlite
+            version: "9.0.0"
       postgres:
         files:
           - csharp/Dialects/PostgresDialect.cs
@@ -198,6 +199,7 @@ languages:
         apk: postgresql-client
         packages:
           - name: Npgsql
+            version: "9.0.2"
       mysql:
         files:
           - csharp/Dialects/MysqlDialect.cs
@@ -205,18 +207,21 @@ languages:
         apk: mysql-client
         packages:
           - name: MySqlConnector
+            version: "2.4.0"
       sqlserver:
         files:
           - csharp/Dialects/SqlServerDialect.cs
           - shared/templates/sql/sqlserver/**
         packages:
           - name: Microsoft.Data.SqlClient
+            version: "6.0.2"
       oracle:
         files:
           - csharp/Dialects/OracleDialect.cs
           - shared/templates/sql/oracle/**
         packages:
           - name: Oracle.ManagedDataAccess.Core
+            version: "23.9.1"
     commands:
       setup: migrate-setup --provider {{provider}}
       up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}

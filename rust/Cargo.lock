@@ -260,7 +260,6 @@ name = "deterministic-migraters"
 version = "0.0.1"
 dependencies = [
  "dotenvy",
- "getrandom",
  "oracle",
  "sha2",
  "sqlx",

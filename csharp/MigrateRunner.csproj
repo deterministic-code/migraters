@@ -15,11 +15,11 @@
 
   <Import Project="dialects.props" Condition="Exists('dialects.props')" />
   <PropertyGroup>
-    <DialectSqlite Condition="'$(DialectSqlite)' == ''">true</DialectSqlite>
-    <DialectPostgres Condition="'$(DialectPostgres)' == ''">true</DialectPostgres>
-    <DialectMysql Condition="'$(DialectMysql)' == ''">true</DialectMysql>
-    <DialectSqlserver Condition="'$(DialectSqlserver)' == ''">true</DialectSqlserver>
-    <DialectOracle Condition="'$(DialectOracle)' == ''">true</DialectOracle>
+    <DialectSqlite Condition="'$(DialectSqlite)' == ''">false</DialectSqlite>
+    <DialectPostgres Condition="'$(DialectPostgres)' == ''">false</DialectPostgres>
+    <DialectMysql Condition="'$(DialectMysql)' == ''">false</DialectMysql>
+    <DialectSqlserver Condition="'$(DialectSqlserver)' == ''">false</DialectSqlserver>
+    <DialectOracle Condition="'$(DialectOracle)' == ''">false</DialectOracle>
     <DefineConstants Condition="'$(DialectSqlite)' == 'true'">$(DefineConstants);DIALECT_SQLITE</DefineConstants>
     <DefineConstants Condition="'$(DialectPostgres)' == 'true'">$(DefineConstants);DIALECT_POSTGRES</DefineConstants>
     <DefineConstants Condition="'$(DialectMysql)' == 'true'">$(DefineConstants);DIALECT_MYSQL</DefineConstants>

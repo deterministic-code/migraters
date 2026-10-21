@@ -19,6 +19,11 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<String, (i32, String)> {
     let parsed = parse_args(&args)?;
+    if let Some(language) = &parsed.language {
+        if language != "rust" {
+            return Err((2, format!("unsupported language: {language}\n")));
+        }
+    }
     let dialects = resolve_dialects(&parsed)?;
     let cargo_toml = cargo_toml_path();
     let raw = fs::read_to_string(&cargo_toml)
@@ -39,11 +44,13 @@ fn run(args: Vec<String>) -> Result<String, (i32, String)> {
 
 struct Parsed {
     dialects: Vec<String>,
+    language: Option<String>,
     all: bool,
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, (i32, String)> {
     let mut dialects = Vec::new();
+    let mut language = None;
     let mut all = false;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
@@ -55,13 +62,28 @@ fn parse_args(args: &[String]) -> Result<Parsed, (i32, String)> {
             all = true;
             continue;
         }
+        if let Some(value) = take_value(arg, &mut iter, "--language") {
+            language = Some(normalize_language(&value));
+            continue;
+        }
         if let Some(value) = take_value(arg, &mut iter, "--dialect") {
             dialects.push(value);
             continue;
         }
         return Err((2, format!("unknown arg: {arg}\n")));
     }
-    Ok(Parsed { dialects, all })
+    Ok(Parsed {
+        dialects,
+        language,
+        all,
+    })
+}
+
+fn normalize_language(raw: &str) -> String {
+    raw.chars()
+        .filter(|c| !matches!(c, ' ' | '_' | '-'))
+        .flat_map(|c| c.to_lowercase())
+        .collect()
 }
 
 fn take_value<'a>(
@@ -196,7 +218,7 @@ fn set_default_features(cargo_toml: &str, dialects: &[String]) -> Result<String,
 fn help_text() -> String {
     let (providers, _) = providers_and_aliases();
     let usage = format!(
-        "Usage: migrate-init [--dialect <{}>] [--all]",
+        "Usage: migrate-init --language <typescript|csharp|rust> [--dialect <{}>] [--all]",
         providers.join("|")
     );
     HELP_TEMPLATE

@@ -15,5 +15,5 @@ trap cleanup EXIT
 cd "$workdir"
 npm init -y >/dev/null
 npm install "$pack_path"
-npx migrate-init --dialect sqlite --dialect postgres
+npx migrate-init --language typescript --dialect sqlite --dialect postgres
 node --input-type=module -e "await import('better-sqlite3'); await import('pg');"

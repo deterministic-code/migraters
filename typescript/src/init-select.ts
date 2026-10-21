@@ -36,16 +36,17 @@ export const resolveInitDialects = (raw: string[], all: boolean): string[] => {
   return cliSpec.providers.filter((name) => selected.has(name));
 };
 
+export type BundlePackage = {
+  name: string;
+  version?: string;
+};
+
 type BundleDialect = {
-  packages?: { name: string }[];
+  packages?: BundlePackage[];
 };
 
 type BundleDoc = {
-  languages?: {
-    typescript?: {
-      dialects?: Record<string, BundleDialect>;
-    };
-  };
+  languages?: Record<string, { dialects?: Record<string, BundleDialect> }>;
 };
 
 export const bundleYamlPath = (): string => {
@@ -62,9 +63,12 @@ export const bundleYamlPath = (): string => {
   return found;
 };
 
-export const loadSelectedPackages = async (dialects: string[]): Promise<SelectedDialects> => {
+export const loadSelectedPackages = async (
+  dialects: string[],
+  language = 'typescript',
+): Promise<SelectedDialects> => {
   const raw = parse(await readFile(bundleYamlPath(), 'utf8')) as BundleDoc;
-  const byName = raw.languages?.typescript?.dialects ?? {};
+  const byName = raw.languages?.[language]?.dialects ?? {};
   const allDriverPackages = [
     ...new Set(Object.values(byName).flatMap((d) => (d.packages ?? []).map((p) => p.name))),
   ];

@@ -1,0 +1,10 @@
+---
+description: Do not bake every dialect driver into committed package manifests.
+alwaysApply: true
+---
+
+# migrate-init owns driver dependencies
+
+Do not add all datasource driver dependencies to committed package manifests or project references (`package.json`, `Cargo.toml` default features, `PackageReference`s, `dialects.props`). That makes published and vendored bundles too large.
+
+`migrate-init --language … --dialect …` is what installs or enables only the selected drivers (npm packages, Cargo default features, C# `PackageReference`s). Committed defaults stay slim. A full local set is `--all`, not a committed kitchen-sink dependency list.

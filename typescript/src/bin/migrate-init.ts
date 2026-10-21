@@ -23,6 +23,7 @@ const takeFlag = (
 
 const parseArgs = (argv: string[]) => {
   const dialects: string[] = [];
+  let language: string | undefined;
   let all = false;
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
@@ -35,6 +36,12 @@ const parseArgs = (argv: string[]) => {
       all = true;
       continue;
     }
+    const languageTaken = takeFlag(rest, i, a, '--language');
+    if (languageTaken) {
+      language = languageTaken.value.replace(/[\s_-]/g, '').toLowerCase();
+      i = languageTaken.next;
+      continue;
+    }
     const taken = takeFlag(rest, i, a, '--dialect');
     if (taken) {
       dialects.push(taken.value);
@@ -44,7 +51,7 @@ const parseArgs = (argv: string[]) => {
     process.stderr.write(`unknown arg: ${a}\n`);
     process.exit(2);
   }
-  return { dialects, all };
+  return { dialects, language, all };
 };
 
 const npmFlags = ['--no-audit', '--no-fund', '--loglevel=error'];
@@ -59,6 +66,10 @@ const npm = (args: string[]): void => {
 
 const main = async () => {
   const args = parseArgs(process.argv);
+  if (args.language !== undefined && args.language !== 'typescript') {
+    process.stderr.write(`unsupported language: ${args.language}\n`);
+    process.exit(2);
+  }
   let names: string[];
   try {
     names = resolveInitDialects(args.dialects, args.all);
