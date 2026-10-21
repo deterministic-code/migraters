@@ -27,3 +27,6 @@ time = "=0.3.47"
 sha2 = "0.10"
 # migrate-init-dialects-start
 # migrate-init-dialects-end
+
+[dev-dependencies]
+async-trait = "0.1"

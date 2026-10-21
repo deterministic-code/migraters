@@ -1,7 +1,10 @@
 import type { SqlDialect } from '../sql.ts';
-import type { ISqlDialect } from './sql-dialect.ts';
+import type { MigrationDriver } from './migration-driver.ts';
+import type { IDialect } from './sql-dialect.ts';
+import type { MigrationClient } from '../migration-client.ts';
+import { sqlMigrationDriver } from '../sql-driver.ts';
 
-export abstract class SqlDialectBase implements ISqlDialect {
+export abstract class SqlDialectBase implements IDialect {
   abstract readonly name: SqlDialect;
   abstract readonly connectionEnvironmentVariables: readonly string[];
   abstract readonly migratesDdl: string;
@@ -32,7 +35,9 @@ export abstract class SqlDialectBase implements ISqlDialect {
 
   async createDatabaseIfMissing(_connection: string): Promise<void> {}
 
-  abstract createClient(
-    connection: string,
-  ): Promise<import('../migration-client.ts').MigrationClient>;
+  abstract createClient(connection: string): Promise<MigrationClient>;
+
+  async createDriver(connection: string): Promise<MigrationDriver> {
+    return sqlMigrationDriver(await this.createClient(connection), this);
+  }
 }

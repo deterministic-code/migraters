@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Deterministic.MigrateRunner</RootNamespace>
+    <AssemblyName>MigrateSqlDriver</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="MigrateRunner.Tests" />
+    <InternalsVisibleTo Include="MigrateRunner.ProviderTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MigrateRunner.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -36,11 +36,13 @@
   </Target>
   <ItemGroup>
     <ProjectReference Include="..\MigrateRunner.Core.csproj" />
+    <ProjectReference Include="..\SqlDriver\MigrateSqlDriver.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="..\..\cli.yaml" Link="cli.yaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\api.yaml" Link="api.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\driver.yaml" Link="driver.yaml" CopyToOutputDirectory="PreserveNewest" />
     <Content
       Include="..\..\shared\templates\sql\**\*.sql"
       Link="templates\sql\%(RecursiveDir)%(Filename)%(Extension)"

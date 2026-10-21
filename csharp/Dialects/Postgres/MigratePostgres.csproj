@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
+    <ProjectReference Include="..\..\SqlDriver\MigrateSqlDriver.csproj" />
     <PackageReference Include="Npgsql" Version="9.0.2" />
   </ItemGroup>
 </Project>

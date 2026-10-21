@@ -6,8 +6,8 @@ export default defineConfig({
     exclude: [
       'test/cli-parity.e2e.test.ts',
       'test/readme-install.test.ts',
+      'test/help-integration.test.ts',
       'dialects/**/*.paths.test.ts',
     ],
-    fileParallelism: false,
   },
 });

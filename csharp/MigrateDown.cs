@@ -2,7 +2,7 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateDown(ISqlDialectFactory dialects, IConnectionResolver connections)
+internal sealed class MigrateDown(IDialectFactory dialects, IConnectionResolver connections)
     : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("down");

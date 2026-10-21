@@ -1,18 +1,14 @@
-import type { MigrationClient } from '../migration-client.ts';
+import type { MigrationDriver } from './migration-driver.ts';
 import type { SqlDialect } from '../sql.ts';
 
-export interface ISqlDialect {
+export interface IDialect {
   readonly name: SqlDialect;
   readonly connectionEnvironmentVariables: readonly string[];
-  readonly migratesDdl: string;
-  readonly migrateLogsDdl: string;
-  readonly usesLastInsertRowid: boolean;
-  quoteIdent(ident: string): string;
-  nowExpr(): string;
-  limitClause(n: number): string;
-  translatePlaceholders(sql: string): string;
   prerequisiteError(connection: string): Promise<string | null>;
   prepareSetup(connection: string): Promise<void>;
   createDatabaseIfMissing(connection: string): Promise<void>;
-  createClient(connection: string): Promise<MigrationClient>;
+  createDriver(connection: string): Promise<MigrationDriver>;
 }
+
+/** @deprecated Use IDialect. */
+export type ISqlDialect = IDialect;

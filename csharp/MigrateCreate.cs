@@ -2,7 +2,7 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateCreate(ISqlDialectFactory dialects) : IMigrateCommand
+internal sealed class MigrateCreate(IDialectFactory dialects) : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("create");
 

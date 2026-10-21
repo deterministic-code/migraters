@@ -7,7 +7,7 @@ import type {
   SetupArg,
   UpArg,
 } from './abstractions/migrater.ts';
-import type { ISqlDialect } from './abstractions/sql-dialect.ts';
+import type { IDialect } from './abstractions/sql-dialect.ts';
 import { isMigrationName, nextSequence, pad4 } from './create-sequence.ts';
 import { applyOneDown, applyOneUp, discoverMigrations } from './datasource-migrate.ts';
 import { defaultDialectFactory } from './infrastructure/default-factory.ts';
@@ -16,7 +16,7 @@ import { fillTemplate, loadMessage, loadScaffold } from './infrastructure/messag
 const invalidNameTpl = await loadMessage('errors/invalid-name');
 
 export class Migrater implements IMigrater {
-  constructor(private readonly dialect: ISqlDialect) {}
+  constructor(private readonly dialect: IDialect) {}
 
   get name(): string {
     return this.dialect.name;
@@ -24,18 +24,17 @@ export class Migrater implements IMigrater {
 
   async setup({ connection, migrationsPath }: SetupArg): Promise<void> {
     await this.dialect.prepareSetup(connection);
-    const client = await this.dialect.createClient(connection);
+    const driver = await this.dialect.createDriver(connection);
     try {
-      await client.exec(this.dialect.migratesDdl);
-      await client.exec(this.dialect.migrateLogsDdl);
+      await driver.setup();
       await mkdir(migrationsPath, { recursive: true });
     } finally {
-      await client.close();
+      await driver.close();
     }
   }
 
   async up({ connection, migrationsPath, one = false }: UpArg): Promise<string[]> {
-    const client = await this.dialect.createClient(connection);
+    const driver = await this.dialect.createDriver(connection);
     try {
       const migrations = await discoverMigrations({
         migratePath: migrationsPath,
@@ -43,28 +42,28 @@ export class Migrater implements IMigrater {
       });
       const applied: string[] = [];
       for (;;) {
-        const result = await applyOneUp({ client, migrations });
+        const result = await applyOneUp({ driver, migrations });
         if (!result.applied || result.name == null) break;
         applied.push(result.name);
         if (one) break;
       }
       return applied;
     } finally {
-      await client.close();
+      await driver.close();
     }
   }
 
   async down({ connection, migrationsPath }: DownArg): Promise<string | null> {
-    const client = await this.dialect.createClient(connection);
+    const driver = await this.dialect.createDriver(connection);
     try {
       const migrations = await discoverMigrations({
         migratePath: migrationsPath,
         dialect: this.dialect.name,
       });
-      const result = await applyOneDown({ client, migrations });
+      const result = await applyOneDown({ driver, migrations });
       return result.rolledBack ? result.name : null;
     } finally {
-      await client.close();
+      await driver.close();
     }
   }
 

@@ -19,7 +19,7 @@ internal static class DbExecute
     public static async Task CatalogWriteAsync(
         DbConnection conn,
         DbTransaction? tx,
-        ISqlDialect dialect,
+        SqlDialect dialect,
         string sql,
         params (string name, object value)[] parameters
     )
@@ -35,7 +35,7 @@ internal static class DbExecute
 
     public static async Task ApplyStatementsAsync(
         DbConnection conn,
-        ISqlDialect dialect,
+        SqlDialect dialect,
         string sql,
         Func<DbTransaction?, Task> catalogWrite
     )

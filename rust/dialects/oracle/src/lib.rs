@@ -4,7 +4,8 @@ use std::pin::Pin;
 use std::sync::Mutex as StdMutex;
 
 use async_trait::async_trait;
-use migraters_api::{catalog_name, BoxError, DialectPlugin, MigrationSession, SqlDialect};
+use migraters_api::{catalog_name, BoxError, Dialect, DialectPlugin, MigrationDriver};
+use migraters_sql::{SqlDriver, SqlSession};
 use oracle::Connection as OracleConn;
 
 pub struct OracleDialect;
@@ -45,7 +46,7 @@ fn init_oracle_client() -> Result<(), BoxError> {
     Ok(())
 }
 
-impl SqlDialect for OracleDialect {
+impl Dialect for OracleDialect {
     fn name(&self) -> &'static str {
         "oracle"
     }
@@ -82,7 +83,7 @@ impl SqlDialect for OracleDialect {
     fn connect<'a>(
         &'a self,
         connection: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationSession>, BoxError>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>> {
         Box::pin(async move {
             let url = self.normalize_connection(connection);
             let (user, password, connect_string) = parse_oracle_connection(&url)?;
@@ -91,9 +92,12 @@ impl SqlDialect for OracleDialect {
                 OracleConn::connect(user, password, connect_string)
             })
             .await??;
-            Ok(Box::new(OracleSession {
-                conn: StdMutex::new(conn),
-            }) as Box<dyn MigrationSession>)
+            Ok(Box::new(SqlDriver::wrap(
+                OracleSession {
+                    conn: StdMutex::new(conn),
+                },
+                &ORACLE,
+            )) as Box<dyn MigrationDriver>)
         })
     }
 }
@@ -103,7 +107,7 @@ struct OracleSession {
 }
 
 #[async_trait]
-impl MigrationSession for OracleSession {
+impl SqlSession for OracleSession {
     async fn execute(&self, sql: &str) -> Result<(), BoxError> {
         let sql = sql.to_string();
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
@@ -200,7 +204,7 @@ fn oracle_catalog(
 #[cfg(test)]
 mod tests {
     use super::{parse_oracle_connection, OracleDialect};
-    use migraters_api::{assert_dialect_surface, SqlDialect};
+    use migraters_api::{assert_dialect_surface, Dialect};
 
     #[test]
     fn surface() {

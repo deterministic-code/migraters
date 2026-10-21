@@ -3,7 +3,8 @@ use std::future::Future;
 use std::pin::Pin;
 
 use async_trait::async_trait;
-use migraters_api::{catalog_name, BoxError, DialectPlugin, MigrationSession, SqlDialect};
+use migraters_api::{catalog_name, BoxError, Dialect, DialectPlugin, MigrationDriver};
+use migraters_sql::{SqlDriver, SqlSession};
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
@@ -18,7 +19,7 @@ inventory::submit! {
 const SQLITE_PREREQ: &str =
     include_str!("../../../../shared/templates/messages/errors/sqlite-prerequisite.txt");
 
-impl SqlDialect for SqliteDialect {
+impl Dialect for SqliteDialect {
     fn name(&self) -> &'static str {
         "sqlite"
     }
@@ -67,11 +68,12 @@ impl SqlDialect for SqliteDialect {
     fn connect<'a>(
         &'a self,
         connection: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationSession>, BoxError>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>> {
         Box::pin(async move {
             let url = self.normalize_connection(connection);
             let pool = SqlitePool::connect(&url).await?;
-            Ok(Box::new(SqliteSession { pool }) as Box<dyn MigrationSession>)
+            Ok(Box::new(SqlDriver::wrap(SqliteSession { pool }, &SQLITE))
+                as Box<dyn MigrationDriver>)
         })
     }
 }
@@ -81,7 +83,7 @@ struct SqliteSession {
 }
 
 #[async_trait]
-impl MigrationSession for SqliteSession {
+impl SqlSession for SqliteSession {
     async fn execute(&self, sql: &str) -> Result<(), BoxError> {
         sqlx::query(sql).execute(&self.pool).await?;
         Ok(())
@@ -233,7 +235,7 @@ fn filesystem_path(connection: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::SqliteDialect;
-    use migraters_api::{assert_dialect_surface, SqlDialect};
+    use migraters_api::{assert_dialect_surface, Dialect};
 
     #[test]
     fn surface_and_path_parsing() {

@@ -3,7 +3,8 @@ use std::future::Future;
 use std::pin::Pin;
 
 use async_trait::async_trait;
-use migraters_api::{catalog_name, BoxError, DialectPlugin, MigrationSession, SqlDialect};
+use migraters_api::{catalog_name, BoxError, Dialect, DialectPlugin, MigrationDriver};
+use migraters_sql::{SqlDriver, SqlSession};
 use sqlx::mysql::MySqlPool;
 use sqlx::Row;
 
@@ -15,7 +16,7 @@ inventory::submit! {
     DialectPlugin { dialect: &MYSQL }
 }
 
-impl SqlDialect for MysqlDialect {
+impl Dialect for MysqlDialect {
     fn name(&self) -> &'static str {
         "mysql"
     }
@@ -52,11 +53,11 @@ impl SqlDialect for MysqlDialect {
     fn connect<'a>(
         &'a self,
         connection: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationSession>, BoxError>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>> {
         Box::pin(async move {
             let url = self.normalize_connection(connection);
             let pool = MySqlPool::connect(&url).await?;
-            Ok(Box::new(MysqlSession { pool }) as Box<dyn MigrationSession>)
+            Ok(Box::new(SqlDriver::wrap(MysqlSession { pool }, &MYSQL)) as Box<dyn MigrationDriver>)
         })
     }
     fn create_database<'a>(
@@ -72,7 +73,7 @@ struct MysqlSession {
 }
 
 #[async_trait]
-impl MigrationSession for MysqlSession {
+impl SqlSession for MysqlSession {
     async fn execute(&self, sql: &str) -> Result<(), BoxError> {
         sqlx::query(sql).execute(&self.pool).await?;
         Ok(())
@@ -207,7 +208,7 @@ async fn create_database(connection: &str) -> Result<(), BoxError> {
 #[cfg(test)]
 mod tests {
     use super::MysqlDialect;
-    use migraters_api::{assert_dialect_surface, SqlDialect};
+    use migraters_api::{assert_dialect_surface, Dialect};
 
     #[test]
     fn surface() {

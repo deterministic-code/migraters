@@ -4,7 +4,7 @@ namespace Deterministic.MigrateRunner;
 
 public static class OracleDialect
 {
-    public static readonly ISqlDialect Instance = new SqlDialect(
+    public static readonly IDialect Instance = new SqlDialect(
         "oracle",
         ["ORACLE_CONNECT_STRING", "DATABASE_URL"],
         useTransaction: true,

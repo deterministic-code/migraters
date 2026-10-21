@@ -3,7 +3,8 @@ use std::future::Future;
 use std::pin::Pin;
 
 use async_trait::async_trait;
-use migraters_api::{catalog_name, BoxError, DialectPlugin, MigrationSession, SqlDialect};
+use migraters_api::{catalog_name, BoxError, Dialect, DialectPlugin, MigrationDriver};
+use migraters_sql::{SqlDriver, SqlSession};
 use tiberius::{Client, Config};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -19,7 +20,7 @@ inventory::submit! {
     DialectPlugin { dialect: &SQLSERVER }
 }
 
-impl SqlDialect for SqlServerDialect {
+impl Dialect for SqlServerDialect {
     fn name(&self) -> &'static str {
         "sqlserver"
     }
@@ -62,7 +63,7 @@ impl SqlDialect for SqlServerDialect {
     fn connect<'a>(
         &'a self,
         connection: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationSession>, BoxError>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>> {
         Box::pin(async move {
             let url = self.normalize_connection(connection);
             let config = Config::from_ado_string(&url)
@@ -71,9 +72,12 @@ impl SqlDialect for SqlServerDialect {
             let tcp = TcpStream::connect(config.get_addr()).await?;
             tcp.set_nodelay(true)?;
             let client = Client::connect(config, tcp.compat_write()).await?;
-            Ok(Box::new(SqlServerSession {
-                client: Mutex::new(client),
-            }) as Box<dyn MigrationSession>)
+            Ok(Box::new(SqlDriver::wrap(
+                SqlServerSession {
+                    client: Mutex::new(client),
+                },
+                &SQLSERVER,
+            )) as Box<dyn MigrationDriver>)
         })
     }
     fn create_database<'a>(
@@ -89,7 +93,7 @@ struct SqlServerSession {
 }
 
 #[async_trait]
-impl MigrationSession for SqlServerSession {
+impl SqlSession for SqlServerSession {
     async fn execute(&self, sql: &str) -> Result<(), BoxError> {
         let mut c = self.client.lock().await;
         c.execute(sql, &[]).await?;
@@ -211,7 +215,7 @@ async fn create_database(connection: &str) -> Result<(), BoxError> {
 #[cfg(test)]
 mod tests {
     use super::SqlServerDialect;
-    use migraters_api::{assert_dialect_surface, SqlDialect};
+    use migraters_api::{assert_dialect_surface, Dialect};
 
     #[test]
     fn surface() {

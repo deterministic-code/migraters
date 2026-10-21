@@ -1,0 +1,20 @@
+# Source of truth for the driver export every language implements.
+# Casing follows the language: C# PascalCase, TypeScript camelCase, Rust snake_case.
+# IMigrater, command argv, and help copy live in api.yaml and cli.yaml.
+# SQL spelling, placeholders, quoting, and connections are provider details.
+
+interface: MigrationDriver
+methods:
+  # Prepare storage. SQL dialects create migrates and migrate_logs.
+  - setup
+  # Every recorded migration, name to checksum. Does not read migration files.
+  - applied
+  # Run one up body and record it. Args: name, body, checksum.
+  - migrateUp
+  # Run one down body and forget it. Args: name, body.
+  - migrateDown
+  # Args: name, direction. Returns an id.
+  - logStarted
+  # Args: id, status, duration, error.
+  - logFinished
+  - close

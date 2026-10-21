@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
+    <ProjectReference Include="..\..\SqlDriver\MigrateSqlDriver.csproj" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />
   </ItemGroup>
 </Project>

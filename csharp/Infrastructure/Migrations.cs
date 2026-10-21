@@ -41,24 +41,6 @@ internal static class Migrations
     public static string CatalogName(string stored) =>
         stored.EndsWith("_up.sql", StringComparison.Ordinal) ? stored[..^"_up.sql".Length] : stored;
 
-    public static async Task<Dictionary<string, string?>> AppliedChecksumsAsync(
-        DbConnection conn,
-        string sql
-    )
-    {
-        var map = new Dictionary<string, string?>(StringComparer.Ordinal);
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
-        using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            var name = CatalogName(reader.GetString(0));
-            var checksum = reader.IsDBNull(1) ? null : reader.GetString(1);
-            map[name] = checksum;
-        }
-        return map;
-    }
-
     public static void AssertNoChecksumDrift(
         IReadOnlyList<MigrationFile> files,
         IReadOnlyDictionary<string, string?> applied
