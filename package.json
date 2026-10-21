@@ -38,19 +38,19 @@
     "format": "npm run format --prefix typescript"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
-    "mssql": "^12.7.10",
-    "oracledb": "^6.10.0",
-    "pg": "^8.23.1",
+    "better-sqlite3": "*",
+    "mssql": "*",
+    "oracledb": "*",
+    "pg": "*",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
-    "@types/mssql": "^12.3.0",
+    "@types/better-sqlite3": "*",
+    "@types/mssql": "*",
     "@types/node": "^22.10.0",
-    "@types/oracledb": "^6.10.3",
-    "@types/pg": "^8.11.10",
-    "mysql2": "^3.24.6",
+    "@types/oracledb": "*",
+    "@types/pg": "*",
+    "mysql2": "*",
     "typescript": "^5.8.0"
   }
 }

@@ -7,7 +7,7 @@ import { cliSpec } from './cli-spec.ts';
 
 export type SelectedDialects = {
   names: string[];
-  packages: { name: string; version: string }[];
+  packages: { name: string }[];
   allDriverPackages: string[];
 };
 
@@ -37,7 +37,7 @@ export const resolveInitDialects = (raw: string[], all: boolean): string[] => {
 };
 
 type BundleDialect = {
-  packages?: { name: string; version: string }[];
+  packages?: { name: string }[];
 };
 
 type BundleDoc = {

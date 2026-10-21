@@ -68,7 +68,7 @@ const main = async () => {
     process.exit(2);
   }
   const selected = await loadSelectedPackages(names);
-  const specs = selected.packages.map((p) => `${p.name}@${p.version}`);
+  const specs = selected.packages.map((p) => p.name);
   if (specs.length > 0) {
     npm(['install', ...npmFlags, ...specs]);
   }

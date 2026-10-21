@@ -79,11 +79,6 @@
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" Condition="'$(DialectSqlite)' == 'true'" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1" Condition="'$(DialectSqlserver)' == 'true'" />
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.7.0" Condition="'$(DialectOracle)' == 'true'" />
-    <PackageReference Include="Npgsql" Version="9.0.1" Condition="'$(DialectPostgres)' == 'true'" />
-    <PackageReference Include="MySqlConnector" Version="2.4.0" Condition="'$(DialectMysql)' == 'true'" />
   </ItemGroup>
 
   <Target Name="CopyMigrateCommandHosts" AfterTargets="CopyFilesToOutputDirectory">
