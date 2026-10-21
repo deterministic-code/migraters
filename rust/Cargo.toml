@@ -19,20 +19,11 @@ path = "src/bin/migrate_down.rs"
 name = "migrate-create"
 path = "src/bin/migrate_create.rs"
 
-[features]
-default = []
-sqlite = ["sqlx/sqlite"]
-postgres = ["sqlx/postgres"]
-mysql = ["sqlx/mysql"]
-sqlserver = ["dep:tiberius", "dep:tokio-util"]
-oracle = ["dep:oracle"]
-
 [dependencies]
 dotenvy = "0.15"
+migraters-api = { path = "api" }
 tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio"], optional = true }
 time = "=0.3.47"
 sha2 = "0.10"
-tiberius = { version = "0.12", default-features = false, features = ["tds73", "rustls"], optional = true }
-tokio-util = { version = "0.7", features = ["compat"], optional = true }
-oracle = { version = "0.6", optional = true }
+# migrate-init-dialects-start
+# migrate-init-dialects-end

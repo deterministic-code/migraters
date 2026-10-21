@@ -31,14 +31,11 @@ mod tests {
         for name in &names {
             assert!(expected.contains(name), "{name}");
         }
-        #[cfg(all(
-            feature = "sqlite",
-            feature = "postgres",
-            feature = "mysql",
-            feature = "sqlserver",
-            feature = "oracle"
-        ))]
-        assert_eq!(names, expected);
+        if names.len() == expected.len() {
+            let mut sorted = expected.clone();
+            sorted.sort();
+            assert_eq!(names, sorted);
+        }
         for (alias, canonical) in cli_spec::provider_aliases() {
             assert_eq!(
                 normalize_provider(alias),

@@ -1,0 +1,12 @@
+{
+  "name": "@deterministic-code/migraters-sqlite",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@types/better-sqlite3": "*",
+    "better-sqlite3": "*"
+  }
+}

@@ -5,6 +5,6 @@ alwaysApply: true
 
 # migrate-init owns driver dependencies
 
-Do not add all datasource driver dependencies to committed package manifests or project references (`package.json`, `Cargo.toml` default features, `PackageReference`s, `dialects.props`). That makes published and vendored bundles too large.
+Do not add all datasource driver dependencies to committed package manifests or project references (`package.json`, `Cargo.toml`, `PackageReference`s, `dialects.props`). That makes published and vendored bundles too large.
 
-`migrate-init --language … --dialect …` is what installs or enables only the selected drivers (npm packages, Cargo default features, C# `PackageReference`s). Committed defaults stay slim. A full local set is `--all`, not a committed kitchen-sink dependency list.
+`migrate-init --language … --dialect …` is what attaches dialect projects and installs their drivers. Each dialect is its own package/project/crate that owns the one driver reference. The core runner has none. A full local set is `--all`, not a committed kitchen-sink dependency list.

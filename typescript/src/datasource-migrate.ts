@@ -15,7 +15,7 @@ export type {
   MigrationSqlParam,
   SqliteRawDatabase,
 } from './migration-client.ts';
-export { applyMysqlDdlViaTextProtocol } from './dialects/mysql-dialect.ts';
+export { applyMysqlDdlViaTextProtocol } from './infrastructure/mysql-text-protocol.ts';
 
 /** One discovered migration: its up script and the rollback sibling when present. */
 export interface MigrationDescriptor {

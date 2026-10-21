@@ -23,7 +23,7 @@ languages:
     dialects:
       sqlite:
         files:
-          - typescript/src/dialects/sqlite-dialect.ts
+          - typescript/dialects/sqlite/**
           - shared/templates/sql/sqlite/**
         apk: sqlite
         packages:
@@ -31,27 +31,27 @@ languages:
             installScripts: true
       postgres:
         files:
-          - typescript/src/dialects/postgres-dialect.ts
+          - typescript/dialects/postgres/**
           - shared/templates/sql/postgres/**
         apk: postgresql-client
         packages:
           - name: pg
       mysql:
         files:
-          - typescript/src/dialects/mysql-dialect.ts
+          - typescript/dialects/mysql/**
           - shared/templates/sql/mysql/**
         apk: mysql-client
         packages:
           - name: mysql2
       sqlserver:
         files:
-          - typescript/src/dialects/sqlserver-dialect.ts
+          - typescript/dialects/sqlserver/**
           - shared/templates/sql/sqlserver/**
         packages:
           - name: mssql
       oracle:
         files:
-          - typescript/src/dialects/oracle-dialect.ts
+          - typescript/dialects/oracle/**
           - shared/templates/sql/oracle/**
         packages:
           - name: oracledb
@@ -95,6 +95,7 @@ languages:
       - rust/Cargo.toml
       - rust/rustfmt.toml
       - rust/src/**/*.rs
+      - rust/api/**
       - rust/init/**
       - shared/templates/help/**
       - shared/templates/messages/**
@@ -103,32 +104,27 @@ languages:
     dialects:
       sqlite:
         files:
-          - rust/src/dialects/sqlite.rs
+          - rust/dialects/sqlite/**
           - shared/templates/sql/sqlite/**
         apk: sqlite
-        feature: sqlite
       postgres:
         files:
-          - rust/src/dialects/postgres.rs
+          - rust/dialects/postgres/**
           - shared/templates/sql/postgres/**
         apk: postgresql-client
-        feature: postgres
       mysql:
         files:
-          - rust/src/dialects/mysql.rs
+          - rust/dialects/mysql/**
           - shared/templates/sql/mysql/**
         apk: mysql-client
-        feature: mysql
       sqlserver:
         files:
-          - rust/src/dialects/sqlserver.rs
+          - rust/dialects/sqlserver/**
           - shared/templates/sql/sqlserver/**
-        feature: sqlserver
       oracle:
         files:
-          - rust/src/dialects/oracle.rs
+          - rust/dialects/oracle/**
           - shared/templates/sql/oracle/**
-        feature: oracle
     commands:
       setup: migrate-setup --provider {{provider}}
       up: migrate-up --provider {{provider}} --migrate-path {{migrationsPath}}
@@ -171,6 +167,7 @@ languages:
     common:
       - csharp/**/*.cs
       - csharp/MigrateRunner.csproj
+      - csharp/MigrateRunner.Core.csproj
       - csharp/MigrateInit/MigrateInit.csproj
       - csharp/GlobalUsings.cs
       - csharp/.csharpierrc.json
@@ -186,7 +183,7 @@ languages:
     dialects:
       sqlite:
         files:
-          - csharp/Dialects/SqliteDialect.cs
+          - csharp/Dialects/Sqlite/**
           - shared/templates/sql/sqlite/**
         apk: sqlite
         packages:
@@ -194,7 +191,7 @@ languages:
             version: "9.0.0"
       postgres:
         files:
-          - csharp/Dialects/PostgresDialect.cs
+          - csharp/Dialects/Postgres/**
           - shared/templates/sql/postgres/**
         apk: postgresql-client
         packages:
@@ -202,7 +199,7 @@ languages:
             version: "9.0.2"
       mysql:
         files:
-          - csharp/Dialects/MysqlDialect.cs
+          - csharp/Dialects/Mysql/**
           - shared/templates/sql/mysql/**
         apk: mysql-client
         packages:
@@ -210,14 +207,14 @@ languages:
             version: "2.4.0"
       sqlserver:
         files:
-          - csharp/Dialects/SqlServerDialect.cs
+          - csharp/Dialects/SqlServer/**
           - shared/templates/sql/sqlserver/**
         packages:
           - name: Microsoft.Data.SqlClient
             version: "6.0.2"
       oracle:
         files:
-          - csharp/Dialects/OracleDialect.cs
+          - csharp/Dialects/Oracle/**
           - shared/templates/sql/oracle/**
         packages:
           - name: Oracle.ManagedDataAccess.Core

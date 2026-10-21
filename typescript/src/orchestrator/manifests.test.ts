@@ -1,29 +1,45 @@
 import { describe, expect, it } from 'vitest';
-import { cargoDefaultFeaturesLine, renderDialectsProps, setCargoDefaultFeatures } from './manifests.ts';
+import {
+  renderAttachedDialects,
+  renderDialectsProps,
+  setCargoDefaultFeatures,
+  setCargoDialectDeps,
+} from './manifests.ts';
 
 describe('init manifests', () => {
-  it('renders dialects.props with only selected PackageReferences', () => {
-    const props = renderDialectsProps(
-      ['sqlite', 'sqlserver'],
-      [
-        { name: 'Microsoft.Data.Sqlite', version: '9.0.0' },
-        { name: 'Microsoft.Data.SqlClient', version: '6.0.2' },
-      ],
-    );
-    expect(props).toContain('<DialectSqlite>true</DialectSqlite>');
-    expect(props).toContain('<DialectPostgres>false</DialectPostgres>');
-    expect(props).toContain('<PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />');
-    expect(props).toContain(
-      '<PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />',
-    );
-    expect(props).not.toContain('Npgsql');
+  it('renders dialects.props with only selected dialect projects', () => {
+    const props = renderDialectsProps(['sqlite', 'sqlserver']);
+    expect(props).toContain('$(MSBuildThisFileDirectory)Dialects/Sqlite/MigrateSqlite.csproj');
+    expect(props).toContain('Dialects/SqlServer/MigrateSqlServer.csproj');
+    expect(props).not.toContain('MigratePostgres');
+    expect(props).not.toContain('PackageReference');
   });
 
   it('rewrites Cargo.toml default features to the selected dialects', () => {
     const next = setCargoDefaultFeatures(
-      '[features]\ndefault = ["sqlite", "postgres", "mysql"]\n',
-      ['sqlite', 'sqlserver'],
+      '[features]\ndefault = ["sqlite", "postgres"]\n',
+      ['sqlite'],
     );
-    expect(next).toBe(`[features]\n${cargoDefaultFeaturesLine(['sqlite', 'sqlserver'])}\n`);
+    expect(next).toContain('default = ["sqlite"]');
+    expect(next).not.toContain('postgres');
+  });
+
+  it('rewrites Cargo.toml path deps for selected dialect crates', () => {
+    const next = setCargoDialectDeps(
+      '[dependencies]\n# migrate-init-dialects-start\nmigraters-postgres = { path = "dialects/postgres" }\n# migrate-init-dialects-end\n',
+      ['sqlite'],
+    );
+    expect(next).toContain('migraters-sqlite = { path = "dialects/sqlite" }');
+    expect(next).not.toContain('migraters-postgres');
+  });
+
+  it('writes attached_dialects.rs uses for selected crates', () => {
+    expect(renderAttachedDialects(['sqlite', 'sqlserver'])).toContain(
+      'use migraters_sqlite as _;',
+    );
+    expect(renderAttachedDialects(['sqlite', 'sqlserver'])).toContain(
+      'use migraters_sqlserver as _;',
+    );
+    expect(renderAttachedDialects(['sqlite'])).not.toContain('postgres');
   });
 });

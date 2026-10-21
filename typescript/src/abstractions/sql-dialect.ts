@@ -13,5 +13,6 @@ export interface ISqlDialect {
   translatePlaceholders(sql: string): string;
   prerequisiteError(connection: string): Promise<string | null>;
   prepareSetup(connection: string): Promise<void>;
+  createDatabaseIfMissing(connection: string): Promise<void>;
   createClient(connection: string): Promise<MigrationClient>;
 }

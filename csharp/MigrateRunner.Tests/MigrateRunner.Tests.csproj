@@ -8,7 +8,7 @@
     <RootNamespace>Deterministic.MigrateRunner.Tests</RootNamespace>
     <CollectCoverage>true</CollectCoverage>
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <Include>[MigrateRunner]*Dialect*</Include>
+    <Include>[Migrate*]*Dialect*</Include>
     <Threshold>100</Threshold>
     <ThresholdType>line,branch,method</ThresholdType>
   </PropertyGroup>
@@ -26,8 +26,9 @@
     </PackageReference>
   </ItemGroup>
 
+  <Import Project="..\dialects.props" Condition="Exists('..\dialects.props')" />
   <ItemGroup>
-    <ProjectReference Include="..\MigrateRunner.csproj" />
+    <ProjectReference Include="..\MigrateRunner.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

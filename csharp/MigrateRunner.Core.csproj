@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <RootNamespace>Deterministic.MigrateRunner</RootNamespace>
+    <AssemblyName>MigrateCore</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1031;CA1303;CA1812;CA1848;CA2007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MigrateRunner" />
+    <InternalsVisibleTo Include="MigrateRunner.Tests" />
+    <InternalsVisibleTo Include="MigrateSqlite" />
+    <InternalsVisibleTo Include="MigratePostgres" />
+    <InternalsVisibleTo Include="MigrateMysql" />
+    <InternalsVisibleTo Include="MigrateSqlServer" />
+    <InternalsVisibleTo Include="MigrateOracle" />
+    <Compile Remove="Program.cs" />
+    <Compile Remove="MigrateRunner.Tests/**" />
+    <Compile Remove="MigrateInit/**" />
+    <Compile Remove="Dialects/**" />
+    <Content Remove="MigrateRunner.Tests/**" />
+    <Content Remove="MigrateInit/**" />
+    <Content Remove="Dialects/**" />
+    <None Remove="MigrateRunner.Tests/**" />
+    <None Remove="MigrateInit/**" />
+    <None Remove="Dialects/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content
+      Include="..\cli.yaml"
+      Link="cli.yaml"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\sql\**\*.sql"
+      Link="templates\sql\%(RecursiveDir)%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\help\*.txt"
+      Link="templates\help\%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\messages\**\*.txt"
+      Link="templates\messages\%(RecursiveDir)%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="..\shared\templates\scaffold\*.sql"
+      Link="templates\scaffold\%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetEnv" Version="3.2.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+  </ItemGroup>
+</Project>

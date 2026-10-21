@@ -173,33 +173,21 @@ static string RenderProps(IReadOnlyList<string> enabled)
     var set = enabled.ToHashSet(StringComparer.Ordinal);
     var sb = new StringBuilder();
     sb.AppendLine("<Project>");
-    sb.AppendLine("  <PropertyGroup>");
-    foreach (var (name, property) in new (string, string)[]
-    {
-        ("sqlite", "DialectSqlite"),
-        ("postgres", "DialectPostgres"),
-        ("mysql", "DialectMysql"),
-        ("sqlserver", "DialectSqlserver"),
-        ("oracle", "DialectOracle"),
-    })
-    {
-        var value = set.Contains(name) ? "true" : "false";
-        sb.AppendLine($"    <{property}>{value}</{property}>");
-    }
-    sb.AppendLine("  </PropertyGroup>");
     sb.AppendLine("  <ItemGroup>");
-    foreach (var (name, package, version) in new (string, string, string)[]
+    foreach (var (name, project) in new (string, string)[]
     {
-        ("sqlite", "Microsoft.Data.Sqlite", "9.0.0"),
-        ("postgres", "Npgsql", "9.0.2"),
-        ("mysql", "MySqlConnector", "2.4.0"),
-        ("sqlserver", "Microsoft.Data.SqlClient", "6.0.2"),
-        ("oracle", "Oracle.ManagedDataAccess.Core", "23.9.1"),
+        ("sqlite", "Dialects/Sqlite/MigrateSqlite.csproj"),
+        ("postgres", "Dialects/Postgres/MigratePostgres.csproj"),
+        ("mysql", "Dialects/Mysql/MigrateMysql.csproj"),
+        ("sqlserver", "Dialects/SqlServer/MigrateSqlServer.csproj"),
+        ("oracle", "Dialects/Oracle/MigrateOracle.csproj"),
     })
     {
         if (!set.Contains(name))
             continue;
-        sb.AppendLine($"    <PackageReference Include=\"{package}\" Version=\"{version}\" />");
+        sb.AppendLine(
+            $"    <ProjectReference Include=\"$(MSBuildThisFileDirectory){project}\" />"
+        );
     }
     sb.AppendLine("  </ItemGroup>");
     sb.AppendLine("</Project>");

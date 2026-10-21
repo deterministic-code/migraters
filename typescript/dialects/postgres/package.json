@@ -1,0 +1,12 @@
+{
+  "name": "@deterministic-code/migraters-postgres",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@types/pg": "*",
+    "pg": "*"
+  }
+}

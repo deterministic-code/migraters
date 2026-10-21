@@ -30,6 +30,8 @@ export abstract class SqlDialectBase implements ISqlDialect {
 
   async prepareSetup(_connection: string): Promise<void> {}
 
+  async createDatabaseIfMissing(_connection: string): Promise<void> {}
+
   abstract createClient(
     connection: string,
   ): Promise<import('../migration-client.ts').MigrationClient>;

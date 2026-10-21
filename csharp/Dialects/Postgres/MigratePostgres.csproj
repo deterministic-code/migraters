@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Deterministic.MigrateRunner</RootNamespace>
+    <AssemblyName>MigratePostgres</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
+    <PackageReference Include="Npgsql" Version="9.0.2" />
+  </ItemGroup>
+</Project>

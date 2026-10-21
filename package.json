@@ -22,7 +22,7 @@
     "build": "npm run build --prefix typescript",
     "typecheck": "npm run typecheck --prefix typescript",
     "test": "npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
-    "test:rust": "CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --all-features --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
+    "test:rust": "node typescript/dist/orchestrator/migrate-init.js --language rust --all && CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
     "test:csharp": "node typescript/dist/orchestrator/migrate-init.js --language csharp --all && dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
     "e2e:sqlite": "bash proof/e2e-sqlite.sh",
     "e2e:postgres": "bash proof/e2e-postgres.sh",

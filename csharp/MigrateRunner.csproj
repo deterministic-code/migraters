@@ -14,34 +14,14 @@
   </PropertyGroup>
 
   <Import Project="dialects.props" Condition="Exists('dialects.props')" />
-  <PropertyGroup>
-    <DialectSqlite Condition="'$(DialectSqlite)' == ''">false</DialectSqlite>
-    <DialectPostgres Condition="'$(DialectPostgres)' == ''">false</DialectPostgres>
-    <DialectMysql Condition="'$(DialectMysql)' == ''">false</DialectMysql>
-    <DialectSqlserver Condition="'$(DialectSqlserver)' == ''">false</DialectSqlserver>
-    <DialectOracle Condition="'$(DialectOracle)' == ''">false</DialectOracle>
-    <DefineConstants Condition="'$(DialectSqlite)' == 'true'">$(DefineConstants);DIALECT_SQLITE</DefineConstants>
-    <DefineConstants Condition="'$(DialectPostgres)' == 'true'">$(DefineConstants);DIALECT_POSTGRES</DefineConstants>
-    <DefineConstants Condition="'$(DialectMysql)' == 'true'">$(DefineConstants);DIALECT_MYSQL</DefineConstants>
-    <DefineConstants Condition="'$(DialectSqlserver)' == 'true'">$(DefineConstants);DIALECT_SQLSERVER</DefineConstants>
-    <DefineConstants Condition="'$(DialectOracle)' == 'true'">$(DefineConstants);DIALECT_ORACLE</DefineConstants>
-  </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="MigrateRunner.Tests" />
+    <Compile Remove="**/*.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="GlobalUsings.cs" />
     <Compile Remove="MigrateRunner.Tests/**" />
-    <Content Remove="MigrateRunner.Tests/**" />
-    <None Remove="MigrateRunner.Tests/**" />
-    <EmbeddedResource Remove="MigrateRunner.Tests/**" />
     <Compile Remove="MigrateInit/**" />
-    <Content Remove="MigrateInit/**" />
-    <None Remove="MigrateInit/**" />
-    <EmbeddedResource Remove="MigrateInit/**" />
-    <Compile Remove="Dialects/SqliteDialect.cs" Condition="'$(DialectSqlite)' != 'true'" />
-    <Compile Remove="Dialects/PostgresDialect.cs" Condition="'$(DialectPostgres)' != 'true'" />
-    <Compile Remove="Dialects/MysqlDialect.cs" Condition="'$(DialectMysql)' != 'true'" />
-    <Compile Remove="Dialects/SqlServerDialect.cs" Condition="'$(DialectSqlserver)' != 'true'" />
-    <Compile Remove="Dialects/OracleDialect.cs" Condition="'$(DialectOracle)' != 'true'" />
+    <Compile Remove="Dialects/**" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -49,35 +29,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content
-      Include="..\cli.yaml"
-      Link="cli.yaml"
-      CopyToOutputDirectory="PreserveNewest"
-    />
-    <Content
-      Include="..\shared\templates\sql\**\*.sql"
-      Link="templates\sql\%(RecursiveDir)%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
-    />
-    <Content
-      Include="..\shared\templates\help\*.txt"
-      Link="templates\help\%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
-    />
-    <Content
-      Include="..\shared\templates\messages\**\*.txt"
-      Link="templates\messages\%(RecursiveDir)%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
-    />
-    <Content
-      Include="..\shared\templates\scaffold\*.sql"
-      Link="templates\scaffold\%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
-    />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="DotNetEnv" Version="3.2.0" />
+    <ProjectReference Include="MigrateRunner.Core.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
   </ItemGroup>
 
