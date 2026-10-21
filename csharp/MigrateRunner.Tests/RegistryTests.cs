@@ -25,6 +25,7 @@ public sealed class RegistryTests
         Assert.Contains("--connection", CliSpec.UsageLine("up"), StringComparison.Ordinal);
         Assert.Contains("--confirm", CliSpec.UsageLine("down"), StringComparison.Ordinal);
         Assert.Contains("--name", CliSpec.UsageLine("create"), StringComparison.Ordinal);
+        Assert.Contains("--language", CliSpec.UsageLine("init"), StringComparison.Ordinal);
         Assert.Contains("--dialect", CliSpec.UsageLine("init"), StringComparison.Ordinal);
         Assert.Contains("--all", CliSpec.UsageLine("init"), StringComparison.Ordinal);
     }

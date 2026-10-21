@@ -19,6 +19,7 @@ struct CliCommand {
 struct CliSpec {
     command: String,
     providers: Vec<String>,
+    languages: Vec<String>,
     provider_aliases: HashMap<String, String>,
     env_var_list_separator: String,
     commands: Vec<CliCommand>,
@@ -67,10 +68,12 @@ fn unquote(value: &str) -> String {
 fn parse_cli_yaml() -> CliSpec {
     let mut command = String::from("migrate-{verb}");
     let mut providers = Vec::new();
+    let mut languages = Vec::new();
     let mut provider_aliases = HashMap::new();
     let mut env_var_list_separator = String::from(" / ");
     let mut commands = Vec::new();
     let mut in_providers = false;
+    let mut in_languages = false;
     let mut in_aliases = false;
     let mut in_commands = false;
     let mut current: Option<CliCommand> = None;
@@ -83,6 +86,7 @@ fn parse_cli_yaml() -> CliSpec {
         }
         if !line.starts_with(' ') && !line.starts_with('-') {
             in_providers = false;
+            in_languages = false;
             in_aliases = false;
             if !line.starts_with("commands:") {
                 in_commands = false;
@@ -104,6 +108,10 @@ fn parse_cli_yaml() -> CliSpec {
             in_providers = true;
             continue;
         }
+        if line.starts_with("languages:") {
+            in_languages = true;
+            continue;
+        }
         if line.starts_with("provider_aliases:") {
             in_aliases = true;
             continue;
@@ -115,6 +123,12 @@ fn parse_cli_yaml() -> CliSpec {
         if in_providers {
             if let Some(name) = line.trim().strip_prefix("- ") {
                 providers.push(name.trim().to_string());
+            }
+            continue;
+        }
+        if in_languages {
+            if let Some(name) = line.trim().strip_prefix("- ") {
+                languages.push(name.trim().to_string());
             }
             continue;
         }
@@ -178,15 +192,17 @@ fn parse_cli_yaml() -> CliSpec {
     CliSpec {
         command,
         providers,
+        languages,
         provider_aliases,
         env_var_list_separator,
         commands,
     }
 }
 
-fn arg_usage(arg: &CliArg, providers: &str) -> String {
+fn arg_usage(arg: &CliArg, providers: &str, languages: &str) -> String {
     let body = match &arg.placeholder {
         Some(token) if token == "providers" => format!("{} <{}>", arg.flag, providers),
+        Some(token) if token == "languages" => format!("{} <{}>", arg.flag, languages),
         Some(token) => format!("{} <{}>", arg.flag, token),
         None => arg.flag.clone(),
     };
@@ -200,6 +216,7 @@ fn arg_usage(arg: &CliArg, providers: &str) -> String {
 pub fn usage_line(verb: &str) -> String {
     let spec = spec();
     let providers = spec.providers.join("|");
+    let languages = spec.languages.join("|");
     let command_name = spec.command.replace("{verb}", verb);
     let command = spec
         .commands
@@ -209,7 +226,7 @@ pub fn usage_line(verb: &str) -> String {
     let args = command
         .args
         .iter()
-        .map(|a| arg_usage(a, &providers))
+        .map(|a| arg_usage(a, &providers, &languages))
         .collect::<Vec<_>>()
         .join(" ");
     format!("Usage: {command_name} {args}")

@@ -9,6 +9,7 @@ internal static class CliSpec
     private sealed record Spec(
         string Command,
         string[] Providers,
+        string[] Languages,
         IReadOnlyDictionary<string, string> ProviderAliases,
         string EnvVarListSeparator,
         Command[] Commands
@@ -23,20 +24,25 @@ internal static class CliSpec
     internal static string UsageLine(string verb)
     {
         var providers = string.Join('|', Document.Providers);
+        var languages = string.Join('|', Document.Languages);
         var command = Document.Command.Replace("{verb}", verb, StringComparison.Ordinal);
         var entry = Document.Commands.First(c => c.Verb == verb);
-        var args = string.Join(' ', entry.Args.Select(a => ArgUsage(a, providers)));
+        var args = string.Join(' ', entry.Args.Select(a => ArgUsage(a, providers, languages)));
         return $"Usage: {command} {args}";
     }
 
     internal static string ProgramUsage() =>
         string.Join('\n', Document.Commands.Select(c => UsageLine(c.Verb))) + "\n";
 
-    private static string ArgUsage(Arg arg, string providers)
+    private static string ArgUsage(Arg arg, string providers, string languages)
     {
-        var body = arg.Placeholder is null
-            ? arg.Flag
-            : $"{arg.Flag} <{(arg.Placeholder == "providers" ? providers : arg.Placeholder)}>";
+        var placeholder = arg.Placeholder switch
+        {
+            "providers" => providers,
+            "languages" => languages,
+            _ => arg.Placeholder,
+        };
+        var body = placeholder is null ? arg.Flag : $"{arg.Flag} <{placeholder}>";
         return arg.Required ? body : $"[{body}]";
     }
 
@@ -52,10 +58,12 @@ internal static class CliSpec
     {
         var command = "migrate-{verb}";
         var providers = new List<string>();
+        var languages = new List<string>();
         var providerAliases = new Dictionary<string, string>(StringComparer.Ordinal);
         var envVarListSeparator = " / ";
         var commands = new List<Command>();
         var inProviders = false;
+        var inLanguages = false;
         var inAliases = false;
         var inCommands = false;
         string? currentVerb = null;
@@ -80,6 +88,7 @@ internal static class CliSpec
             if (line.Length > 0 && line[0] is not ' ' and not '-')
             {
                 inProviders = false;
+                inLanguages = false;
                 inAliases = false;
                 if (!line.StartsWith("commands:", StringComparison.Ordinal))
                 {
@@ -102,6 +111,11 @@ internal static class CliSpec
                 inProviders = true;
                 continue;
             }
+            if (line.StartsWith("languages:", StringComparison.Ordinal))
+            {
+                inLanguages = true;
+                continue;
+            }
             if (line.StartsWith("provider_aliases:", StringComparison.Ordinal))
             {
                 inAliases = true;
@@ -117,6 +131,13 @@ internal static class CliSpec
                 var item = line.Trim();
                 if (item.StartsWith("- ", StringComparison.Ordinal))
                     providers.Add(item[2..].Trim());
+                continue;
+            }
+            if (inLanguages)
+            {
+                var item = line.Trim();
+                if (item.StartsWith("- ", StringComparison.Ordinal))
+                    languages.Add(item[2..].Trim());
                 continue;
             }
             if (inAliases)
@@ -163,7 +184,7 @@ internal static class CliSpec
             }
         }
         Flush();
-        return new Spec(command, [.. providers], providerAliases, envVarListSeparator, [.. commands]);
+        return new Spec(command, [.. providers], [.. languages], providerAliases, envVarListSeparator, [.. commands]);
     }
 
     internal static string StripKey(string raw) =>

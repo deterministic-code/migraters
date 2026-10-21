@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const TYPESCRIPT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const README = join(TYPESCRIPT, '..', 'README.md');
-const INIT_LINE = /^npx migrate-init --dialect sqlite --dialect postgres$/m;
+const INIT_LINE = /^npx migrate-init --language typescript --dialect sqlite --dialect postgres$/m;
 const BARE_CLI = /^(?:migrate-(?:init|setup|up|down|create))\b/;
 
 const pathWithoutBins = (): string =>
@@ -86,7 +86,7 @@ describe('README install', () => {
   it('runs the README init command without node_modules/.bin on PATH', async () => {
     const readme = await readFile(README, 'utf8');
     const match = readme.match(INIT_LINE);
-    expect(match?.[0]).toBe('npx migrate-init --dialect sqlite --dialect postgres');
+    expect(match?.[0]).toBe('npx migrate-init --language typescript --dialect sqlite --dialect postgres');
     const result = await run('sh', ['-c', match?.[0] ?? ''], work, {
       PATH: pathWithoutBins(),
     });

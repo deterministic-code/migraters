@@ -20,7 +20,7 @@ name = "migrate-create"
 path = "src/bin/migrate_create.rs"
 
 [features]
-default = ["sqlite", "postgres", "mysql", "sqlserver", "oracle"]
+default = []
 sqlite = ["sqlx/sqlite"]
 postgres = ["sqlx/postgres"]
 mysql = ["sqlx/mysql"]

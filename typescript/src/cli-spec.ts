@@ -20,6 +20,7 @@ export type CliCommand = {
 export type CliSpec = {
   command: string;
   providers: string[];
+  languages: string[];
   provider_aliases: Record<string, string>;
   aliases: Record<string, string>;
   env_var_list_separator: string;
@@ -48,9 +49,15 @@ export const migrateCommand = (verb: MigrateVerb): string =>
   cliSpec.command.replace('{verb}', verb);
 
 const providers = cliSpec.providers.join('|');
+const languages = (cliSpec.languages ?? []).join('|');
 
 const argUsage = (arg: CliArg): string => {
-  const ph = arg.placeholder === 'providers' ? providers : arg.placeholder;
+  const ph =
+    arg.placeholder === 'providers'
+      ? providers
+      : arg.placeholder === 'languages'
+        ? languages
+        : arg.placeholder;
   const body = ph ? `${arg.flag} <${ph}>` : arg.flag;
   return arg.required ? body : `[${body}]`;
 };
