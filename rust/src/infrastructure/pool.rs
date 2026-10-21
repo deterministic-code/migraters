@@ -67,12 +67,7 @@ impl MigrationPool {
         }
     }
 
-    pub async fn migrate_up(
-        &self,
-        name: &str,
-        body: &str,
-        checksum: &str,
-    ) -> Result<(), BoxError> {
+    pub async fn migrate_up(&self, name: &str, body: &str, checksum: &str) -> Result<(), BoxError> {
         self.driver
             .migrate_up(name, body, checksum)
             .await

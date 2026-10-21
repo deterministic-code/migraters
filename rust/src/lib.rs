@@ -1,12 +1,13 @@
-mod attached_dialects;
 pub mod abstractions;
 pub mod argv;
+mod attached_dialects;
 pub mod checksum;
 pub mod cli_spec;
 pub mod help;
 pub mod infrastructure;
 pub mod messages;
 pub mod migrater;
+pub mod migraters_config;
 pub mod migrations;
 pub mod provider;
 
@@ -190,7 +191,11 @@ mod core_lifecycle {
             &'a self,
             connection: &'a str,
         ) -> std::pin::Pin<
-            Box<dyn std::future::Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>,
+            Box<
+                dyn std::future::Future<Output = Result<Box<dyn MigrationDriver>, BoxError>>
+                    + Send
+                    + 'a,
+            >,
         > {
             let store = store_for(connection);
             Box::pin(async move { Ok(Box::new(CoreSession { store }) as Box<dyn MigrationDriver>) })

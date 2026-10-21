@@ -14,8 +14,9 @@ internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver
         if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var andUp, out var createDatabase, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
-        if (!MigrateCli.TryResolveProvider(dialects, connections, provider, connection, out var dialect, out connection, out error))
-            return Fail(error);
+        var resolved = MigrateCli.ResolveProvider(dialects, connections, provider, connection);
+        if (resolved is not ProviderResolution.Ready(var dialect, var resolvedConnection))
+            return Fail(((ProviderResolution.Rejected)resolved).Error);
 
         var resolvedMigrationsPath = migrationsPath ?? $"./sql/{dialect.Name}/migrations";
         var migrater = new Migrater(dialect);
@@ -23,8 +24,8 @@ internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver
         try
         {
             if (createDatabase)
-                await CreateDatabase.RunAsync(dialect, connection).ConfigureAwait(false);
-            await migrater.Setup(new SetupArg(connection, resolvedMigrationsPath)).ConfigureAwait(false);
+                await CreateDatabase.RunAsync(dialect, resolvedConnection).ConfigureAwait(false);
+            await migrater.Setup(new SetupArg(resolvedConnection, resolvedMigrationsPath)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -41,7 +42,7 @@ internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver
                     ["createExample"] =
                         $"  migrate-create --provider {dialect.Name} --name add_users",
                     ["upExample"] =
-                        $"  migrate-up --provider {dialect.Name} --connection {connection}",
+                        $"  migrate-up --provider {dialect.Name} --connection {resolvedConnection}",
                 }
             )
         );
@@ -49,7 +50,7 @@ internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver
             return 0;
         try
         {
-            var names = await migrater.Up(new UpArg(connection, resolvedMigrationsPath)).ConfigureAwait(false);
+            var names = await migrater.Up(new UpArg(resolvedConnection, resolvedMigrationsPath)).ConfigureAwait(false);
             if (names.Count == 0)
                 Console.WriteLine(HelpTemplates.Message("status/no-pending"));
             else
