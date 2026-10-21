@@ -12,7 +12,7 @@ export type MigratersConfig = {
   binDir: string;
 };
 
-export const configPath = (root: string): string => join(root, CONFIG_NAME);
+export const configPath = (dir: string): string => join(dir, CONFIG_NAME);
 
 export const renderConfig = (language: Language, dialects: string[]): string =>
   stringify({
@@ -22,11 +22,11 @@ export const renderConfig = (language: Language, dialects: string[]): string =>
   });
 
 export const writeConfig = async (
-  root: string,
+  dir: string,
   language: Language,
   dialects: string[],
 ): Promise<string> => {
-  const path = configPath(root);
+  const path = configPath(dir);
   await writeFile(path, renderConfig(language, dialects));
   return path;
 };

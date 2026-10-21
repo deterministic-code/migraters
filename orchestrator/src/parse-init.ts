@@ -1,4 +1,4 @@
-import { resolveInitDialects } from '../init-select.ts';
+import { resolveInitDialects } from './dialects.ts';
 import { normalizeLanguage, type Language } from './languages.ts';
 
 export type ParsedInit = {

@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { cliSpec } from './cli-spec.ts';
 import { writeConfig } from './config.ts';
 import { type Language } from './languages.ts';
 import { renderAttachedDialects, renderDialectsProps, setCargoDialectDeps } from './manifests.ts';
@@ -9,25 +10,44 @@ const npmFlags = ['--no-audit', '--no-fund', '--loglevel=error'];
 
 const npmCmd = (): string => (process.platform === 'win32' ? 'npm.cmd' : 'npm');
 
+const dialectPackage = (name: string): string => `@deterministic-code/migraters-${name}`;
+
+const dialectRuntimeDeps = async (tsRoot: string, dialects: string[]): Promise<string[]> => {
+  const names = new Set<string>();
+  for (const dialect of dialects) {
+    const raw = await readFile(join(tsRoot, 'dialects', dialect, 'package.json'), 'utf8');
+    const pkg = JSON.parse(raw) as { dependencies?: Record<string, string> };
+    for (const name of Object.keys(pkg.dependencies ?? {})) {
+      if (!name.startsWith('@types/')) names.add(name);
+    }
+  }
+  return [...names];
+};
+
 const initTypescript = async (root: string, dialects: string[]): Promise<void> => {
-  const names = dialects.map((name) => `@deterministic-code/migraters-${name}`);
-  const specs = dialects.map((name) => join(root, 'typescript', 'dialects', name));
-  const cwd = process.cwd();
-  const saveFlags = cwd === root || cwd === join(root, 'typescript') ? ['--no-save'] : [];
+  const tsRoot = join(root, 'typescript');
+  requireStatus(runCommand(npmCmd(), ['install', ...npmFlags], { cwd: tsRoot }));
+  const specs = dialects.map((name) => join(tsRoot, 'dialects', name));
   if (specs.length > 0) {
     requireStatus(
-      runCommand(npmCmd(), ['install', ...npmFlags, ...saveFlags, ...specs], { cwd }),
+      runCommand(npmCmd(), ['install', ...npmFlags, '--no-save', ...specs], { cwd: tsRoot }),
     );
   }
-  const remove = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle']
-    .map((name) => `@deterministic-code/migraters-${name}`)
-    .filter((name) => !names.includes(name));
+  const remove = cliSpec.providers
+    .filter((name) => !dialects.includes(name))
+    .map(dialectPackage);
   if (remove.length > 0) {
     requireStatus(
-      runCommand(npmCmd(), ['uninstall', ...npmFlags, ...saveFlags, ...remove], { cwd }),
+      runCommand(npmCmd(), ['uninstall', ...npmFlags, '--no-save', ...remove], { cwd: tsRoot }),
     );
   }
-  requireStatus(runCommand(npmCmd(), ['run', 'build'], { cwd: join(root, 'typescript') }));
+  const drivers = await dialectRuntimeDeps(tsRoot, dialects);
+  if (drivers.length > 0) {
+    requireStatus(
+      runCommand(npmCmd(), ['install', ...npmFlags, '--no-save', ...drivers], { cwd: tsRoot }),
+    );
+  }
+  requireStatus(runCommand(npmCmd(), ['run', 'build'], { cwd: tsRoot }));
 };
 
 const initCsharp = async (root: string, dialects: string[]): Promise<void> => {
@@ -62,7 +82,7 @@ export const runLanguageInit = async (
   if (language === 'typescript') await initTypescript(root, dialects);
   else if (language === 'csharp') await initCsharp(root, dialects);
   else await initRust(root, dialects);
-  await writeConfig(root, language, dialects);
+  await writeConfig(process.cwd(), language, dialects);
   process.stdout.write(`Enabled language: ${language}\n`);
   process.stdout.write(`Enabled dialects: ${dialects.join(', ')}\n`);
 };

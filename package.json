@@ -1,29 +1,45 @@
 {
   "name": "@deterministic-code/migraters",
   "version": "0.0.1",
-  "private": true,
   "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
   "type": "module",
   "bin": {
-    "migrate-init": "./typescript/dist/orchestrator/migrate-init.js",
-    "migrate-setup": "./typescript/dist/orchestrator/migrate-setup.js",
-    "migrate-up": "./typescript/dist/orchestrator/migrate-up.js",
-    "migrate-down": "./typescript/dist/orchestrator/migrate-down.js",
-    "migrate-create": "./typescript/dist/orchestrator/migrate-create.js"
+    "migrate-init": "./orchestrator/dist/migrate-init.js",
+    "migrate-setup": "./orchestrator/dist/migrate-setup.js",
+    "migrate-up": "./orchestrator/dist/migrate-up.js",
+    "migrate-down": "./orchestrator/dist/migrate-down.js",
+    "migrate-create": "./orchestrator/dist/migrate-create.js"
   },
   "files": [
-    "typescript/dist",
-    "/cli.yaml",
-    "/bundle.yaml",
-    "shared/templates"
+    "orchestrator/dist",
+    "orchestrator/prepare.js",
+    "orchestrator/tsconfig.json",
+    "typescript/package.json",
+    "typescript/tsconfig.build.json",
+    "typescript/src",
+    "typescript/dialects",
+    "rust/Cargo.toml",
+    "rust/Cargo.lock",
+    "rust/rustfmt.toml",
+    "rust/src",
+    "rust/api",
+    "rust/dialects",
+    "csharp/Abstractions",
+    "csharp/Dialects",
+    "csharp/Infrastructure",
+    "csharp/*.cs",
+    "csharp/*.csproj",
+    "cli.yaml",
+    "bundle.yaml",
+    "shared"
   ],
   "scripts": {
-    "prepare": "npm run build --prefix typescript",
-    "build": "npm run build --prefix typescript",
-    "typecheck": "npm run typecheck --prefix typescript",
-    "test": "npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
-    "test:rust": "node typescript/dist/orchestrator/migrate-init.js --language rust --all && CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
-    "test:csharp": "node typescript/dist/orchestrator/migrate-init.js --language csharp --all && dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
+    "prepare": "node orchestrator/prepare.js",
+    "typecheck": "tsc -p orchestrator/tsconfig.json --noEmit && npm run typecheck --prefix typescript",
+    "test": "npm run prepare && npm run test:orchestrator && npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
+    "test:orchestrator": "vitest run --config orchestrator/vitest.config.ts",
+    "test:rust": "node orchestrator/dist/migrate-init.js --language rust --all && CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
+    "test:csharp": "node orchestrator/dist/migrate-init.js --language csharp --all && dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
     "e2e:sqlite": "bash proof/e2e-sqlite.sh",
     "e2e:postgres": "bash proof/e2e-postgres.sh",
     "e2e:mysql": "bash proof/e2e-mysql.sh",
@@ -42,6 +58,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.4"
   }
 }

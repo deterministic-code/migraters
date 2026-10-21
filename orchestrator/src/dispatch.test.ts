@@ -6,7 +6,7 @@ describe('orchestrator dispatch', () => {
     expect(
       planDispatch(
         '/repo',
-        { language: 'typescript', dialects: ['sqlite'], binDir: 'typescript/dist/bin' },
+        { language: 'typescript', dialects: ['sqlite'], binDir: 'typescript/dist/src/bin' },
         'up',
         ['--provider', 'sqlite', '--connection', './app.sqlite'],
         '/usr/bin/node',
@@ -14,7 +14,7 @@ describe('orchestrator dispatch', () => {
     ).toEqual({
       command: '/usr/bin/node',
       args: [
-        `/repo/typescript/dist/bin/${implementationScript('up')}`,
+        `/repo/typescript/dist/src/bin/${implementationScript('up')}`,
         '--provider',
         'sqlite',
         '--connection',

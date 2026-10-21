@@ -7,13 +7,14 @@
     "types": ["node"],
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true,
+    "noCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"],
-    "exclude": ["src/**/*.test.ts", "src/generate-help.ts", "src/dialects/**"]
+  "include": ["src/**/*.ts", "dialects/*/src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/generate-help.ts", "dialects/**/*.test.ts"]
 }

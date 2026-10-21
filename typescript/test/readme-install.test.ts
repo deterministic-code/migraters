@@ -6,8 +6,8 @@ import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-const TYPESCRIPT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const README = join(TYPESCRIPT, '..', 'README.md');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const README = join(ROOT, 'README.md');
 const INIT_LINE = /^npx migrate-init --language typescript --dialect sqlite --dialect postgres$/m;
 const BARE_CLI = /^(?:migrate-(?:init|setup|up|down|create))\b/;
 
@@ -56,7 +56,7 @@ describe('README install', () => {
 
   beforeAll(async () => {
     work = await mkdtemp(join(tmpdir(), 'migraters-readme-install-'));
-    const packed = await run('npm', ['pack', '--pack-destination', work], TYPESCRIPT);
+    const packed = await run('npm', ['pack', '--pack-destination', work], ROOT);
     expect(packed.code, packed.stderr).toBe(0);
     tarball = join(work, await packName(packed.stdout));
     const installed = await run('npm', ['install', tarball], work);

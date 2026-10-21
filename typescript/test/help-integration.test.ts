@@ -7,14 +7,13 @@ import { describe, expect, it } from 'vitest';
 import { migrateCommand, type MigrateVerb } from '../src/cli-contract.ts';
 import { loadHelp } from '../src/help.ts';
 
-const BIN_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'bin');
+const BIN_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'src', 'bin');
 
 const BINS: { verb: MigrateVerb; file: string }[] = [
   { verb: 'setup', file: 'migrate-setup.js' },
   { verb: 'up', file: 'migrate-up.js' },
   { verb: 'down', file: 'migrate-down.js' },
   { verb: 'create', file: 'migrate-create.js' },
-  { verb: 'init', file: 'migrate-init.js' },
 ];
 
 const runHelp = async (file: string): Promise<{ code: number; stderr: string }> => {

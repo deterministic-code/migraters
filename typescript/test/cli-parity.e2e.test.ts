@@ -36,12 +36,12 @@ const hostPath = async (dir: string, name: string): Promise<string | undefined> 
 
 const discover = async (): Promise<Proc[]> => {
   const out: Proc[] = [];
-  const ts = join(MIGRATERS, 'typescript', 'dist', 'bin', 'migrate-setup.js');
+  const ts = join(MIGRATERS, 'typescript', 'dist', 'src', 'bin', 'migrate-setup.js');
   if (await exists(ts)) {
     out.push({
       lang: 'typescript',
       file: process.execPath,
-      prefix: [join(MIGRATERS, 'typescript', 'dist', 'bin')],
+      prefix: [join(MIGRATERS, 'typescript', 'dist', 'src', 'bin')],
     });
   }
   const rust = await hostPath(join(MIGRATERS, 'rust', 'target', 'debug'), 'migrate-setup');

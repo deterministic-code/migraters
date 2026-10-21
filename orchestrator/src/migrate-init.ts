@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { loadHelp } from '../help.ts';
+import { loadHelp } from './help.ts';
 import { parseInitArgv, resolveInitSelection } from './parse-init.ts';
-import { repoRootFromModule } from './repo.ts';
+import { packageRootFromModule } from './repo.ts';
 import { runLanguageInit } from './run-init.ts';
 
 const HELP_TEXT = await loadHelp('migrate-init');
@@ -27,7 +27,7 @@ const main = async () => {
     process.stderr.write(`${err.message}\n`);
     process.exit(2);
   }
-  const root = repoRootFromModule(import.meta.url);
+  const root = packageRootFromModule(import.meta.url);
   await runLanguageInit(root, selection.language, selection.dialects);
 };
 
