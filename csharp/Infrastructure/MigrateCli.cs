@@ -28,11 +28,11 @@ internal static class MigrateCli
         return sub.ToLowerInvariant();
     }
     internal static bool TryResolveProvider(
-        ISqlDialectFactory dialects,
+        IDialectFactory dialects,
         IConnectionResolver connections,
         string provider,
         string? connection,
-        out ISqlDialect dialect,
+        out IDialect dialect,
         out string resolvedConnection,
         out string error
     )

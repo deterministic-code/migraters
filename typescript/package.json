@@ -22,11 +22,12 @@
     "src",
     "dialects",
     "cli.yaml",
+    "driver.yaml",
     "bundle.yaml",
     "tsconfig.build.json"
   ],
   "scripts": {
-    "build": "rm -rf dist.tmp && tsc -p tsconfig.build.json --outDir dist.tmp && cp -R ../shared/templates dist.tmp/templates && cp ../cli.yaml dist.tmp/cli.yaml && rm -rf dist && mv dist.tmp dist",
+    "build": "rm -rf dist.tmp && tsc -p tsconfig.build.json --outDir dist.tmp && cp -R ../shared/templates dist.tmp/templates && cp ../cli.yaml dist.tmp/cli.yaml && cp ../driver.yaml dist.tmp/driver.yaml && rm -rf dist && mv dist.tmp dist",
     "typecheck": "tsc -p tsconfig.src.json --noEmit",
     "test": "node ../orchestrator/attach-sqlite.js typescript && vitest run --config vitest.unit.config.ts",
     "integration": "npm run build && node ../orchestrator/dist/migrate-init.js --language typescript --all && vitest run --config vitest.integration.config.ts --coverage",

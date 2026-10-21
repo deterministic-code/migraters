@@ -2,7 +2,7 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResolver connections)
+internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver connections)
     : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("setup");

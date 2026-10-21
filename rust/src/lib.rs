@@ -10,7 +10,7 @@ pub mod migrater;
 pub mod migrations;
 pub mod provider;
 
-pub use abstractions::{all, try_get, SqlDialect};
+pub use abstractions::{all, try_get, Dialect, SqlDialect};
 pub use argv::{is_help, take_value};
 pub use checksum::checksum_hex;
 pub use cli_spec::join_env_vars;
@@ -40,12 +40,36 @@ mod api_yaml {
 }
 
 #[cfg(test)]
+mod driver_yaml {
+    const RAW: &str = include_str!("../../driver.yaml");
+
+    #[test]
+    fn lists_migration_driver() {
+        assert!(RAW.contains("interface: MigrationDriver"));
+        for method in [
+            "setup",
+            "applied",
+            "migrateUp",
+            "migrateDown",
+            "logStarted",
+            "logFinished",
+            "close",
+        ] {
+            assert!(
+                RAW.contains(&format!("  - {method}")),
+                "driver.yaml missing method {method}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod core_lifecycle {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
     use async_trait::async_trait;
-    use migraters_api::{BoxError, MigrationSession, SqlDialect};
+    use migraters_api::{BoxError, Dialect, MigrationDriver};
 
     use crate::checksum::checksum_hex;
     use crate::infrastructure::MigrationPool;
@@ -81,72 +105,57 @@ mod core_lifecycle {
     }
 
     #[async_trait]
-    impl MigrationSession for CoreSession {
-        async fn execute(&self, sql: &str) -> Result<(), BoxError> {
-            if sql.contains("NOT VALID") {
-                return Err("not valid sql".into());
-            }
+    impl MigrationDriver for CoreSession {
+        async fn setup(&self) -> Result<(), BoxError> {
             Ok(())
         }
 
-        async fn fetch_applied(&self, _sql: &str) -> Result<HashMap<String, Option<String>>, BoxError> {
+        async fn applied(&self) -> Result<HashMap<String, Option<String>>, BoxError> {
             Ok(self.store.applied.lock().unwrap().clone())
         }
 
-        async fn apply_in_transaction(
-            &self,
-            stmts: &[String],
-            catalog_sql: &str,
-            p1: &str,
-            p2: Option<&str>,
-        ) -> Result<(), BoxError> {
-            for stmt in stmts {
-                self.execute(stmt).await?;
+        async fn migrate_up(&self, name: &str, body: &str, checksum: &str) -> Result<(), BoxError> {
+            if body.contains("NOT VALID") {
+                return Err("not valid sql".into());
             }
-            self.catalog_write(catalog_sql, p1, p2).await
-        }
-
-        async fn catalog_write(
-            &self,
-            catalog_sql: &str,
-            p1: &str,
-            p2: Option<&str>,
-        ) -> Result<(), BoxError> {
-            let upper = catalog_sql.to_ascii_uppercase();
-            if upper.contains("DELETE") && upper.contains("MIGRATES") {
-                self.store.applied.lock().unwrap().remove(p1);
-            } else if upper.contains("INSERT") && upper.contains("MIGRATES") {
-                self.store
-                    .applied
-                    .lock()
-                    .unwrap()
-                    .insert(p1.to_string(), p2.map(str::to_string));
-            }
+            self.store
+                .applied
+                .lock()
+                .unwrap()
+                .insert(name.to_string(), Some(checksum.to_string()));
             Ok(())
         }
 
-        async fn fetch_id(&self, _sql: &str, _p1: &str, _p2: &str) -> Result<i64, BoxError> {
+        async fn migrate_down(&self, name: &str, _body: &str) -> Result<(), BoxError> {
+            self.store.applied.lock().unwrap().remove(name);
+            Ok(())
+        }
+
+        async fn log_started(&self, _name: &str, _direction: &str) -> Result<i64, BoxError> {
             let mut next = self.store.next_id.lock().unwrap();
             let id = *next;
             *next += 1;
             Ok(id)
         }
 
-        async fn update_log_exec(
+        async fn log_finished(
             &self,
-            _sql: &str,
+            _id: i64,
             _status: &str,
             _duration_ms: i64,
-            _error_message: Option<&str>,
-            _id: i64,
+            _error: Option<&str>,
         ) -> Result<(), BoxError> {
+            Ok(())
+        }
+
+        async fn close(&self) -> Result<(), BoxError> {
             Ok(())
         }
     }
 
     struct CoreDialect;
 
-    impl SqlDialect for CoreDialect {
+    impl Dialect for CoreDialect {
         fn name(&self) -> &'static str {
             "core"
         }
@@ -181,10 +190,10 @@ mod core_lifecycle {
             &'a self,
             connection: &'a str,
         ) -> std::pin::Pin<
-            Box<dyn std::future::Future<Output = Result<Box<dyn MigrationSession>, BoxError>> + Send + 'a>,
+            Box<dyn std::future::Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>,
         > {
             let store = store_for(connection);
-            Box::pin(async move { Ok(Box::new(CoreSession { store }) as Box<dyn MigrationSession>) })
+            Box::pin(async move { Ok(Box::new(CoreSession { store }) as Box<dyn MigrationDriver>) })
         }
     }
 

@@ -4,7 +4,7 @@ namespace Deterministic.MigrateRunner;
 
 public static class SqlServerDialect
 {
-    public static readonly ISqlDialect Instance = new SqlDialect(
+    public static readonly IDialect Instance = new SqlDialect(
         "sqlserver",
         ["MSSQL_URL", "DATABASE_URL"],
         useTransaction: true,

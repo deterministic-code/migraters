@@ -1,10 +1,25 @@
 namespace Deterministic.MigrateRunner;
 
-internal static class MigrateLog
+internal static class SqlCatalog
 {
-    public static async Task<long> InsertStartedAsync(
+    public static async Task<Dictionary<string, string?>> AppliedAsync(DbConnection conn, SqlDialect dialect)
+    {
+        var map = new Dictionary<string, string?>(StringComparer.Ordinal);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = dialect.SelectAppliedChecksumSql;
+        using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
+        {
+            var name = Migrations.CatalogName(reader.GetString(0));
+            var checksum = reader.IsDBNull(1) ? null : reader.GetString(1);
+            map[name] = checksum;
+        }
+        return map;
+    }
+
+    public static async Task<long> InsertLogStartedAsync(
         DbConnection conn,
-        ISqlDialect dialect,
+        SqlDialect dialect,
         string name,
         string direction
     )
@@ -25,9 +40,9 @@ internal static class MigrateLog
         return Convert.ToInt64(value, CultureInfo.InvariantCulture);
     }
 
-    public static async Task UpdateAsync(
+    public static async Task UpdateLogAsync(
         DbConnection conn,
-        ISqlDialect dialect,
+        SqlDialect dialect,
         long id,
         string status,
         long durationMs,

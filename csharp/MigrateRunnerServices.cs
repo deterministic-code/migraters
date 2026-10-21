@@ -9,7 +9,7 @@ internal static class MigrateRunnerServices
         foreach (var dialect in LoadDialects())
             services.AddSingleton(dialect);
         return services
-            .AddSingleton<ISqlDialectFactory, SqlDialectFactory>()
+            .AddSingleton<IDialectFactory, DialectFactory>()
             .AddSingleton<IConnectionResolver, ConnectionResolver>()
             .AddSingleton<IMigrateCommand, MigrateSetup>()
             .AddSingleton<IMigrateCommand, MigrateUp>()
@@ -17,13 +17,13 @@ internal static class MigrateRunnerServices
             .AddSingleton<IMigrateCommand, MigrateCreate>();
     }
 
-    private static IEnumerable<ISqlDialect> LoadDialects()
+    private static IEnumerable<IDialect> LoadDialects()
     {
         var dir = AppContext.BaseDirectory;
         foreach (var path in Directory.GetFiles(dir, "Migrate*.dll"))
         {
             var name = Path.GetFileNameWithoutExtension(path);
-            if (name is "MigrateCore" or "MigrateRunner" or "MigrateRunner.Tests")
+            if (name is "MigrateCore" or "MigrateRunner" or "MigrateRunner.Tests" or "MigrateSqlDriver")
                 continue;
             Assembly.LoadFrom(path);
         }
@@ -36,9 +36,9 @@ internal static class MigrateRunnerServices
             .Where(f =>
                 f is { IsStatic: true }
                 && !f.FieldType.ContainsGenericParameters
-                && typeof(ISqlDialect).IsAssignableFrom(f.FieldType)
+                && typeof(IDialect).IsAssignableFrom(f.FieldType)
             )
-            .Select(f => (ISqlDialect)f!.GetValue(null)!);
+            .Select(f => (IDialect)f!.GetValue(null)!);
     }
 
     private static IEnumerable<Type> SafeTypes(Assembly assembly)

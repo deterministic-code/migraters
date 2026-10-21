@@ -10,7 +10,7 @@ public static class SqliteDialect
         Batteries.Init();
     }
 
-    public static readonly ISqlDialect Instance = new SqlDialect(
+    public static readonly IDialect Instance = new SqlDialect(
         "sqlite",
         ["SQLITE_PATH", "DB_PATH"],
         useTransaction: true,

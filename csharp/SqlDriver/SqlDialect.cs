@@ -1,6 +1,6 @@
 namespace Deterministic.MigrateRunner;
 
-public sealed class SqlDialect : ISqlDialect
+public sealed class SqlDialect : IDialect
 {
     private readonly Func<string, string> _normalize;
     private readonly Func<string, DbConnection> _createConnection;
@@ -67,6 +67,13 @@ public sealed class SqlDialect : ISqlDialect
     public void PrepareSetup(string connection) => _prepareSetup?.Invoke(connection);
     public Task CreateDatabaseIfMissingAsync(string connection) =>
         _createDatabase?.Invoke(connection) ?? Task.CompletedTask;
+
+    public async Task<IMigrationDriver> OpenAsync(string connection)
+    {
+        var conn = _createConnection(_normalize(connection));
+        await conn.OpenAsync().ConfigureAwait(false);
+        return new SqlMigrationDriver(conn, this);
+    }
 
     public static void Bind(DbCommand command, string parameterName, object value)
     {

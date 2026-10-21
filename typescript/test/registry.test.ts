@@ -10,8 +10,10 @@ import { normalizeDialect } from '../src/sql.ts';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 type ApiSpec = { interface: string; methods: string[]; providers: string[] };
+type DriverSpec = { interface: string; methods: string[] };
 
 const api = parse(await readFile(join(ROOT, 'api.yaml'), 'utf8')) as ApiSpec;
+const driver = parse(await readFile(join(ROOT, 'driver.yaml'), 'utf8')) as DriverSpec;
 
 describe('provider registry matches cli.yaml and api.yaml', () => {
   it('registers every api.yaml provider', () => {
@@ -45,5 +47,18 @@ describe('provider registry matches cli.yaml and api.yaml', () => {
   it('names IMigrater and its methods', () => {
     expect(api.interface).toBe('IMigrater');
     expect(api.methods).toEqual(['setup', 'up', 'down', 'create']);
+  });
+
+  it('names MigrationDriver and its methods', () => {
+    expect(driver.interface).toBe('MigrationDriver');
+    expect(driver.methods).toEqual([
+      'setup',
+      'applied',
+      'migrateUp',
+      'migrateDown',
+      'logStarted',
+      'logFinished',
+      'close',
+    ]);
   });
 });

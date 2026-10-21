@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
+    <ProjectReference Include="..\..\SqlDriver\MigrateSqlDriver.csproj" />
     <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.9.1" />
   </ItemGroup>
 </Project>

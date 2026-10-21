@@ -5,7 +5,7 @@ namespace Deterministic.MigrateRunner;
 public static class MysqlDialect
 {
     // MySQL DDL auto-commits, so wrapping apply + catalog write gives no atomicity.
-    public static readonly ISqlDialect Instance = new SqlDialect(
+    public static readonly IDialect Instance = new SqlDialect(
         "mysql",
         ["MYSQL_URL", "DATABASE_URL"],
         useTransaction: false,

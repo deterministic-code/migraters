@@ -2,10 +2,8 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { defaultDialectFactory } from './infrastructure/default-factory.ts';
-import { splitOnGo } from './infrastructure/split-on-go.ts';
 import { fillTemplate, loadMessage } from './infrastructure/message-templates.ts';
-import type { ISqlDialect } from './abstractions/sql-dialect.ts';
-import type { MigrationClient, MigrationRowValue } from './migration-client.ts';
+import type { MigrationDriver } from './abstractions/migration-driver.ts';
 import type { SqlDialect } from './sql.ts';
 
 export { normalizeDialect } from './sql.ts';
@@ -15,6 +13,7 @@ export type {
   MigrationSqlParam,
   SqliteRawDatabase,
 } from './migration-client.ts';
+export type { MigrationDriver, MigrationDriverId } from './abstractions/migration-driver.ts';
 export { applyMysqlDdlViaTextProtocol } from './infrastructure/mysql-text-protocol.ts';
 
 /** One discovered migration: its up script and the rollback sibling when present. */
@@ -86,15 +85,15 @@ export function checksum(text: string): string {
 }
 
 export async function applyOneUp({
-  client,
+  driver,
   migrations,
   env = process.env,
 }: {
-  client: MigrationClient;
+  driver: MigrationDriver;
   migrations: MigrationDescriptor[];
   env?: NodeJS.ProcessEnv;
 }): Promise<{ applied: boolean; name: string | null }> {
-  const applied = await appliedRecords(client);
+  const applied = await driver.applied();
   await assertNoChecksumDrift({ migrations, applied, env });
   const next = migrations.find((m) => !applied.has(m.name));
   if (!next) return { applied: false, name: null };
@@ -102,49 +101,31 @@ export async function applyOneUp({
   const sqlText = await readFile(next.upPath, 'utf8');
   const sum = checksum(sqlText);
 
-  const logId = await insertLogStarted(client, next.name, 'up');
+  const logId = await driver.logStarted(next.name, 'up');
   const startedAt = Date.now();
 
   try {
-    await client.transaction(async () => {
-      const stmts = splitOnGo(await readFile(next.upPath, 'utf8'));
-      for (const stmt of stmts) {
-        await client.exec(stmt);
-      }
-      await insertMigrate(client, next.name, sum);
-    });
+    await driver.migrateUp(next.name, sqlText, sum);
   } catch (e) {
     const err = e as Error;
-    await updateLogTerminal({
-      client,
-      id: logId,
-      status: 'error',
-      durationMs: Date.now() - startedAt,
-      errorMessage: String(err?.message ?? e),
-    });
+    await driver.logFinished(logId, 'error', Date.now() - startedAt, String(err?.message ?? e));
     throw e;
   }
 
-  await updateLogTerminal({
-    client,
-    id: logId,
-    status: 'success',
-    durationMs: Date.now() - startedAt,
-    errorMessage: null,
-  });
+  await driver.logFinished(logId, 'success', Date.now() - startedAt, null);
   return { applied: true, name: next.name };
 }
 
 export async function applyOneDown({
-  client,
+  driver,
   migrations,
   env = process.env,
 }: {
-  client: MigrationClient;
+  driver: MigrationDriver;
   migrations: MigrationDescriptor[];
   env?: NodeJS.ProcessEnv;
 }): Promise<{ rolledBack: boolean; name: string | null }> {
-  const applied = await appliedRecords(client);
+  const applied = await driver.applied();
   await assertNoChecksumDrift({ migrations, applied, env });
   if (applied.size === 0) return { rolledBack: false, name: null };
 
@@ -159,54 +140,19 @@ export async function applyOneDown({
   }
   const downPath = lastApplied.downPath;
 
-  const logId = await insertLogStarted(client, lastApplied.name, 'down');
+  const logId = await driver.logStarted(lastApplied.name, 'down');
   const startedAt = Date.now();
 
   try {
-    await client.transaction(async () => {
-      const stmts = splitOnGo(await readFile(downPath, 'utf8'));
-      for (const stmt of stmts) {
-        await client.exec(stmt);
-      }
-      await deleteMigrate(client, lastApplied.name);
-    });
+    await driver.migrateDown(lastApplied.name, await readFile(downPath, 'utf8'));
   } catch (e) {
     const err = e as Error;
-    await updateLogTerminal({
-      client,
-      id: logId,
-      status: 'error',
-      durationMs: Date.now() - startedAt,
-      errorMessage: String(err?.message ?? e),
-    });
+    await driver.logFinished(logId, 'error', Date.now() - startedAt, String(err?.message ?? e));
     throw e;
   }
 
-  await updateLogTerminal({
-    client,
-    id: logId,
-    status: 'success',
-    durationMs: Date.now() - startedAt,
-    errorMessage: null,
-  });
+  await driver.logFinished(logId, 'success', Date.now() - startedAt, null);
   return { rolledBack: true, name: lastApplied.name };
-}
-
-function dialectOf(client: MigrationClient): ISqlDialect {
-  return defaultDialectFactory.get(client.dialect);
-}
-
-async function appliedRecords(client: MigrationClient): Promise<Map<string, string | null>> {
-  const d = dialectOf(client);
-  const q = (ident: string) => d.quoteIdent(ident);
-  const rows = await client.query(
-    `SELECT ${q('name')} AS name, ${q('checksum')} AS checksum FROM ${q('migrates')}`,
-  );
-  return new Map(
-    rows.map(
-      (r) => [r.name ?? r.NAME, r.checksum ?? r.CHECKSUM ?? null] as [string, string | null],
-    ),
-  );
 }
 
 async function assertNoChecksumDrift({
@@ -238,75 +184,6 @@ async function assertNoChecksumDrift({
     )
     .join('\n');
   throw new Error(fillTemplate(checksumDriftTpl, { lines }).trimEnd());
-}
-
-async function insertMigrate(client: MigrationClient, name: string, sum: string): Promise<void> {
-  const d = dialectOf(client);
-  const t = d.quoteIdent('migrates');
-  await client.run(
-    `INSERT INTO ${t} (${d.quoteIdent('name')}, ${d.quoteIdent('checksum')}) VALUES (?, ?)`,
-    [name, sum],
-  );
-}
-
-async function deleteMigrate(client: MigrationClient, name: string): Promise<void> {
-  const d = dialectOf(client);
-  const t = d.quoteIdent('migrates');
-  await client.run(`DELETE FROM ${t} WHERE ${d.quoteIdent('name')} = ?`, [name]);
-}
-
-async function insertLogStarted(
-  client: MigrationClient,
-  name: string,
-  direction: string,
-): Promise<MigrationRowValue> {
-  const d = dialectOf(client);
-  const t = d.quoteIdent('migrate_logs');
-  if (d.usesLastInsertRowid) {
-    const stmt = `INSERT INTO ${t} (${d.quoteIdent('migrate_name')}, ${d.quoteIdent('direction')}, ${d.quoteIdent('status')}) VALUES (?, ?, 'started')`;
-    const db = client._raw;
-    if (db) {
-      const info = db.prepare(stmt).run(name, direction);
-      return info.lastInsertRowid;
-    }
-    await client.run(stmt, [name, direction]);
-    const rows = await client.query(
-      `SELECT ${d.quoteIdent('id')} AS id FROM ${t} WHERE ${d.quoteIdent('migrate_name')} = ? AND ${d.quoteIdent('direction')} = ? ORDER BY id DESC ${d.limitClause(1)}`,
-      [name, direction],
-    );
-    return rows[0]?.id;
-  }
-  await client.run(
-    `INSERT INTO ${t} (${d.quoteIdent('migrate_name')}, ${d.quoteIdent('direction')}, ${d.quoteIdent('status')}) VALUES (?, ?, 'started')`,
-    [name, direction],
-  );
-  const rows = await client.query(
-    `SELECT ${d.quoteIdent('id')} AS id FROM ${t} WHERE ${d.quoteIdent('migrate_name')} = ? AND ${d.quoteIdent('direction')} = ? ORDER BY ${d.quoteIdent('id')} DESC ${d.limitClause(1)}`,
-    [name, direction],
-  );
-  return rows[0]?.id ?? rows[0]?.ID;
-}
-
-async function updateLogTerminal({
-  client,
-  id,
-  status,
-  durationMs,
-  errorMessage,
-}: {
-  client: MigrationClient;
-  id: MigrationRowValue;
-  status: string;
-  durationMs: number;
-  errorMessage: string | null;
-}): Promise<void> {
-  const d = dialectOf(client);
-  const t = d.quoteIdent('migrate_logs');
-  const setNow = d.nowExpr();
-  await client.run(
-    `UPDATE ${t} SET ${d.quoteIdent('status')} = ?, ${d.quoteIdent('finished_at')} = ${setNow}, ${d.quoteIdent('duration_ms')} = ?, ${d.quoteIdent('error_message')} = ?, ${d.quoteIdent('updated')} = ${setNow} WHERE ${d.quoteIdent('id')} = ?`,
-    [status, durationMs, errorMessage, id],
-  );
 }
 
 function requireDialect(dialect: string): SqlDialect {

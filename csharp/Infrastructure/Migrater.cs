@@ -1,26 +1,26 @@
 namespace Deterministic.MigrateRunner;
 
-internal sealed class Migrater(ISqlDialect dialect) : IMigrater
+internal sealed class Migrater(IDialect dialect) : IMigrater
 {
     public string Name => dialect.Name;
 
     public async Task Setup(SetupArg args)
     {
         dialect.PrepareSetup(args.Connection);
-        await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(args.Connection));
-        await conn.OpenAsync().ConfigureAwait(false);
-        await DbExecute.NonQueryAsync(conn, null, dialect.MigratesDdl).ConfigureAwait(false);
-        await DbExecute.NonQueryAsync(conn, null, dialect.MigrateLogsDdl).ConfigureAwait(false);
+        await using var driver = await dialect.OpenAsync(args.Connection).ConfigureAwait(false);
+        await driver.Setup().ConfigureAwait(false);
         Directory.CreateDirectory(args.MigrationsPath);
     }
 
     public async Task<IReadOnlyList<string>> Up(UpArg args)
     {
-        await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(args.Connection));
-        await conn.OpenAsync().ConfigureAwait(false);
+        await using var driver = await dialect.OpenAsync(args.Connection).ConfigureAwait(false);
 
         var files = Migrations.OrderedUpFiles(args.MigrationsPath);
-        var applied = await Migrations.AppliedChecksumsAsync(conn, dialect.SelectAppliedChecksumSql).ConfigureAwait(false);
+        var applied = new Dictionary<string, string?>(
+            await driver.Applied().ConfigureAwait(false),
+            StringComparer.Ordinal
+        );
         Migrations.AssertNoChecksumDrift(files, applied);
         var names = new List<string>();
         while (true)
@@ -31,34 +31,19 @@ internal sealed class Migrater(ISqlDialect dialect) : IMigrater
 
             var sql = await File.ReadAllTextAsync(next.UpPath).ConfigureAwait(false);
             var checksum = Checksum.Hex(sql);
-            var logId = await MigrateLog.InsertStartedAsync(conn, dialect, next.Name, "up").ConfigureAwait(false);
+            var logId = await driver.LogStarted(next.Name, "up").ConfigureAwait(false);
             var started = DateTime.UtcNow;
             try
             {
-                await DbExecute
-                    .ApplyStatementsAsync(
-                        conn,
-                        dialect,
-                        sql,
-                        tx =>
-                            DbExecute.CatalogWriteAsync(
-                                conn,
-                                tx,
-                                dialect,
-                                dialect.InsertAppliedSql,
-                                ("p1", next.Name),
-                                ("p2", checksum)
-                            )
-                    )
-                    .ConfigureAwait(false);
-                await MigrateLog
-                    .UpdateAsync(conn, dialect, logId, "success", (long)(DateTime.UtcNow - started).TotalMilliseconds, null)
+                await driver.MigrateUp(next.Name, sql, checksum).ConfigureAwait(false);
+                await driver
+                    .LogFinished(logId, "success", (long)(DateTime.UtcNow - started).TotalMilliseconds, null)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                await MigrateLog
-                    .UpdateAsync(conn, dialect, logId, "error", (long)(DateTime.UtcNow - started).TotalMilliseconds, ex.Message)
+                await driver
+                    .LogFinished(logId, "error", (long)(DateTime.UtcNow - started).TotalMilliseconds, ex.Message)
                     .ConfigureAwait(false);
                 throw;
             }
@@ -72,11 +57,10 @@ internal sealed class Migrater(ISqlDialect dialect) : IMigrater
 
     public async Task<string?> Down(DownArg args)
     {
-        await using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(args.Connection));
-        await conn.OpenAsync().ConfigureAwait(false);
+        await using var driver = await dialect.OpenAsync(args.Connection).ConfigureAwait(false);
 
         var files = Migrations.OrderedUpFiles(args.MigrationsPath);
-        var applied = await Migrations.AppliedChecksumsAsync(conn, dialect.SelectAppliedChecksumSql).ConfigureAwait(false);
+        var applied = await driver.Applied().ConfigureAwait(false);
         if (applied.Count == 0)
             return null;
         Migrations.AssertNoChecksumDrift(files, applied);
@@ -93,33 +77,19 @@ internal sealed class Migrater(ISqlDialect dialect) : IMigrater
                 )
             );
         var sql = await File.ReadAllTextAsync(path).ConfigureAwait(false);
-        var logId = await MigrateLog.InsertStartedAsync(conn, dialect, last.Name, "down").ConfigureAwait(false);
+        var logId = await driver.LogStarted(last.Name, "down").ConfigureAwait(false);
         var started = DateTime.UtcNow;
         try
         {
-            await DbExecute
-                .ApplyStatementsAsync(
-                    conn,
-                    dialect,
-                    sql,
-                    tx =>
-                        DbExecute.CatalogWriteAsync(
-                            conn,
-                            tx,
-                            dialect,
-                            dialect.DeleteAppliedSql,
-                            ("p1", last.Name)
-                        )
-                )
-                .ConfigureAwait(false);
-            await MigrateLog
-                .UpdateAsync(conn, dialect, logId, "success", (long)(DateTime.UtcNow - started).TotalMilliseconds, null)
+            await driver.MigrateDown(last.Name, sql).ConfigureAwait(false);
+            await driver
+                .LogFinished(logId, "success", (long)(DateTime.UtcNow - started).TotalMilliseconds, null)
                 .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            await MigrateLog
-                .UpdateAsync(conn, dialect, logId, "error", (long)(DateTime.UtcNow - started).TotalMilliseconds, ex.Message)
+            await driver
+                .LogFinished(logId, "error", (long)(DateTime.UtcNow - started).TotalMilliseconds, ex.Message)
                 .ConfigureAwait(false);
             throw;
         }

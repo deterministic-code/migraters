@@ -7,6 +7,8 @@ export type {
   SetupArg,
   UpArg,
 } from './abstractions/migrater.ts';
+export type { IDialect, ISqlDialect } from './abstractions/sql-dialect.ts';
+export type { MigrationDriver, MigrationDriverId } from './abstractions/migration-driver.ts';
 export { getMigrater, Migrater } from './migrater.ts';
 export {
   fillHelpTemplate,

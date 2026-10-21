@@ -18,7 +18,7 @@ public sealed class RegistryTests
     public void EnvVarOrderMatchesCliYaml()
     {
         var services = new ServiceCollection().AddMigrateRunner().BuildServiceProvider();
-        foreach (var dialect in services.GetRequiredService<ISqlDialectFactory>().All())
+        foreach (var dialect in services.GetRequiredService<IDialectFactory>().All())
         {
             Assert.Equal(
                 string.Join(CliSpec.EnvVarListSeparator, dialect.ConnectionEnvironmentVariables),

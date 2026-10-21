@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
+    <ProjectReference Include="..\..\SqlDriver\MigrateSqlDriver.csproj" />
     <PackageReference Include="MySqlConnector" Version="2.4.0" />
   </ItemGroup>
 </Project>

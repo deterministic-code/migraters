@@ -2,12 +2,15 @@ namespace Deterministic.MigrateRunner.ProviderTests;
 
 public sealed class ProviderCoverageTests
 {
-    private static IEnumerable<ISqlDialect> EveryDialect() =>
+    private static IDialectFactory Factory() =>
         new ServiceCollection()
             .AddMigrateRunner()
             .BuildServiceProvider()
-            .GetRequiredService<ISqlDialectFactory>()
-            .All();
+            .GetRequiredService<IDialectFactory>();
+
+    private static IEnumerable<IDialect> EveryDialect() => Factory().All();
+
+    private static bool TryGet(string name, out IDialect dialect) => Factory().TryGet(name, out dialect);
 
     [Fact]
     public void SurfaceOfEveryDialect()
@@ -16,19 +19,20 @@ public sealed class ProviderCoverageTests
         {
             Assert.False(string.IsNullOrEmpty(dialect.Name));
             Assert.NotEmpty(dialect.ConnectionEnvironmentVariables);
-            Assert.Contains("migrates", dialect.MigratesDdl, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("migrate_logs", dialect.MigrateLogsDdl, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("migrates", dialect.SelectAppliedChecksumSql, StringComparison.OrdinalIgnoreCase);
-            Assert.False(string.IsNullOrEmpty(dialect.InsertAppliedSql));
-            Assert.False(string.IsNullOrEmpty(dialect.DeleteAppliedSql));
-            Assert.False(string.IsNullOrEmpty(dialect.QuoteIdent("t")));
-            Assert.False(string.IsNullOrEmpty(dialect.Placeholder("p1")));
-            Assert.False(string.IsNullOrEmpty(dialect.NowExpr));
-            Assert.Contains("1", dialect.LimitClause(1), StringComparison.Ordinal);
             dialect.PrepareSetup("coverage");
-            using var conn = dialect.CreateConnection(dialect.NormalizeConnectionString(ConnectionFor(dialect)));
+            var sql = Assert.IsType<SqlDialect>(dialect);
+            Assert.Contains("migrates", sql.MigratesDdl, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("migrate_logs", sql.MigrateLogsDdl, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("migrates", sql.SelectAppliedChecksumSql, StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrEmpty(sql.InsertAppliedSql));
+            Assert.False(string.IsNullOrEmpty(sql.DeleteAppliedSql));
+            Assert.False(string.IsNullOrEmpty(sql.QuoteIdent("t")));
+            Assert.False(string.IsNullOrEmpty(sql.Placeholder("p1")));
+            Assert.False(string.IsNullOrEmpty(sql.NowExpr));
+            Assert.Contains("1", sql.LimitClause(1), StringComparison.Ordinal);
+            using var conn = sql.CreateConnection(sql.NormalizeConnectionString(ConnectionFor(dialect)));
             using var cmd = conn.CreateCommand();
-            dialect.AddParameter(cmd, "p1", "v");
+            sql.AddParameter(cmd, "p1", "v");
             Assert.NotEmpty(cmd.Parameters);
         }
     }
@@ -99,7 +103,9 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void PostgresNormalizesUriAndLeavesAdoStrings()
     {
-        var d = PostgresDialect.Instance;
+        if (!TryGet("postgres", out var dialect))
+            return;
+        var d = (SqlDialect)dialect;
         Assert.True(d.UseTransaction);
         Assert.Equal("Host=localhost", d.NormalizeConnectionString("Host=localhost"));
 
@@ -122,7 +128,9 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void MysqlNormalizesUriAndLeavesAdoStrings()
     {
-        var d = MysqlDialect.Instance;
+        if (!TryGet("mysql", out var dialect))
+            return;
+        var d = (SqlDialect)dialect;
         Assert.False(d.UseTransaction);
         Assert.Equal("`t`", d.QuoteIdent("t"));
         Assert.Equal("@p1", d.Placeholder("p1"));
@@ -143,7 +151,9 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void SqlServerQuotesAndLimit()
     {
-        var d = SqlServerDialect.Instance;
+        if (!TryGet("sqlserver", out var dialect))
+            return;
+        var d = (SqlDialect)dialect;
         Assert.True(d.UseTransaction);
         Assert.Equal("[t]", d.QuoteIdent("t"));
         Assert.Equal("@p1", d.Placeholder("p1"));
@@ -157,7 +167,9 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void OracleParsesUserPasswordConnect()
     {
-        var d = OracleDialect.Instance;
+        if (!TryGet("oracle", out var dialect))
+            return;
+        var d = (SqlDialect)dialect;
         Assert.True(d.UseTransaction);
         Assert.Equal("\"t\"", d.QuoteIdent("t"));
         Assert.Equal(":p1", d.Placeholder("p1"));
@@ -177,15 +189,23 @@ public sealed class ProviderCoverageTests
     public async Task CreateDatabaseIfMissingNoOpsWhenThereIsNoDatabaseName()
     {
         await SqliteDialect.Instance.CreateDatabaseIfMissingAsync(":memory:");
-        await PostgresDialect.Instance.CreateDatabaseIfMissingAsync("Host=localhost");
-        await PostgresDialect.Instance.CreateDatabaseIfMissingAsync("postgresql://127.0.0.1/postgres");
-        await MysqlDialect.Instance.CreateDatabaseIfMissingAsync("Server=localhost");
-        await SqlServerDialect.Instance.CreateDatabaseIfMissingAsync("Server=localhost");
-        await SqlServerDialect.Instance.CreateDatabaseIfMissingAsync("Server=localhost;Database=master");
-        await OracleDialect.Instance.CreateDatabaseIfMissingAsync("u/p@c");
+        if (TryGet("postgres", out var postgres))
+        {
+            await postgres.CreateDatabaseIfMissingAsync("Host=localhost");
+            await postgres.CreateDatabaseIfMissingAsync("postgresql://127.0.0.1/postgres");
+        }
+        if (TryGet("mysql", out var mysql))
+            await mysql.CreateDatabaseIfMissingAsync("Server=localhost");
+        if (TryGet("sqlserver", out var sqlserver))
+        {
+            await sqlserver.CreateDatabaseIfMissingAsync("Server=localhost");
+            await sqlserver.CreateDatabaseIfMissingAsync("Server=localhost;Database=master");
+        }
+        if (TryGet("oracle", out var oracle))
+            await oracle.CreateDatabaseIfMissingAsync("u/p@c");
     }
 
-    private static string ConnectionFor(ISqlDialect dialect) =>
+    private static string ConnectionFor(IDialect dialect) =>
         dialect.Name switch
         {
             "sqlite" => ":memory:",

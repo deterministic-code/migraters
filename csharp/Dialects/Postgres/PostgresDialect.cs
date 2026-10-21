@@ -4,7 +4,7 @@ namespace Deterministic.MigrateRunner;
 
 public static class PostgresDialect
 {
-    public static readonly ISqlDialect Instance = new SqlDialect(
+    public static readonly IDialect Instance = new SqlDialect(
         "postgres",
         ["PG_CONNECTION_STRING", "DATABASE_URL"],
         useTransaction: true,

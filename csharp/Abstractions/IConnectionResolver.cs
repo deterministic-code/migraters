@@ -2,5 +2,5 @@ namespace Deterministic.MigrateRunner;
 
 internal interface IConnectionResolver
 {
-    string? FromEnvironment(ISqlDialect dialect);
+    string? FromEnvironment(IDialect dialect);
 }

@@ -5,29 +5,30 @@ public sealed class DialectCoverageTests
     [Fact]
     public void SqliteSurfaceAndMemory()
     {
-        var d = SqliteDialect.Instance;
+        var dialect = SqliteDialect.Instance;
+        var d = (SqlDialect)dialect;
         Assert.True(d.UseTransaction);
         Assert.Equal("\"t\"", d.QuoteIdent("t"));
         Assert.Equal("$p1", d.Placeholder("p1"));
         Assert.Equal("CURRENT_TIMESTAMP", d.NowExpr);
         Assert.Equal("LIMIT 2", d.LimitClause(2));
 
-        Assert.Equal("Data Source=:memory:", d.NormalizeConnectionString(null!));
-        Assert.Null(d.PrerequisiteError(null!));
-        d.PrepareSetup(null!);
-        Assert.Equal("Data Source=:memory:", d.NormalizeConnectionString(""));
-        Assert.Equal("Data Source=:memory:", d.NormalizeConnectionString("sqlite://"));
-        Assert.Equal("Data Source=./app.sqlite", d.NormalizeConnectionString("sqlite://./app.sqlite"));
-        Assert.Equal("Data Source=./app.sqlite", d.NormalizeConnectionString("./app.sqlite"));
-        Assert.Equal("Data Source=x.db", d.NormalizeConnectionString("Data Source=x.db"));
-        Assert.Equal("Data Source=foo.db", d.NormalizeConnectionString("SQLITE://foo.db"));
+        Assert.Equal("Data Source=:memory:", dialect.NormalizeConnectionString(null!));
+        Assert.Null(dialect.PrerequisiteError(null!));
+        dialect.PrepareSetup(null!);
+        Assert.Equal("Data Source=:memory:", dialect.NormalizeConnectionString(""));
+        Assert.Equal("Data Source=:memory:", dialect.NormalizeConnectionString("sqlite://"));
+        Assert.Equal("Data Source=./app.sqlite", dialect.NormalizeConnectionString("sqlite://./app.sqlite"));
+        Assert.Equal("Data Source=./app.sqlite", dialect.NormalizeConnectionString("./app.sqlite"));
+        Assert.Equal("Data Source=x.db", dialect.NormalizeConnectionString("Data Source=x.db"));
+        Assert.Equal("Data Source=foo.db", dialect.NormalizeConnectionString("SQLITE://foo.db"));
 
-        Assert.Null(d.PrerequisiteError(":memory:"));
-        Assert.Null(d.PrerequisiteError(""));
-        Assert.Null(d.PrerequisiteError("Data Source=:memory:"));
-        Assert.Null(d.PrerequisiteError("Data Source=migraters-test;Mode=Memory;Cache=Shared"));
-        d.PrepareSetup(":memory:");
-        d.PrepareSetup("Data Source=migraters-test;Mode=Memory;Cache=Shared");
+        Assert.Null(dialect.PrerequisiteError(":memory:"));
+        Assert.Null(dialect.PrerequisiteError(""));
+        Assert.Null(dialect.PrerequisiteError("Data Source=:memory:"));
+        Assert.Null(dialect.PrerequisiteError("Data Source=migraters-test;Mode=Memory;Cache=Shared"));
+        dialect.PrepareSetup(":memory:");
+        dialect.PrepareSetup("Data Source=migraters-test;Mode=Memory;Cache=Shared");
 
         using var conn = d.CreateConnection(d.NormalizeConnectionString(":memory:"));
         using var cmd = conn.CreateCommand();
