@@ -74,8 +74,7 @@ describe('README install', () => {
     const afterInstall = blocks.find((block) =>
       block.includes('npm install @deterministic-code/migraters'),
     );
-    expect(afterInstall).toBeDefined();
-    expect(afterInstall).toMatch(INIT_LINE);
+    expect(afterInstall?.trim()).toBe('npm install @deterministic-code/migraters');
     for (const block of blocks) {
       for (const line of (block ?? '').split('\n')) {
         expect(line, line).not.toMatch(BARE_CLI);

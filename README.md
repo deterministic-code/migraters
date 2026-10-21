@@ -1,13 +1,21 @@
 # Migraters
 
-Migraters tracks SQL changes during development and applies them upstream as the project evolves. As a codebase grows in complexity and team size, keeping those changes tracked and in sync becomes harder. Migraters is built for that.
+Migraters allows you to save SQL changes during development so they can be applied upstream later. As a codebase grows in complexity and team size, keeping those changes tracked and in sync becomes harder. Migraters is built for that.
 
 The typical workflow is:
 
 * On development, create one or more migration files, test them, and run migrate up.
 * On deploy, those scripts are copied to production and migrate up is run again, so the upstream database matches development.
 
-The same migrate commands and a consistent API are available in multiple programming languages and across many datasource dialects.
+The migrate commands are available in [many languages](#language-support) and support [many SQL dialects](#providers).
+
+## Install skill
+
+Agent skill for Claude or Cursor: [skill/SKILL.md](skill/SKILL.md).
+
+```shell
+npx skills add https://github.com/deterministic-code/migraters/tree/main/skill -g -a cursor -a claude-code -y --copy
+```
 
 ## Install
 
@@ -15,15 +23,6 @@ The same migrate commands and a consistent API are available in multiple program
 
 ```shell
 npm install @deterministic-code/migraters
-npx migrate-init --language typescript --dialect sqlite --dialect postgres
-```
-
-### Install skill
-
-Agent skill for Claude or Cursor: [skill/SKILL.md](skill/SKILL.md).
-
-```shell
-npx skills add https://github.com/deterministic-code/migraters/tree/main/skill -g -a cursor -a claude-code -y --copy
 ```
 
 ## Skill Prompts
@@ -37,8 +36,6 @@ Natural-language prompts the [skill](skill/SKILL.md) maps straight to CLI comman
 | Create a new migrate | `npx migrate-create` |
 | migrate up | `npx migrate-up` |
 | migrate down | `npx migrate-down` |
-
-`npx migrate-init` replaces the language and dialect set, so “add driver” means re-run init with the same `--language`, the previously enabled dialects, and the new one (for example `npx migrate-init --language typescript --dialect sqlite --dialect postgres --dialect oracle` after a sqlite+postgres install). Flag details are under [Commands](#commands).
 
 ## Quick example
 
@@ -55,6 +52,7 @@ CREATE TABLE users (
 npx migrate-init --language typescript --dialect sqlite
 npx migrate-setup --provider sqlite --connection ./app.sqlite
 npx migrate-create --provider sqlite --name add_users
+touch user.sql
 cat user.sql > sql/sqlite/migrations/0001_add_users_up.sql
 npx migrate-up --provider sqlite --connection ./app.sqlite
 ```
@@ -63,15 +61,13 @@ npx migrate-up --provider sqlite --connection ./app.sqlite
 
 ### init
 
-Selects the programming language and dialects this tree will compile and install. `migrate-init` is project setup, not an `IMigrater` method, and it does not take `--connection`. `--language` is required (`typescript`, `csharp`, or `rust`). Repeat `--dialect` once per provider (aliases from [`cli.yaml`](cli.yaml) apply: `pg`, `mssql`, `ora`, and the rest). Re-running replaces the previous language and dialect set. `--all` restores every dialect. Init installs that language’s driver dependencies and builds `migrate-setup`, `migrate-up`, `migrate-down`, and `migrate-create`. Later commands dispatch to those binaries.
+The `migrate-init` command installs language and datasource dependencies and builds the migrate commands.
 
 ```shell
 npx migrate-init --language typescript --dialect sqlite --dialect postgres
 npx migrate-init --language csharp --dialect sqlite
 npx migrate-init --language rust --dialect sqlite
 ```
-
-`migrate-init` attaches only the selected dialect packages and builds those binaries. TypeScript installs `@deterministic-code/migraters-<dialect>` (one driver each). C# writes `ProjectReference`s to `Dialects/<Name>/Migrate*.csproj` (each project owns one NuGet driver). Rust still enables Cargo features until its pool is split the same way. A clone does not ship or build the full dialect matrix.
 
 ### setup
 
