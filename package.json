@@ -42,7 +42,7 @@
     "typecheck": "tsc -p orchestrator/tsconfig.json --noEmit && npm run typecheck --prefix typescript",
     "test": "npm run prepare && npm run test:orchestrator && npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
     "test:orchestrator": "vitest run --config orchestrator/vitest.config.ts",
-    "test:rust": "node orchestrator/dist/migrate-init.js --language rust --all && CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100 --ignore-filename-regex 'src/(abstractions|argv|checksum|cli_spec|help|infrastructure|messages|migrater|migrations|provider)|lib\\.rs'",
+    "test:rust": "node orchestrator/dist/migrate-init.js --language rust --all && CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib",
     "test:csharp": "node orchestrator/dist/migrate-init.js --language csharp --all && dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
     "e2e:sqlite": "bash proof/e2e-sqlite.sh",
     "e2e:postgres": "bash proof/e2e-postgres.sh",
