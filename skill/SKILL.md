@@ -14,12 +14,12 @@ description: >-
 
 | Ask | Run |
 | --- | --- |
-| Install | `npm install @deterministic-code/migraters`, then stop. Call `migrate-setup`, `migrate-up`, `migrate-down`, and `migrate-create` from `node_modules/.bin`. |
-| Add a dialect | Re-run `migrate-init` with the dialects already enabled plus the new one. This only `npm install`s the TypeScript drivers (`better-sqlite3`, `pg`, `mysql2`, `mssql`, `oracledb`). It does not select `Microsoft.Data.Sqlite`, `Microsoft.Data.SqlClient`, or Rust features. |
-| Setup | `migrate-setup --provider <dialect> [--connection <url>] [--and-up]` |
-| Up | `migrate-up --provider <dialect> [--connection <url>]` |
-| Down | `migrate-down --provider <dialect> [--connection <url>]` |
-| Create | `migrate-create --provider <dialect> --name <snake_case>` |
+| Install | `npm install @deterministic-code/migraters`, then `npx migrate-init --dialect <dialect>…`. Call `npx migrate-setup`, `npx migrate-up`, `npx migrate-down`, and `npx migrate-create`. |
+| Add a dialect | Re-run `npx migrate-init` with the dialects already enabled plus the new one. This only `npm install`s the TypeScript drivers (`better-sqlite3`, `pg`, `mysql2`, `mssql`, `oracledb`). It does not select `Microsoft.Data.Sqlite`, `Microsoft.Data.SqlClient`, or Rust features. |
+| Setup | `npx migrate-setup --provider <dialect> [--connection <url>] [--and-up]` |
+| Up | `npx migrate-up --provider <dialect> [--connection <url>]` |
+| Down | `npx migrate-down --provider <dialect> [--connection <url>]` |
+| Create | `npx migrate-create --provider <dialect> --name <snake_case>` |
 
 Dialects: `sqlite`, `postgres`, `mysql`, `sqlserver`, `oracle`.
 

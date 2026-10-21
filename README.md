@@ -15,6 +15,7 @@ The same migrate commands and a consistent API are available in multiple program
 
 ```shell
 npm install @deterministic-code/migraters
+npx migrate-init --dialect sqlite --dialect postgres
 ```
 
 ### Install skill
@@ -31,13 +32,13 @@ Natural-language prompts the [skill](skill/SKILL.md) maps straight to CLI comman
 
 | Prompt | Runs |
 | --- | --- |
-| Install migraters for sqlite and postgres | `npm install` → `migrate-init --dialect sqlite --dialect postgres` |
-| Add driver oracle | `migrate-init` with prior dialects **plus** `oracle` |
-| Create a new migrate | `migrate-create` |
-| migrate up | `migrate-up` |
-| migrate down | `migrate-down` |
+| Install migraters for sqlite and postgres | `npm install` → `npx migrate-init --dialect sqlite --dialect postgres` |
+| Add driver oracle | `npx migrate-init` with prior dialects **plus** `oracle` |
+| Create a new migrate | `npx migrate-create` |
+| migrate up | `npx migrate-up` |
+| migrate down | `npx migrate-down` |
 
-`migrate-init` replaces the dialect set, so “add driver” means re-run init with the previously enabled dialects and the new one (for example `migrate-init --dialect sqlite --dialect postgres --dialect oracle` after a sqlite+postgres install). Flag details are under [Commands](#commands).
+`npx migrate-init` replaces the dialect set, so “add driver” means re-run init with the previously enabled dialects and the new one (for example `npx migrate-init --dialect sqlite --dialect postgres --dialect oracle` after a sqlite+postgres install). Flag details are under [Commands](#commands).
 
 ## Commands
 
@@ -46,9 +47,9 @@ Natural-language prompts the [skill](skill/SKILL.md) maps straight to CLI comman
 Selects the dialects this tree will compile and install. `migrate-init` is project setup, not an `IMigrater` method, and it does not take `--connection`. Repeat `--dialect` once per provider (aliases from [`cli.yaml`](cli.yaml) apply: `pg`, `mssql`, `ora`, and the rest). Re-running replaces the previous set. `--all` restores every dialect.
 
 ```shell
-migrate-init --dialect sqlite --dialect postgres
-migrate-init --dialect oracle
-migrate-init --all
+npx migrate-init --dialect sqlite --dialect postgres
+npx migrate-init --dialect oracle
+npx migrate-init --all
 ```
 
 Committed manifests keep every dialect, so a clone that never runs init still builds and tests with all providers. Init is what makes a local or vendored tree light: Rust compiles only the selected Cargo features, C# restores only the selected driver packages, and TypeScript installs only the selected native drivers. Run init before `cargo build`, `dotnet build`, or `npm install` when you want a slim tree.
@@ -58,7 +59,7 @@ Committed manifests keep every dialect, so a clone that never runs init still bu
 Creates the `migrates` and `migrate_logs` tables and the migrations directory. Idempotent.
 
 ```shell
-migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <url> [--migrations-path <dir>] [--and-up]
+npx migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <url> [--migrations-path <dir>] [--and-up]
 ```
 
 `--and-up` runs `migrate-up` immediately after setup. Default migrations directory is `./sql/<dialect>/migrations`.
@@ -68,7 +69,7 @@ migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <
 Applies every pending migration, each in its own transaction.
 
 ```shell
-migrate-up --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--one]
+npx migrate-up --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--one]
 ```
 
 `--migrations-root` looks under `<root>/<dialect>/migrations` and defaults to `sql`. It is ignored when `--migrations-path` is set. `--one` applies only the next pending migration.
@@ -78,7 +79,7 @@ migrate-up --provider <…> --connection <url> [--migrations-path <dir>] [--migr
 Rolls back the most recently applied migration, one step. Prints a random 4-letter token and refuses to continue unless you type that token, or pass `--confirm` with the same token.
 
 ```shell
-migrate-down --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--confirm <TOKEN>]
+npx migrate-down --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--confirm <TOKEN>]
 ```
 
 ### create
@@ -86,7 +87,7 @@ migrate-down --provider <…> --connection <url> [--migrations-path <dir>] [--mi
 Writes the next `<NNNN>_<name>_up.sql` and `<NNNN>_<name>_down.sql` pair. The name must match `^[a-z][a-z0-9_]*$`.
 
 ```shell
-migrate-create --provider <…> --name <snake_case_slug> [--migrations-path <dir>]
+npx migrate-create --provider <…> --name <snake_case_slug> [--migrations-path <dir>]
 ```
 
 ## API
