@@ -1,9 +1,15 @@
 using Microsoft.Data.Sqlite;
+using SQLitePCL;
 
 namespace Deterministic.MigrateRunner;
 
 public static class SqliteDialect
 {
+    static SqliteDialect()
+    {
+        Batteries.Init();
+    }
+
     public static readonly ISqlDialect Instance = new SqlDialect(
         "sqlite",
         ["SQLITE_PATH", "DB_PATH"],

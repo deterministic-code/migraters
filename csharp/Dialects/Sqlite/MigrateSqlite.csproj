@@ -6,6 +6,7 @@
     <RootNamespace>Deterministic.MigrateRunner</RootNamespace>
     <AssemblyName>MigrateSqlite</AssemblyName>
     <IsPackable>false</IsPackable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />

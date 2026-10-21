@@ -114,6 +114,31 @@ const run = async (
   };
 };
 
+const initSqlite = async (lang: Lang): Promise<void> => {
+  if (lang === 'typescript') return;
+  const child = spawn(
+    process.execPath,
+    [
+      join(MIGRATERS, 'orchestrator', 'dist', 'migrate-init.js'),
+      '--language',
+      lang,
+      '--dialect',
+      'sqlite',
+    ],
+    { cwd: MIGRATERS, env: isolatedEnv(), stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  let stderr = '';
+  let stdout = '';
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderr += chunk.toString();
+  });
+  child.stdout.on('data', (chunk: Buffer) => {
+    stdout += chunk.toString();
+  });
+  const [code] = (await once(child, 'exit')) as [number | null];
+  expect(code ?? 1, `${lang} migrate-init sqlite\n${stdout}\n${stderr}`).toBe(0);
+};
+
 const runnable = async (proc: Proc): Promise<boolean> => {
   const r = await run(proc, 'setup', ['--help']);
   if (r.code === 0) return true;
@@ -218,13 +243,14 @@ describe('CLI sqlite lifecycle across languages', () => {
     const invalidName = await loadMessage('errors/invalid-name', { name: 'AddUsers' });
 
     for (const proc of langs) {
+      await initSqlite(proc.lang);
       const dir = await mkdtemp(join(tmpdir(), `migraters-e2e-${proc.lang}-`));
       const db = join(dir, 'app.sqlite');
       const migrations = join(dir, 'migrations');
       const conn = ['--provider', 'sqlite', '--connection', db, '--migrations-path', migrations];
 
       const setup1 = await run(proc, 'setup', conn);
-      expect(setup1.code, `${proc.lang} setup`).toBe(0);
+      expect(setup1.code, `${proc.lang} setup\n${setup1.stdout}\n${setup1.stderr}`).toBe(0);
       const setup2 = await run(proc, 'setup', conn);
       expect(setup2.code, `${proc.lang} setup again`).toBe(0);
 
@@ -301,6 +327,6 @@ describe('CLI sqlite lifecycle across languages', () => {
       expect(badName.code, `${proc.lang} invalid name`).toBe(2);
       expect(badName.stderr).toContain(invalidName.trim());
     }
-  });
+  }, 180_000);
 });
 

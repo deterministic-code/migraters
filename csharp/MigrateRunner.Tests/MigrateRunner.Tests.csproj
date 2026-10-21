@@ -27,6 +27,17 @@
   </ItemGroup>
 
   <Import Project="..\dialects.props" Condition="Exists('..\dialects.props')" />
+
+  <Target Name="CopyAttachedDialectOutputs" AfterTargets="Build">
+    <ItemGroup>
+      <_AttachedDialectFiles Include="$(MSBuildThisFileDirectory)..\Dialects\*\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_AttachedDialectFiles)"
+      DestinationFiles="@(_AttachedDialectFiles->'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true"
+    />
+  </Target>
   <ItemGroup>
     <ProjectReference Include="..\MigrateRunner.Core.csproj" />
   </ItemGroup>

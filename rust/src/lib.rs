@@ -3,7 +3,6 @@ pub mod abstractions;
 pub mod argv;
 pub mod checksum;
 pub mod cli_spec;
-pub mod dialects;
 pub mod help;
 pub mod infrastructure;
 pub mod messages;
