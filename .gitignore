@@ -36,6 +36,9 @@ coverage/
 # Proof Instant Client cache
 proof/.instantclient/
 proof/report.md
+.e2e-bin/
+/app.sqlite
+/sql/
 
 # C# / .NET — scoped under csharp/ so it does not collide with typescript/src/bin
 csharp/dialects.props

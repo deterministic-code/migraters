@@ -31,61 +31,21 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Start databases
+      - uses: actions/setup-node@v4
         if: steps.recent.outputs.skip != 'true'
-        run: docker compose -f proof/docker-compose.yml up -d --wait postgres mysql sqlserver oracle
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
 
-      - name: Proof SQL
+      - uses: dtolnay/rust-toolchain@stable
         if: steps.recent.outputs.skip != 'true'
-        run: cp -R proof/sql sql
 
-      - name: TypeScript install
+      - uses: actions/setup-dotnet@v4
         if: steps.recent.outputs.skip != 'true'
-        run: docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npm ci --prefix typescript
+        with:
+          dotnet-version: '9.0.x'
 
-      - name: TypeScript init
+      - name: Proof e2e
         if: steps.recent.outputs.skip != 'true'
-        run: docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-init --all
-
-      - name: TypeScript sqlite
-        if: steps.recent.outputs.skip != 'true'
-        run: |
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-setup --create-database --provider sqlite --connection ./app.sqlite
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-up --provider sqlite --connection ./app.sqlite
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-down --provider sqlite --connection ./app.sqlite --confirm
-
-      - name: TypeScript postgres
-        if: steps.recent.outputs.skip != 'true'
-        run: |
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-setup --create-database --provider postgres --connection postgresql://proof:proof@postgres:5432/proof
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-up --provider postgres --connection postgresql://proof:proof@postgres:5432/proof
-          docker compose -f proof/docker-compose.yml exec -T postgres psql -U proof -d proof -v ON_ERROR_STOP=1 -f /dev/stdin < proof/sql/postgres/verify_up.sql
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-down --provider postgres --connection postgresql://proof:proof@postgres:5432/proof --confirm
-          docker compose -f proof/docker-compose.yml exec -T postgres psql -U proof -d proof -v ON_ERROR_STOP=1 -f /dev/stdin < proof/sql/postgres/verify_down.sql
-
-      - name: TypeScript mysql
-        if: steps.recent.outputs.skip != 'true'
-        run: |
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-setup --create-database --provider mysql --connection mysql://root:proof@mysql:3306/proof
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-up --provider mysql --connection mysql://root:proof@mysql:3306/proof
-          docker compose -f proof/docker-compose.yml exec -T mysql mysql -uroot -pproof proof < proof/sql/mysql/verify_up.sql
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-down --provider mysql --connection mysql://root:proof@mysql:3306/proof --confirm
-          docker compose -f proof/docker-compose.yml exec -T mysql mysql -uroot -pproof proof < proof/sql/mysql/verify_down.sql
-
-      - name: TypeScript sqlserver
-        if: steps.recent.outputs.skip != 'true'
-        run: |
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-setup --create-database --provider sqlserver --connection "Server=sqlserver,1433;User Id=sa;Password=Proof_Pass123;TrustServerCertificate=True;Encrypt=False;Database=proof"
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-up --provider sqlserver --connection "Server=sqlserver,1433;User Id=sa;Password=Proof_Pass123;TrustServerCertificate=True;Encrypt=False;Database=proof"
-          docker compose -f proof/docker-compose.yml exec -T sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Proof_Pass123 -C -d proof -b -i /dev/stdin < proof/sql/sqlserver/verify_up.sql
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-down --provider sqlserver --connection "Server=sqlserver,1433;User Id=sa;Password=Proof_Pass123;TrustServerCertificate=True;Encrypt=False;Database=proof" --confirm
-          docker compose -f proof/docker-compose.yml exec -T sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Proof_Pass123 -C -d proof -b -i /dev/stdin < proof/sql/sqlserver/verify_down.sql
-
-      - name: TypeScript oracle
-        if: steps.recent.outputs.skip != 'true'
-        run: |
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-setup --create-database --provider oracle --connection system/proof@oracle:1521/FREEPDB1
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-up --provider oracle --connection system/proof@oracle:1521/FREEPDB1
-          docker compose -f proof/docker-compose.yml exec -T oracle sqlplus -S system/proof@FREEPDB1 < proof/sql/oracle/verify_up.sql
-          docker compose -f proof/docker-compose.yml run --rm --no-deps typescript npx --prefix typescript migrate-down --provider oracle --connection system/proof@oracle:1521/FREEPDB1 --confirm
-          docker compose -f proof/docker-compose.yml exec -T oracle sqlplus -S system/proof@FREEPDB1 < proof/sql/oracle/verify_down.sql
+        run: npm run test:e2e
