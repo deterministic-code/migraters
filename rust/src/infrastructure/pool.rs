@@ -28,6 +28,20 @@ type BoxError = Box<dyn std::error::Error>;
 #[cfg(feature = "sqlserver")]
 type MssqlClient = Client<Compat<TcpStream>>;
 
+#[cfg(feature = "oracle")]
+fn init_oracle_client() -> Result<(), BoxError> {
+    let Ok(dir) = std::env::var("ORACLE_CLIENT_LIB_DIR") else {
+        return Ok(());
+    };
+    if dir.is_empty() {
+        return Ok(());
+    }
+    oracle::InitParams::new()
+        .oracle_client_lib_dir(dir)?
+        .init()?;
+    Ok(())
+}
+
 pub enum MigrationPool {
     #[cfg(feature = "sqlite")]
     Sqlite(SqlitePool),
@@ -64,6 +78,7 @@ impl MigrationPool {
             #[cfg(feature = "oracle")]
             "oracle" => {
                 let (user, password, connect_string) = parse_oracle_connection(&url)?;
+                init_oracle_client()?;
                 let conn = tokio::task::spawn_blocking(move || {
                     OracleConn::connect(user, password, connect_string)
                 })
