@@ -5,6 +5,7 @@ cd "$root"
 
 bash proof/ensure-instant-client.sh
 instant="$root/proof/.instantclient"
+export ORACLE_CLIENT_LIB_DIR="$instant"
 if [[ "$(uname -s)" == Darwin ]]; then
   export DYLD_LIBRARY_PATH="$instant${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
 else
