@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Rolls back the most recently applied migration (one step). DESTRUCTIVE: prints a random 4-letter uppercase confirmation token and refuses to proceed unless the user types it back on stdin. Pass --confirm <TOKEN> matching the printed token to bypass the interactive prompt (CI / scripted use).
+// Rolls back the most recently applied migration (one step). DESTRUCTIVE: refuses to proceed unless the user types confirm on stdin, or passes --confirm.
 
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
@@ -11,8 +11,7 @@ const [
   HELP_TEXT,
   unknownArgTpl,
   destructiveHeaderTpl,
-  confirmMismatchTpl,
-  confirmTtyRequiredTpl,
+  confirmTtyRequiredMsg,
   confirmPromptTpl,
   confirmTokenMismatchMsg,
   noRollbackMsg,
@@ -21,7 +20,6 @@ const [
   loadHelp('migrate-down'),
   loadMessage('errors/unknown-arg'),
   loadMessage('down/destructive-header'),
-  loadMessage('down/confirm-mismatch'),
   loadMessage('down/confirm-tty-required'),
   loadMessage('down/confirm-prompt'),
   loadMessage('down/confirm-token-mismatch'),
@@ -35,13 +33,13 @@ const parseArgs = (argv: string[]) => {
     migratePath: string | null;
     migrateRoot: string | null;
     connection: string | null;
-    confirm: string | null;
+    confirm: boolean;
   } = {
     provider: null,
     migratePath: null,
     migrateRoot: null,
     connection: null,
-    confirm: null,
+    confirm: false,
   };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
@@ -69,9 +67,8 @@ const parseArgs = (argv: string[]) => {
     } else if ((taken = takeFlag(rest, i, a, '--connection'))) {
       args.connection = taken.value;
       i = taken.next;
-    } else if ((taken = takeFlag(rest, i, a, '--confirm'))) {
-      args.confirm = taken.value;
-      i = taken.next;
+    } else if (a === '--confirm') {
+      args.confirm = true;
     } else {
       process.stderr.write(fillTemplate(unknownArgTpl, { arg: a }));
       process.exit(2);
@@ -89,24 +86,15 @@ const resolveMigratePath = (
   return `${root}/${dialect}/migrations`;
 };
 
-const randomToken = (): string => {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const buf = new Uint8Array(4);
-  globalThis.crypto.getRandomValues(buf);
-  let out = '';
-  for (let i = 0; i < 4; i++) out += alphabet[(buf[i] as number) % alphabet.length];
-  return out;
-};
-
-const promptConfirmation = async (token: string): Promise<boolean> => {
+const promptConfirmation = async (): Promise<boolean> => {
   if (!process.stdin.isTTY) {
-    process.stderr.write(fillTemplate(confirmTtyRequiredTpl, { token }));
+    process.stderr.write(confirmTtyRequiredMsg);
     process.exit(2);
   }
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   try {
-    const answer = await rl.question(fillTemplate(confirmPromptTpl, { token }));
-    return answer.trim() === token;
+    const answer = await rl.question(confirmPromptTpl);
+    return answer.trim() === 'confirm';
   } finally {
     rl.close();
   }
@@ -127,20 +115,10 @@ const main = async () => {
     process.exit(2);
   }
 
-  const token = randomToken();
-  process.stderr.write(
-    fillTemplate(destructiveHeaderTpl, { dialect: dialect.name, token }),
-  );
+  process.stderr.write(fillTemplate(destructiveHeaderTpl, { dialect: dialect.name }));
 
-  if (args.confirm !== null) {
-    if (args.confirm !== token) {
-      process.stderr.write(
-        fillTemplate(confirmMismatchTpl, { supplied: args.confirm, token }),
-      );
-      process.exit(2);
-    }
-  } else {
-    const ok = await promptConfirmation(token);
+  if (!args.confirm) {
+    const ok = await promptConfirmation();
     if (!ok) {
       process.stderr.write(confirmTokenMismatchMsg);
       process.exit(2);

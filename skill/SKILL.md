@@ -16,7 +16,7 @@ description: >-
 | --- | --- |
 | Install | `npm install @deterministic-code/migraters`, then `npx migrate-init --dialect <dialect>…`. Call `npx migrate-setup`, `npx migrate-up`, `npx migrate-down`, and `npx migrate-create`. |
 | Add a dialect | Re-run `npx migrate-init` with the dialects already enabled plus the new one. This only `npm install`s the TypeScript drivers (`better-sqlite3`, `pg`, `mysql2`, `mssql`, `oracledb`). It does not select `Microsoft.Data.Sqlite`, `Microsoft.Data.SqlClient`, or Rust features. |
-| Setup | `npx migrate-setup --provider <dialect> [--connection <url>] [--and-up]` |
+| Setup | `npx migrate-setup --provider <dialect> [--connection <url>] [--and-up] [--create-database]` |
 | Up | `npx migrate-up --provider <dialect> [--connection <url>]` |
 | Down | `npx migrate-down --provider <dialect> [--connection <url>]` |
 | Create | `npx migrate-create --provider <dialect> --name <snake_case>` |
@@ -27,7 +27,7 @@ Setup, up, and down take `--connection` or the dialect env var (`SQLITE_PATH`, `
 
 Create takes `--name` (`^[a-z][a-z0-9_]*$`) and no connection. Run one `migrate-create` per provider. Default directory is `sql/<provider>/migrations`. After the TODO scaffold, write the SQL into both the up and down files. A second provider needs its own `migrate-create`.
 
-`migrate-init` replaces the dialect set and takes no `--connection`. Down prints a confirm token; pass it back with `--confirm`.
+`migrate-init` replaces the dialect set and takes no `--connection`. Down requires typing confirm, or `--confirm`.
 
 If name is missing for create, ask once. Other flags are in `node_modules/@deterministic-code/migraters/cli.yaml` or `<command> --help`. Do not look for `cli.yaml` next to the skill.
 

@@ -2,6 +2,7 @@
 // Idempotent migrate-setup — creates the migrates + migrate_logs tracking tables per dialect.
 
 import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
+import { createDatabase } from '../create-database.ts';
 import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
 import { loadHelp, Migrater } from '../index.ts';
 
@@ -17,11 +18,13 @@ const parseArgs = (argv: string[]) => {
     connection: string | null;
     migrationsPath: string | null;
     andUp: boolean;
+    createDatabase: boolean;
   } = {
     provider: null,
     connection: null,
     migrationsPath: null,
     andUp: false,
+    createDatabase: false,
   };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
@@ -32,6 +35,10 @@ const parseArgs = (argv: string[]) => {
     }
     if (a === '--and-up') {
       args.andUp = true;
+      continue;
+    }
+    if (a === '--create-database') {
+      args.createDatabase = true;
       continue;
     }
     let taken;
@@ -65,6 +72,7 @@ const main = async () => {
   const connection = requireConnection(dialect, args.connection);
 
   const migrationsPath = args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
+  if (args.createDatabase) await createDatabase(dialect.name, connection);
   const migrater = new Migrater(dialect);
   await migrater.setup({ connection, migrationsPath });
   process.stdout.write(

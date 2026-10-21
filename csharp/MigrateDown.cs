@@ -1,4 +1,4 @@
-// Rolls back the most recently applied migration (one step). DESTRUCTIVE: prints a random 4-letter uppercase token and refuses to proceed unless the operator types it back on stdin. Pass --confirm <TOKEN> matching the printed token to bypass the prompt (CI / scripted use).
+// Rolls back the most recently applied migration (one step). DESTRUCTIVE: refuses to proceed unless the operator types confirm on stdin, or passes --confirm.
 
 namespace Deterministic.MigrateRunner;
 
@@ -20,8 +20,7 @@ internal sealed class MigrateDown(ISqlDialectFactory dialects, IConnectionResolv
         if (dialect.PrerequisiteError(connection) is { } prerequisite)
             return Fail(prerequisite);
 
-        var token = RandomToken();
-        if (!ConfirmOrAbort(dialect.Name, token, confirm))
+        if (!ConfirmOrAbort(dialect.Name, confirm))
             return 2;
 
         try
@@ -40,47 +39,25 @@ internal sealed class MigrateDown(ISqlDialectFactory dialects, IConnectionResolv
         }
     }
 
-    private static string RandomToken()
-    {
-        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-        var buf = new byte[4];
-        System.Security.Cryptography.RandomNumberGenerator.Fill(buf);
-        return string.Concat(buf.Select(b => alphabet[b % alphabet.Length]));
-    }
-
-    private static bool ConfirmOrAbort(string dialect, string token, string? supplied)
+    private static bool ConfirmOrAbort(string dialect, bool confirm)
     {
         Console.Error.Write(
             HelpTemplates.Message(
                 "down/destructive-header",
-                new Dictionary<string, string> { ["dialect"] = dialect, ["token"] = token }
+                new Dictionary<string, string> { ["dialect"] = dialect }
             )
         );
-        if (supplied is not null)
-        {
-            if (supplied == token)
-                return true;
-            Console.Error.WriteLine(
-                HelpTemplates.Message(
-                    "down/confirm-mismatch",
-                    new Dictionary<string, string> { ["supplied"] = supplied, ["token"] = token }
-                )
-            );
-            return false;
-        }
+        if (confirm)
+            return true;
         if (Console.IsInputRedirected)
         {
-            Console.Error.WriteLine(
-                HelpTemplates.Message("down/confirm-tty-required", new Dictionary<string, string> { ["token"] = token })
-            );
+            Console.Error.WriteLine(HelpTemplates.Message("down/confirm-tty-required"));
             return false;
         }
-        Console.Error.Write(
-            HelpTemplates.Message("down/confirm-prompt", new Dictionary<string, string> { ["token"] = token })
-        );
+        Console.Error.Write(HelpTemplates.Message("down/confirm-prompt"));
         Console.Error.Flush();
         var line = Console.In.ReadLine()?.Trim();
-        if (line == token)
+        if (line == "confirm")
             return true;
         Console.Error.WriteLine(
             line is null
@@ -95,7 +72,7 @@ internal sealed class MigrateDown(ISqlDialectFactory dialects, IConnectionResolv
         out string provider,
         out string migratePath,
         out string? connection,
-        out string? confirm,
+        out bool confirm,
         out bool showHelp,
         out string error
     )
@@ -103,7 +80,7 @@ internal sealed class MigrateDown(ISqlDialectFactory dialects, IConnectionResolv
         provider = string.Empty;
         migratePath = string.Empty;
         connection = null;
-        confirm = null;
+        confirm = false;
         showHelp = false;
         error = string.Empty;
         string? migrateRoot = null;
@@ -126,9 +103,9 @@ internal sealed class MigrateDown(ISqlDialectFactory dialects, IConnectionResolv
                 connection = c;
                 continue;
             }
-            if (MigrateCli.TryTakeFlag(args, ref i, a, "--confirm", out var takenConfirm))
+            if (a == "--confirm")
             {
-                confirm = takenConfirm;
+                confirm = true;
                 continue;
             }
             if (MigrateCli.TryTakeFlag(args, ref i, a, "--migrations-path", out var takenPath)

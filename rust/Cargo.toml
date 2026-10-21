@@ -33,7 +33,6 @@ tokio = { version = "1", features = ["full"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio"], optional = true }
 time = "=0.3.47"
 sha2 = "0.10"
-getrandom = "0.2"
 tiberius = { version = "0.12", default-features = false, features = ["tds73", "rustls"], optional = true }
 tokio-util = { version = "0.7", features = ["compat"], optional = true }
 oracle = { version = "0.6", optional = true }

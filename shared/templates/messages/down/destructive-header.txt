@@ -1,3 +1,2 @@
 
 ⚠ DESTRUCTIVE: this rolls back the most recently applied migration on {{dialect}}.
-  Confirmation token: {{token}}

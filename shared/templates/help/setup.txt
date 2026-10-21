@@ -4,11 +4,15 @@ Creates the bookkeeping tables (migrates, migrate_logs) for the chosen dialect
 and the migrations directory (mkdir -p). Idempotent — re-running against an
 already-setup database is a no-op. For sqlite, also mkdir -p of the parent
 directory of --connection so a fresh-tree path like ./.test/foo.sqlite works.
+Pass --create-database to create the database named in --connection if it
+does not exist (postgres, mysql, sqlserver). sqlite creates the file on
+connect. oracle uses the existing service.
 
   --provider         Database dialect. Required.
   --connection       Connection string. Required (or set the per-dialect env var below).
   --migrations-path  Migrations directory (default: ./sql/<dialect>/migrations).
   --and-up           After setup, immediately invoke migrate-up so the chain is applied in one step.
+  --create-database  Create the database named in --connection if it does not exist.
 
 Examples:
   # sqlite — bare path or sqlite:// URL; both create a file on disk.

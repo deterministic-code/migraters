@@ -1,0 +1,10 @@
+.git
+**/.DS_Store
+**/node_modules
+**/target
+csharp/**/bin
+csharp/**/obj
+coverage
+proof/.instantclient
+proof/.logs
+proof/report.md

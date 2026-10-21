@@ -1,4 +1,4 @@
-// Rolls back the most recently applied migration (one step). DESTRUCTIVE: prints a random 4-letter uppercase token and refuses to proceed unless the operator types it back on stdin. Pass --confirm <TOKEN> matching the printed token to bypass the prompt (CI / scripted use).
+// Rolls back the most recently applied migration (one step). DESTRUCTIVE: refuses to proceed unless the operator types confirm on stdin, or passes --confirm.
 
 use std::env;
 use std::io::{self, BufRead, IsTerminal, Write};
@@ -19,7 +19,7 @@ struct Args {
     dialect: &'static dyn SqlDialect,
     migrate_path: String,
     connection: String,
-    confirm: Option<String>,
+    confirm: bool,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -27,7 +27,7 @@ fn parse_args() -> Result<Args, String> {
     let mut migrate_path: Option<String> = None;
     let mut migrate_root: Option<String> = None;
     let mut connection: Option<String> = None;
-    let mut confirm: Option<String> = None;
+    let mut confirm = false;
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
         if is_help(&a) {
@@ -46,8 +46,8 @@ fn parse_args() -> Result<Args, String> {
             migrate_root = Some(v);
         } else if let Some(v) = take_value(&a, &mut iter, "--connection") {
             connection = Some(v);
-        } else if let Some(v) = take_value(&a, &mut iter, "--confirm") {
-            confirm = Some(v);
+        } else if a == "--confirm" {
+            confirm = true;
         } else {
             return Err(message("errors/unknown-arg", &[("arg", &a)]));
         }
@@ -82,53 +82,22 @@ fn parse_args() -> Result<Args, String> {
     })
 }
 
-fn random_token() -> String {
-    const ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ";
-    let mut buf = [0u8; 4];
-    getrandom::getrandom(&mut buf).expect("rng");
-    buf.iter()
-        .map(|b| ALPHABET[(*b as usize) % ALPHABET.len()] as char)
-        .collect()
-}
-
-fn confirm_or_abort(dialect: &str, token: &str, confirm: Option<&str>) {
+fn confirm_or_abort(dialect: &str, confirm: bool) {
     let stderr = io::stderr();
     let mut err = stderr.lock();
     let _ = write!(
         err,
         "{}",
-        message(
-            "down/destructive-header",
-            &[("dialect", dialect), ("token", token)],
-        ),
+        message("down/destructive-header", &[("dialect", dialect)]),
     );
-    if let Some(supplied) = confirm {
-        if supplied == token {
-            return;
-        }
-        let _ = writeln!(
-            err,
-            "{}",
-            message(
-                "down/confirm-mismatch",
-                &[("supplied", supplied), ("token", token)],
-            ),
-        );
-        process::exit(2);
+    if confirm {
+        return;
     }
     if !io::stdin().is_terminal() {
-        let _ = writeln!(
-            err,
-            "{}",
-            message("down/confirm-tty-required", &[("token", token)]),
-        );
+        let _ = writeln!(err, "{}", message("down/confirm-tty-required", &[]),);
         process::exit(2);
     }
-    let _ = write!(
-        err,
-        "{}",
-        message("down/confirm-prompt", &[("token", token)]),
-    );
+    let _ = write!(err, "{}", message("down/confirm-prompt", &[]),);
     let _ = err.flush();
     let stdin = io::stdin();
     let mut line = String::new();
@@ -139,7 +108,7 @@ fn confirm_or_abort(dialect: &str, token: &str, confirm: Option<&str>) {
             process::exit(2);
         }
     }
-    if line.trim() != token {
+    if line.trim() != "confirm" {
         let _ = writeln!(err, "{}", message("down/confirm-token-mismatch", &[]),);
         process::exit(2);
     }
@@ -177,7 +146,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("{}", msg);
         process::exit(2);
     }
-    let token = random_token();
-    confirm_or_abort(args.dialect.name(), &token, args.confirm.as_deref());
+    confirm_or_abort(args.dialect.name(), args.confirm);
     rollback_last(&args).await
 }

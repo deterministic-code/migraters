@@ -1,6 +1,5 @@
-# Source of truth for the daily e2e: one migration, expected schema, per-provider SQL.
-# Each language copies a tree, runs migrate-init --all, builds, then applies this
-# migration from a separate work directory. Host ports must match proof/docker-compose.yml.
+# Proof SQL per dialect. CI runs the same migrate commands for every provider;
+# only --connection and these SQL files change.
 
 migration: 0001_proof
 
