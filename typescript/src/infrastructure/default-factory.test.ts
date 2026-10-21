@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultDialectFactory } from './default-factory.ts';
+import { parseDialects } from './migraters-config.ts';
 
 describe('defaultDialectFactory', () => {
   it('registers every dialect name and alias', () => {
@@ -26,5 +27,14 @@ describe('defaultDialectFactory', () => {
     }
     expect(defaultDialectFactory.tryGet('nope')).toBeUndefined();
     expect(() => defaultDialectFactory.get('nope')).toThrow(/Unknown SQL dialect/);
+  });
+
+  it('reads the dialects list migrate-init writes', () => {
+    expect(
+      parseDialects(
+        'language: typescript\ndialects:\n  - sqlite\n  - postgres\nbinDir: typescript/dist/src/bin\n',
+      ),
+    ).toEqual(['sqlite', 'postgres']);
+    expect(parseDialects('language: rust\ndialects: []\nbinDir: rust/target/debug\n')).toEqual([]);
   });
 });

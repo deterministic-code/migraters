@@ -14,10 +14,11 @@ internal sealed class MigrateDown(IDialectFactory dialects, IConnectionResolver 
         if (!TryParse(args, out var provider, out var migratePath, out var connection, out var confirm, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
-        if (!MigrateCli.TryResolveProvider(dialects, connections, provider, connection, out var dialect, out connection, out error))
-            return Fail(error);
+        var resolved = MigrateCli.ResolveProvider(dialects, connections, provider, connection);
+        if (resolved is not ProviderResolution.Ready(var dialect, var resolvedConnection))
+            return Fail(((ProviderResolution.Rejected)resolved).Error);
 
-        if (dialect.PrerequisiteError(connection) is { } prerequisite)
+        if (dialect.PrerequisiteError(resolvedConnection) is { } prerequisite)
             return Fail(prerequisite);
 
         if (!ConfirmOrAbort(dialect.Name, confirm))
@@ -25,7 +26,7 @@ internal sealed class MigrateDown(IDialectFactory dialects, IConnectionResolver 
 
         try
         {
-            var name = await new Migrater(dialect).Down(new DownArg(connection, migratePath)).ConfigureAwait(false);
+            var name = await new Migrater(dialect).Down(new DownArg(resolvedConnection, migratePath)).ConfigureAwait(false);
             Console.WriteLine(
                 name is null
                     ? HelpTemplates.Message("status/no-rollback")

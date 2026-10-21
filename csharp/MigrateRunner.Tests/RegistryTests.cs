@@ -15,6 +15,18 @@ public sealed class RegistryTests
     }
 
     [Fact]
+    public void ReadsDialectsListFromMigratersYaml()
+    {
+        Assert.Equal(
+            ["sqlite", "postgres"],
+            MigratersConfig.ParseDialects(
+                "language: csharp\ndialects:\n  - sqlite\n  - postgres\nbinDir: csharp/bin/Debug/net9.0\n"
+            )
+        );
+        Assert.Empty(MigratersConfig.ParseDialects("language: rust\ndialects: []\nbinDir: rust/target/debug\n"));
+    }
+
+    [Fact]
     public void EnvVarOrderMatchesCliYaml()
     {
         var services = new ServiceCollection().AddMigrateRunner().BuildServiceProvider();

@@ -14,15 +14,16 @@ internal sealed class MigrateUp(IDialectFactory dialects, IConnectionResolver co
         if (!TryParse(args, out var provider, out var migratePath, out var connection, out var one, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
-        if (!MigrateCli.TryResolveProvider(dialects, connections, provider, connection, out var dialect, out connection, out error))
-            return Fail(error);
+        var resolved = MigrateCli.ResolveProvider(dialects, connections, provider, connection);
+        if (resolved is not ProviderResolution.Ready(var dialect, var resolvedConnection))
+            return Fail(((ProviderResolution.Rejected)resolved).Error);
 
-        if (dialect.PrerequisiteError(connection) is { } prerequisite)
+        if (dialect.PrerequisiteError(resolvedConnection) is { } prerequisite)
             return Fail(prerequisite);
 
         try
         {
-            var names = await new Migrater(dialect).Up(new UpArg(connection, migratePath, one)).ConfigureAwait(false);
+            var names = await new Migrater(dialect).Up(new UpArg(resolvedConnection, migratePath, one)).ConfigureAwait(false);
             if (names.Count == 0)
                 Console.WriteLine(HelpTemplates.Message("status/no-pending"));
             else

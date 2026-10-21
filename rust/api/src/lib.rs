@@ -82,16 +82,6 @@ pub fn registered_dialects() -> Vec<&'static dyn Dialect> {
         .collect()
 }
 
-pub fn register_try_get(
-    name: &str,
-    normalize: impl Fn(&str) -> Option<&str>,
-) -> Option<&'static dyn Dialect> {
-    let key = normalize(name)?;
-    registered_dialects()
-        .into_iter()
-        .find(|d| d.name() == key)
-}
-
 pub fn assert_dialect_surface(d: &dyn Dialect) {
     assert!(!d.name().is_empty());
     assert!(!d.connection_env_vars().is_empty());
