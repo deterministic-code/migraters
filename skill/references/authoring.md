@@ -1,6 +1,6 @@
 # Authoring
 
-Call samples for `IMigrater`. The contract is in [api.md](api.md). Commands stay on the CLI. `migrate-init` and `./build` are not methods.
+Call samples for `IMigrater`. The contract is in [api.md](api.md). Commands stay on the CLI. `migrate-init` is not a method.
 
 ## TypeScript
 

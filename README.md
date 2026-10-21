@@ -31,8 +31,8 @@ Natural-language prompts the [skill](skill/SKILL.md) maps straight to CLI comman
 
 | Prompt | Runs |
 | --- | --- |
-| Install migraters and build for csharp for sqlite and postgres | `npm install` → `migrate-init --dialect sqlite --dialect postgres` → `./build csharp` |
-| Add driver oracle | `migrate-init` with prior dialects **plus** `oracle` → `./build` (same language) |
+| Install migraters for sqlite and postgres | `npm install` → `migrate-init --dialect sqlite --dialect postgres` |
+| Add driver oracle | `migrate-init` with prior dialects **plus** `oracle` |
 | Create a new migrate | `migrate-create` |
 | migrate up | `migrate-up` |
 | migrate down | `migrate-down` |
@@ -52,16 +52,6 @@ migrate-init --all
 ```
 
 Committed manifests keep every dialect, so a clone that never runs init still builds and tests with all providers. Init is what makes a local or vendored tree light: Rust compiles only the selected Cargo features, C# restores only the selected driver packages, and TypeScript installs only the selected native drivers. Run init before `cargo build`, `dotnet build`, or `npm install` when you want a slim tree.
-
-### build
-
-Compiles one language after init. Uses the dialect set init already wrote.
-
-```shell
-./build rust
-./build csharp
-./build typescript
-```
 
 ### setup
 

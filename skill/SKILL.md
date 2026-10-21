@@ -2,10 +2,10 @@
 name: migraters
 description: >-
   Runs migrate-setup, migrate-up, migrate-down, and migrate-create for sqlite,
-  postgres, mysql, sqlserver, and oracle. In a clone of migraters, also runs
-  migrate-init and ./build. Use when the user mentions migraters, IMigrater,
-  SQL migrations, or those commands. The IMigrater contract is in
-  references/api.md. Library call samples are in references/authoring.md.
+  postgres, mysql, sqlserver, and oracle. Use when the user mentions
+  migraters, IMigrater, SQL migrations, or those commands. The IMigrater
+  contract is in references/api.md. Library call samples are in
+  references/authoring.md.
 ---
 
 # Migraters
@@ -14,9 +14,8 @@ description: >-
 
 | Ask | Run |
 | --- | --- |
-| Install (consumer app) | `npm install @deterministic-code/migraters`, then stop. Call `migrate-setup`, `migrate-up`, `migrate-down`, and `migrate-create` from `node_modules/.bin`. Do not run `./build` or look for a `csharp/` tree. |
-| Install and build (in-repo clone) | `npm install` → `migrate-init --dialect <dialect>…` → `./build <typescript\|rust\|csharp>` |
-| Add a dialect | Re-run `migrate-init` with the dialects already enabled plus the new one. This only `npm install`s the TypeScript drivers (`better-sqlite3`, `pg`, `mysql2`, `mssql`, `oracledb`). It does not select `Microsoft.Data.Sqlite`, `Microsoft.Data.SqlClient`, or Rust features, and it is not followed by `./build` in a consumer app. |
+| Install | `npm install @deterministic-code/migraters`, then stop. Call `migrate-setup`, `migrate-up`, `migrate-down`, and `migrate-create` from `node_modules/.bin`. |
+| Add a dialect | Re-run `migrate-init` with the dialects already enabled plus the new one. This only `npm install`s the TypeScript drivers (`better-sqlite3`, `pg`, `mysql2`, `mssql`, `oracledb`). It does not select `Microsoft.Data.Sqlite`, `Microsoft.Data.SqlClient`, or Rust features. |
 | Setup | `migrate-setup --provider <dialect> [--connection <url>] [--and-up]` |
 | Up | `migrate-up --provider <dialect> [--connection <url>]` |
 | Down | `migrate-down --provider <dialect> [--connection <url>]` |
@@ -28,12 +27,12 @@ Setup, up, and down take `--connection` or the dialect env var (`SQLITE_PATH`, `
 
 Create takes `--name` (`^[a-z][a-z0-9_]*$`) and no connection. Run one `migrate-create` per provider. Default directory is `sql/<provider>/migrations`. After the TODO scaffold, write the SQL into both the up and down files. A second provider needs its own `migrate-create`.
 
-`migrate-init` replaces the dialect set and takes no `--connection`. `./build` compiles one language from that set and lives only in a clone of migraters. Down prints a confirm token; pass it back with `--confirm`.
+`migrate-init` replaces the dialect set and takes no `--connection`. Down prints a confirm token; pass it back with `--confirm`.
 
 If name is missing for create, ask once. Other flags are in `node_modules/@deterministic-code/migraters/cli.yaml` or `<command> --help`. Do not look for `cli.yaml` next to the skill.
 
 ## API Interface
 
-`IMigrater` is `setup`, `up`, `down`, and `create` (C#: `Setup`, `Up`, `Down`, `Create`). `migrate-init` and `./build` are not methods.
+`IMigrater` is `setup`, `up`, `down`, and `create` (C#: `Setup`, `Up`, `Down`, `Create`). `migrate-init` is not a method.
 
 Read [references/api.md](references/api.md) for the contract. Read [references/authoring.md](references/authoring.md) only when the user asked for library code.

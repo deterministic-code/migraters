@@ -1,6 +1,6 @@
 # API Interface
 
-`api.yaml` lists `IMigrater` as `setup`, `up`, `down`, and `create`. Catalog insert and delete stay inside `up` and `down`. `migrate-init` and `./build` are not methods.
+`api.yaml` lists `IMigrater` as `setup`, `up`, `down`, and `create`. Catalog insert and delete stay inside `up` and `down`. `migrate-init` is not a method.
 
 Sources: `typescript/src/abstractions/migrater.ts`, `rust/src/migrater.rs`, `csharp/Abstractions/IMigrater.cs`.
 

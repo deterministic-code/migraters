@@ -351,10 +351,8 @@ const prepareLanguage = async (lang: Lang, section: LanguageReport): Promise<voi
     for (const name of DRIVER_PACKAGES) {
       await rm(join(ts, 'node_modules', name), { recursive: true, force: true });
     }
-    section.commands.push(
-      await run(join(section.project, 'build'), [lang], section.project, `./build ${lang}`),
-    );
-    expect(section.commands.at(-1)?.code, `${lang} ./build`).toBe(0);
+    section.commands.push(await run('npm', ['run', 'build'], ts, 'npm run build'));
+    expect(section.commands.at(-1)?.code, `${lang} npm run build`).toBe(0);
     return;
   }
   if (lang === 'rust') {
@@ -372,9 +370,14 @@ const prepareLanguage = async (lang: Lang, section: LanguageReport): Promise<voi
     );
     expect(section.commands.at(-1)?.code, `${lang} migrate-init --all`).toBe(0);
     section.commands.push(
-      await run(join(section.project, 'build'), [lang], section.project, `./build ${lang}`),
+      await run(
+        'cargo',
+        ['build', '--manifest-path', join(section.project, 'rust', 'Cargo.toml')],
+        section.project,
+        'cargo build',
+      ),
     );
-    expect(section.commands.at(-1)?.code, `${lang} ./build`).toBe(0);
+    expect(section.commands.at(-1)?.code, `${lang} cargo build`).toBe(0);
     return;
   }
   section.commands.push(
@@ -391,9 +394,9 @@ const prepareLanguage = async (lang: Lang, section: LanguageReport): Promise<voi
   );
   expect(section.commands.at(-1)?.code, `${lang} migrate-init --all`).toBe(0);
   section.commands.push(
-    await run(join(section.project, 'build'), [lang], section.project, `./build ${lang}`),
+    await run('dotnet', ['build', join(section.project, 'csharp')], section.project, 'dotnet build'),
   );
-  expect(section.commands.at(-1)?.code, `${lang} ./build`).toBe(0);
+  expect(section.commands.at(-1)?.code, `${lang} dotnet build`).toBe(0);
 };
 
 const spec = parse(await readFile(PROOF_YAML, 'utf8')) as ProofSpec;
