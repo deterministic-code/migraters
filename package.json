@@ -1,8 +1,11 @@
 {
   "name": "@deterministic-code/migraters",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "migrate-init": "./orchestrator/dist/migrate-init.js",
     "migrate-setup": "./orchestrator/dist/migrate-setup.js",
@@ -35,6 +38,7 @@
   ],
   "scripts": {
     "prepare": "node orchestrator/prepare.js",
+    "prepublishOnly": "node orchestrator/prepare.js",
     "typecheck": "tsc -p orchestrator/tsconfig.json --noEmit && npm run typecheck --prefix typescript",
     "test": "npm run prepare && npm run test:orchestrator && npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
     "test:orchestrator": "vitest run --config orchestrator/vitest.config.ts",
