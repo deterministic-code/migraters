@@ -34,6 +34,7 @@ export const cliYamlPath = (): string => {
     join(here, 'cli.yaml'),
     join(here, '..', 'cli.yaml'),
     join(here, '..', '..', 'cli.yaml'),
+    join(here, '..', '..', '..', 'cli.yaml'),
     join(process.cwd(), 'cli.yaml'),
   ];
   const found = candidates.find((candidate) => existsSync(candidate));

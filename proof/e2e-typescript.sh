@@ -3,15 +3,16 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
+npm run prepare
 npm ci --prefix typescript
 bash proof/ensure-instant-client.sh
 
 bindir="$root/.e2e-bin"
 mkdir -p "$bindir"
 for cmd in migrate-init migrate-setup migrate-up migrate-down migrate-create; do
-  ln -sfn "$root/typescript/dist/orchestrator/${cmd}.js" "$bindir/$cmd"
+  ln -sfn "$root/orchestrator/dist/${cmd}.js" "$bindir/$cmd"
 done
-chmod +x "$root"/typescript/dist/orchestrator/*.js
+chmod +x "$root"/orchestrator/dist/*.js
 
 instant="$root/proof/.instantclient"
 if [[ -d "$instant" ]]; then
@@ -31,8 +32,8 @@ bash "$root/proof/e2e-providers.sh"
 orch="$root/.e2e-orch"
 mkdir -p "$orch"
 for cmd in migrate-init migrate-setup migrate-up migrate-down migrate-create; do
-  ln -sfn "$root/typescript/dist/orchestrator/${cmd}.js" "$orch/$cmd"
+  ln -sfn "$root/orchestrator/dist/${cmd}.js" "$orch/$cmd"
 done
-chmod +x "$root"/typescript/dist/orchestrator/*.js
+chmod +x "$root"/orchestrator/dist/*.js
 PATH="$orch:$PATH" migrate-init --language typescript --all
 test -f "$root/.migraters.yaml"

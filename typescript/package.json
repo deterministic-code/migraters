@@ -1,46 +1,46 @@
 {
-  "name": "@deterministic-code/migraters",
+  "name": "@deterministic-code/migraters-typescript",
   "version": "0.0.1",
-  "description": "TypeScript migrate executables for deterministic-code.",
+  "private": true,
+  "description": "TypeScript migrate runner for deterministic-code.",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     },
     "./package.json": "./package.json"
   },
   "bin": {
-    "migrate-up": "./dist/bin/migrate-up.js",
-    "migrate-down": "./dist/bin/migrate-down.js",
-    "migrate-setup": "./dist/bin/migrate-setup.js",
-    "migrate-create": "./dist/bin/migrate-create.js",
-    "migrate-init": "./dist/bin/migrate-init.js"
+    "migrate-up": "./dist/src/bin/migrate-up.js",
+    "migrate-down": "./dist/src/bin/migrate-down.js",
+    "migrate-setup": "./dist/src/bin/migrate-setup.js",
+    "migrate-create": "./dist/src/bin/migrate-create.js"
   },
   "files": [
     "dist",
     "src",
+    "dialects",
     "cli.yaml",
     "bundle.yaml",
     "tsconfig.build.json"
   ],
   "scripts": {
     "build": "rm -rf dist.tmp && tsc -p tsconfig.build.json --outDir dist.tmp && cp -R ../shared/templates dist.tmp/templates && cp ../cli.yaml dist.tmp/cli.yaml && rm -rf dist && mv dist.tmp dist",
-    "prepare": "npm run build",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "npm run build && node dist/orchestrator/migrate-init.js --language typescript --all && vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.src.json --noEmit",
+    "test": "npm run build && node ../orchestrator/dist/migrate-init.js --language typescript --all && vitest run --coverage",
     "test:coverage": "vitest run --coverage",
     "generate:help": "node --experimental-strip-types src/generate-help.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "typescript": "^5.8.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^3.2.4",
     "prettier": "^3.9.6",
-    "typescript": "^5.8.0",
     "vitest": "^3.2.4"
   }
 }

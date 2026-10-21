@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MigratersConfig } from './config.ts';
 import { findConfigPath, loadConfigFile } from './config.ts';
-import { repoRootFromModule } from './repo.ts';
+import { packageRootFromModule } from './repo.ts';
 import { runCommand } from './run.ts';
 
 export type DispatchPlan = {
@@ -39,7 +39,7 @@ export const planDispatch = (
 };
 
 export const runDispatch = async (verb: string, argv: string[], moduleUrl: string): Promise<void> => {
-  const root = repoRootFromModule(moduleUrl);
+  const root = packageRootFromModule(moduleUrl);
   const path = findConfigPath(process.cwd(), root);
   if (!path) {
     process.stderr.write(missingConfigMessage);

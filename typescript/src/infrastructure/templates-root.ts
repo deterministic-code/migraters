@@ -6,6 +6,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 /** Repo `shared/templates`; after build, `dist/templates` (copied from shared). */
 export const templatesRoot = (): string => {
   const normalized = HERE.replaceAll('\\', '/');
+  if (normalized.endsWith('/dist/src/infrastructure') || normalized.endsWith('/dist.tmp/src/infrastructure')) {
+    return join(HERE, '..', '..', 'templates');
+  }
   if (normalized.endsWith('/dist/infrastructure')) {
     return join(HERE, '..', 'templates');
   }
