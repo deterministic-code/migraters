@@ -1,6 +1,6 @@
 namespace Deterministic.MigrateRunner;
 
-internal static class ConnectionStringUrl
+public static class ConnectionStringUrl
 {
     public static bool LooksLikeUrl(string connection, params string[] schemes) =>
         schemes.Any(s => connection.StartsWith($"{s}://", StringComparison.OrdinalIgnoreCase));

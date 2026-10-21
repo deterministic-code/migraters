@@ -71,7 +71,7 @@ npx migrate-init --language csharp --dialect sqlite
 npx migrate-init --language rust --dialect sqlite
 ```
 
-`migrate-init` is what adds that language’s driver dependencies and builds the binaries. TypeScript `package.json` gets only the selected npm drivers. C# `dialects.props` is generated with only the selected `PackageReference`s (it is not committed). Rust `Cargo.toml` `default` features list only the selected dialects. A clone does not ship or build the full dialect matrix.
+`migrate-init` attaches only the selected dialect packages and builds those binaries. TypeScript installs `@deterministic-code/migraters-<dialect>` (one driver each). C# writes `ProjectReference`s to `Dialects/<Name>/Migrate*.csproj` (each project owns one NuGet driver). Rust still enables Cargo features until its pool is split the same way. A clone does not ship or build the full dialect matrix.
 
 ### setup
 

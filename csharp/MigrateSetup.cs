@@ -23,7 +23,7 @@ internal sealed class MigrateSetup(ISqlDialectFactory dialects, IConnectionResol
         try
         {
             if (createDatabase)
-                await CreateDatabase.RunAsync(dialect.Name, connection).ConfigureAwait(false);
+                await CreateDatabase.RunAsync(dialect, connection).ConfigureAwait(false);
             await migrater.Setup(new SetupArg(connection, resolvedMigrationsPath)).ConfigureAwait(false);
         }
         catch (Exception ex)

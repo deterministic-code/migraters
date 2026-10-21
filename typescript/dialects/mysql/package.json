@@ -1,0 +1,11 @@
+{
+  "name": "@deterministic-code/migraters-mysql",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "mysql2": "*"
+  }
+}

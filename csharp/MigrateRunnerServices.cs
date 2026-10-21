@@ -1,31 +1,55 @@
+using System.Reflection;
+
 namespace Deterministic.MigrateRunner;
 
 internal static class MigrateRunnerServices
 {
     public static IServiceCollection AddMigrateRunner(this IServiceCollection services)
     {
-        var builder = services;
-#if DIALECT_SQLITE
-        builder = builder.AddSingleton<ISqlDialect>(SqliteDialect.Instance);
-#endif
-#if DIALECT_POSTGRES
-        builder = builder.AddSingleton<ISqlDialect>(PostgresDialect.Instance);
-#endif
-#if DIALECT_MYSQL
-        builder = builder.AddSingleton<ISqlDialect>(MysqlDialect.Instance);
-#endif
-#if DIALECT_SQLSERVER
-        builder = builder.AddSingleton<ISqlDialect>(SqlServerDialect.Instance);
-#endif
-#if DIALECT_ORACLE
-        builder = builder.AddSingleton<ISqlDialect>(OracleDialect.Instance);
-#endif
-        return builder
+        foreach (var dialect in LoadDialects())
+            services.AddSingleton(dialect);
+        return services
             .AddSingleton<ISqlDialectFactory, SqlDialectFactory>()
             .AddSingleton<IConnectionResolver, ConnectionResolver>()
             .AddSingleton<IMigrateCommand, MigrateSetup>()
             .AddSingleton<IMigrateCommand, MigrateUp>()
             .AddSingleton<IMigrateCommand, MigrateDown>()
             .AddSingleton<IMigrateCommand, MigrateCreate>();
+    }
+
+    private static IEnumerable<ISqlDialect> LoadDialects()
+    {
+        var dir = AppContext.BaseDirectory;
+        foreach (var path in Directory.GetFiles(dir, "Migrate*.dll"))
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            if (name is "MigrateCore" or "MigrateRunner" or "MigrateRunner.Tests")
+                continue;
+            Assembly.LoadFrom(path);
+        }
+
+        return AppDomain
+            .CurrentDomain.GetAssemblies()
+            .SelectMany(SafeTypes)
+            .Where(t => !t.ContainsGenericParameters)
+            .Select(t => t.GetField("Instance", BindingFlags.Public | BindingFlags.Static))
+            .Where(f =>
+                f is { IsStatic: true }
+                && !f.FieldType.ContainsGenericParameters
+                && typeof(ISqlDialect).IsAssignableFrom(f.FieldType)
+            )
+            .Select(f => (ISqlDialect)f!.GetValue(null)!);
+    }
+
+    private static IEnumerable<Type> SafeTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            return ex.Types.OfType<Type>();
+        }
     }
 }

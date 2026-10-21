@@ -165,6 +165,18 @@ public sealed class DialectCoverageTests
         d.PrepareSetup("u/p@c");
     }
 
+    [Fact]
+    public async Task CreateDatabaseIfMissingNoOpsWhenThereIsNoDatabaseName()
+    {
+        await SqliteDialect.Instance.CreateDatabaseIfMissingAsync(":memory:");
+        await PostgresDialect.Instance.CreateDatabaseIfMissingAsync("Host=localhost");
+        await PostgresDialect.Instance.CreateDatabaseIfMissingAsync("postgresql://127.0.0.1/postgres");
+        await MysqlDialect.Instance.CreateDatabaseIfMissingAsync("Server=localhost");
+        await SqlServerDialect.Instance.CreateDatabaseIfMissingAsync("Server=localhost");
+        await SqlServerDialect.Instance.CreateDatabaseIfMissingAsync("Server=localhost;Database=master");
+        await OracleDialect.Instance.CreateDatabaseIfMissingAsync("u/p@c");
+    }
+
     private static string ConnectionFor(ISqlDialect dialect) =>
         dialect.Name switch
         {

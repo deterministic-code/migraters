@@ -1,6 +1,6 @@
 namespace Deterministic.MigrateRunner;
 
-internal interface ISqlDialect
+public interface ISqlDialect
 {
     string Name { get; }
     IReadOnlyList<string> ConnectionEnvironmentVariables { get; }
@@ -19,4 +19,5 @@ internal interface ISqlDialect
     string? PrerequisiteError(string connection);
     void PrepareSetup(string connection);
     void AddParameter(DbCommand command, string name, object value);
+    Task CreateDatabaseIfMissingAsync(string connection);
 }

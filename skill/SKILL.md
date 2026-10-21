@@ -15,7 +15,7 @@ description: >-
 | Ask | Run |
 | --- | --- |
 | Install | `npm install @deterministic-code/migraters`, then `npx migrate-init --language <typescript\|csharp\|rust> --dialect <dialect>…`. Init installs that language’s drivers and builds the migrate binaries. Call `npx migrate-setup`, `npx migrate-up`, `npx migrate-down`, and `npx migrate-create`. |
-| Add a dialect | Re-run `npx migrate-init --language <language>` with the dialects already enabled plus the new one. TypeScript updates `package.json` drivers, C# writes selected `PackageReference`s, and Rust rewrites `Cargo.toml` default features. |
+| Add a dialect | Re-run `npx migrate-init --language <language>` with the dialects already enabled plus the new one. TypeScript installs `@deterministic-code/migraters-<dialect>`, C# writes selected `ProjectReference`s, and Rust writes path deps for `migraters-<dialect>`. |
 | Setup | `npx migrate-setup --provider <dialect> [--connection <url>] [--and-up] [--create-database]` |
 | Up | `npx migrate-up --provider <dialect> [--connection <url>]` |
 | Down | `npx migrate-down --provider <dialect> [--connection <url>]` |

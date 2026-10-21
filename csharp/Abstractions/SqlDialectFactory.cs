@@ -2,7 +2,10 @@ namespace Deterministic.MigrateRunner;
 
 internal sealed class SqlDialectFactory(IEnumerable<ISqlDialect> dialects) : ISqlDialectFactory
 {
-    private readonly ISqlDialect[] _all = [.. dialects];
+    private readonly ISqlDialect[] _all =
+    [
+        .. CliSpec.Providers.Select(name => dialects.FirstOrDefault(d => d.Name == name)).OfType<ISqlDialect>(),
+    ];
     private readonly IReadOnlyDictionary<string, ISqlDialect> _byName = dialects.ToDictionary(
         d => d.Name,
         StringComparer.Ordinal

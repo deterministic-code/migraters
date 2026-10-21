@@ -9,9 +9,9 @@ bash proof/ensure-instant-client.sh
 bindir="$root/.e2e-bin"
 mkdir -p "$bindir"
 for cmd in migrate-init migrate-setup migrate-up migrate-down migrate-create; do
-  ln -sfn "$root/typescript/dist/bin/${cmd}.js" "$bindir/$cmd"
+  ln -sfn "$root/typescript/dist/orchestrator/${cmd}.js" "$bindir/$cmd"
 done
-chmod +x "$root"/typescript/dist/bin/*.js
+chmod +x "$root"/typescript/dist/orchestrator/*.js
 
 instant="$root/proof/.instantclient"
 if [[ -d "$instant" ]]; then

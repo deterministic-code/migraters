@@ -28,7 +28,7 @@
     "build": "rm -rf dist.tmp && tsc -p tsconfig.build.json --outDir dist.tmp && cp -R ../shared/templates dist.tmp/templates && cp ../cli.yaml dist.tmp/cli.yaml && rm -rf dist && mv dist.tmp dist",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "vitest run --coverage",
+    "test": "npm run build && node dist/orchestrator/migrate-init.js --language typescript --all && vitest run --coverage",
     "test:coverage": "vitest run --coverage",
     "generate:help": "node --experimental-strip-types src/generate-help.ts",
     "format": "prettier --write ."
@@ -36,42 +36,9 @@
   "dependencies": {
     "yaml": "^2.9.0"
   },
-  "peerDependencies": {
-    "better-sqlite3": "*",
-    "mssql": "*",
-    "mysql2": "*",
-    "oracledb": "*",
-    "pg": "*"
-  },
-  "peerDependenciesMeta": {
-    "better-sqlite3": {
-      "optional": true
-    },
-    "mssql": {
-      "optional": true
-    },
-    "mysql2": {
-      "optional": true
-    },
-    "oracledb": {
-      "optional": true
-    },
-    "pg": {
-      "optional": true
-    }
-  },
   "devDependencies": {
-    "@types/better-sqlite3": "*",
-    "@types/mssql": "*",
     "@types/node": "^22.10.0",
-    "@types/oracledb": "*",
-    "@types/pg": "*",
     "@vitest/coverage-v8": "^3.2.4",
-    "better-sqlite3": "*",
-    "mssql": "*",
-    "mysql2": "*",
-    "oracledb": "*",
-    "pg": "*",
     "prettier": "^3.9.6",
     "typescript": "^5.8.0",
     "vitest": "^3.2.4"

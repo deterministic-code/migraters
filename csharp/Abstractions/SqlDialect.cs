@@ -1,6 +1,6 @@
 namespace Deterministic.MigrateRunner;
 
-internal sealed class SqlDialect : ISqlDialect
+public sealed class SqlDialect : ISqlDialect
 {
     private readonly Func<string, string> _normalize;
     private readonly Func<string, DbConnection> _createConnection;
@@ -9,6 +9,7 @@ internal sealed class SqlDialect : ISqlDialect
     private readonly Func<string, string> _placeholder;
     private readonly Func<string, string?>? _prerequisiteError;
     private readonly Action<string>? _prepareSetup;
+    private readonly Func<string, Task>? _createDatabase;
     private readonly Func<int, string> _limitClause;
 
     public SqlDialect(
@@ -22,6 +23,7 @@ internal sealed class SqlDialect : ISqlDialect
         Func<string, string> placeholder,
         Func<string, string?>? prerequisiteError = null,
         Action<string>? prepareSetup = null,
+        Func<string, Task>? createDatabase = null,
         string nowExpr = "CURRENT_TIMESTAMP",
         Func<int, string>? limitClause = null
     )
@@ -37,6 +39,7 @@ internal sealed class SqlDialect : ISqlDialect
         _placeholder = placeholder;
         _prerequisiteError = prerequisiteError;
         _prepareSetup = prepareSetup;
+        _createDatabase = createDatabase;
         _limitClause = limitClause ?? (n => $"LIMIT {n}");
     }
 
@@ -62,6 +65,8 @@ internal sealed class SqlDialect : ISqlDialect
         _addParameter(command, name, value);
     public string? PrerequisiteError(string connection) => _prerequisiteError?.Invoke(connection);
     public void PrepareSetup(string connection) => _prepareSetup?.Invoke(connection);
+    public Task CreateDatabaseIfMissingAsync(string connection) =>
+        _createDatabase?.Invoke(connection) ?? Task.CompletedTask;
 
     public static void Bind(DbCommand command, string parameterName, object value)
     {

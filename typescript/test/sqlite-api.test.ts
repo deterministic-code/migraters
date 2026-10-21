@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { checksum } from '../src/datasource-migrate.ts';
 import { getMigrater } from '../src/migrater.ts';
-import { SqliteDialect } from '../src/dialects/sqlite-dialect.ts';
+import { SqliteDialect } from '../dialects/sqlite/src/sqlite-dialect.ts';
 
 describe('sqlite IMigrater', () => {
   it('setup, up, down', async () => {

@@ -1,9 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { loadSelectedPackages } from '../init-select.ts';
 import { writeConfig } from './config.ts';
 import { type Language } from './languages.ts';
-import { renderDialectsProps, setCargoDefaultFeatures } from './manifests.ts';
+import { renderAttachedDialects, renderDialectsProps, setCargoDialectDeps } from './manifests.ts';
 import { requireStatus, runCommand } from './run.ts';
 
 const npmFlags = ['--no-audit', '--no-fund', '--loglevel=error'];
@@ -11,24 +10,29 @@ const npmFlags = ['--no-audit', '--no-fund', '--loglevel=error'];
 const npmCmd = (): string => (process.platform === 'win32' ? 'npm.cmd' : 'npm');
 
 const initTypescript = async (root: string, dialects: string[]): Promise<void> => {
-  const selected = await loadSelectedPackages(dialects, 'typescript');
-  const specs = selected.packages.map((p) => p.name);
+  const names = dialects.map((name) => `@deterministic-code/migraters-${name}`);
+  const specs = dialects.map((name) => join(root, 'typescript', 'dialects', name));
+  const cwd = process.cwd();
+  const saveFlags = cwd === root || cwd === join(root, 'typescript') ? ['--no-save'] : [];
   if (specs.length > 0) {
-    requireStatus(runCommand(npmCmd(), ['install', ...npmFlags, ...specs], { cwd: process.cwd() }));
+    requireStatus(
+      runCommand(npmCmd(), ['install', ...npmFlags, ...saveFlags, ...specs], { cwd }),
+    );
   }
-  const remove = selected.allDriverPackages.filter(
-    (name) => !selected.packages.some((p) => p.name === name),
-  );
+  const remove = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle']
+    .map((name) => `@deterministic-code/migraters-${name}`)
+    .filter((name) => !names.includes(name));
   if (remove.length > 0) {
-    requireStatus(runCommand(npmCmd(), ['uninstall', ...npmFlags, ...remove], { cwd: process.cwd() }));
+    requireStatus(
+      runCommand(npmCmd(), ['uninstall', ...npmFlags, ...saveFlags, ...remove], { cwd }),
+    );
   }
   requireStatus(runCommand(npmCmd(), ['run', 'build'], { cwd: join(root, 'typescript') }));
 };
 
 const initCsharp = async (root: string, dialects: string[]): Promise<void> => {
-  const selected = await loadSelectedPackages(dialects, 'csharp');
   const propsPath = join(root, 'csharp', 'dialects.props');
-  await writeFile(propsPath, renderDialectsProps(selected.names, selected.packages));
+  await writeFile(propsPath, renderDialectsProps(dialects));
   requireStatus(
     runCommand('dotnet', ['build', join(root, 'csharp', 'MigrateRunner.csproj')], { cwd: root }),
   );
@@ -37,7 +41,11 @@ const initCsharp = async (root: string, dialects: string[]): Promise<void> => {
 const initRust = async (root: string, dialects: string[]): Promise<void> => {
   const cargoPath = join(root, 'rust', 'Cargo.toml');
   const raw = await readFile(cargoPath, 'utf8');
-  await writeFile(cargoPath, setCargoDefaultFeatures(raw, dialects));
+  await writeFile(cargoPath, setCargoDialectDeps(raw, dialects));
+  await writeFile(
+    join(root, 'rust', 'src', 'attached_dialects.rs'),
+    renderAttachedDialects(dialects),
+  );
   requireStatus(
     runCommand('cargo', ['build', '--manifest-path', join(root, 'rust', 'Cargo.toml')], {
       cwd: root,
