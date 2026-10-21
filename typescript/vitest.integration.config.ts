@@ -8,6 +8,7 @@ export default defineConfig({
       'dialects/sqlserver/**/*.test.ts',
       'dialects/oracle/**/*.test.ts',
       'dialects/sqlite/**/*.paths.test.ts',
+      'test/help-integration.test.ts',
     ],
     fileParallelism: false,
     coverage: {
