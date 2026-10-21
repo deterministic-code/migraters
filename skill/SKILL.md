@@ -12,6 +12,8 @@ description: >-
 
 ## Commands
 
+Run `npm` and every `npx migrate-*` command on the host, not in the Cursor sandbox. In Cursor, request full permissions (`required_permissions: ["all"]`) so the sandbox is off. `npm`, `npx`, `dotnet`, and database connections need the host.
+
 | Ask | Run |
 | --- | --- |
 | Install | `npm install @deterministic-code/migraters`, then `npx migrate-init --language <typescript\|csharp\|rust> --dialect <dialect>…`. Init installs that language’s drivers and builds the migrate binaries. Call `npx migrate-setup`, `npx migrate-up`, `npx migrate-down`, and `npx migrate-create`. |
