@@ -40,6 +40,25 @@ Natural-language prompts the [skill](skill/SKILL.md) maps straight to CLI comman
 
 `npx migrate-init` replaces the dialect set, so “add driver” means re-run init with the previously enabled dialects and the new one (for example `npx migrate-init --dialect sqlite --dialect postgres --dialect oracle` after a sqlite+postgres install). Flag details are under [Commands](#commands).
 
+## Quick example
+
+`user.sql`:
+
+```sql
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  email TEXT NOT NULL
+);
+```
+
+```shell
+npx migrate-init --dialect sqlite
+npx migrate-setup --provider sqlite --connection ./app.sqlite
+npx migrate-create --provider sqlite --name add_users
+cat user.sql > sql/sqlite/migrations/0001_add_users_up.sql
+npx migrate-up --provider sqlite --connection ./app.sqlite
+```
+
 ## Commands
 
 ### init
