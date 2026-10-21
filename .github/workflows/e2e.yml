@@ -36,7 +36,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: typescript/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            typescript/package-lock.json
 
       - uses: dtolnay/rust-toolchain@stable
         if: steps.recent.outputs.skip != 'true'
@@ -45,6 +47,10 @@ jobs:
         if: steps.recent.outputs.skip != 'true'
         with:
           dotnet-version: '9.0.x'
+
+      - name: Install root deps
+        if: steps.recent.outputs.skip != 'true'
+        run: npm ci
 
       - name: Proof e2e
         if: steps.recent.outputs.skip != 'true'
