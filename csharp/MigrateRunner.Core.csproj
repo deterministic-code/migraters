@@ -26,13 +26,14 @@
     <Compile Remove="Program.cs" />
     <Compile Remove="MigrateRunner.Tests/**" />
     <Compile Remove="MigrateInit/**" />
-    <Compile Remove="Dialects/**" />
+    <Compile Remove="Providers/**" />
+    <Compile Include="Providers/Sql/**/*.cs" />
     <Content Remove="MigrateRunner.Tests/**" />
     <Content Remove="MigrateInit/**" />
-    <Content Remove="Dialects/**" />
+    <Content Remove="Providers/**" />
     <None Remove="MigrateRunner.Tests/**" />
     <None Remove="MigrateInit/**" />
-    <None Remove="Dialects/**" />
+    <None Remove="Providers/**" />
   </ItemGroup>
 
   <ItemGroup>

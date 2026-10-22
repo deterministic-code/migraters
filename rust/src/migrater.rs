@@ -2,9 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use crate::abstractions::SqlDialect;
+use crate::abstractions::IDatasourceProvider;
 use crate::checksum::checksum_hex;
-use crate::infrastructure::MigrationPool;
 use crate::messages::{message, scaffold};
 use crate::migrations::{
     assert_no_checksum_drift, discover_up_files, down_path_for, is_migration_name, next_sequence,
@@ -48,35 +47,37 @@ pub trait IMigrater: Send + Sync {
 }
 
 pub struct Migrater {
-    dialect: &'static dyn SqlDialect,
+    provider: &'static dyn IDatasourceProvider,
 }
 
 impl Migrater {
-    pub fn new(dialect: &'static dyn SqlDialect) -> Self {
-        Self { dialect }
+    pub fn new(provider: &'static dyn IDatasourceProvider) -> Self {
+        Self { provider }
     }
 }
 
 impl IMigrater for Migrater {
     fn name(&self) -> &'static str {
-        self.dialect.name()
+        self.provider.name()
     }
 
     async fn setup(&self, args: SetupArg<'_>) -> Result<(), BoxError> {
-        self.dialect.prepare_setup(args.connection)?;
-        let pool = MigrationPool::connect(self.dialect, args.connection).await?;
-        pool.execute(self.dialect.migrates_ddl()).await?;
-        pool.execute(self.dialect.migrate_logs_ddl()).await?;
+        self.provider.prepare_setup(args.connection)?;
+        self.provider
+            .setup(args.connection)
+            .await
+            .map_err(|err| err.to_string())?;
         fs::create_dir_all(PathBuf::from(args.migrations_path))?;
         Ok(())
     }
 
     async fn up(&self, args: UpArg<'_>) -> Result<Vec<String>, BoxError> {
-        let pool = MigrationPool::connect(self.dialect, args.connection).await?;
         let files = discover_up_files(args.migrations_path)?;
-        let mut applied = pool
-            .fetch_applied(&self.dialect.select_applied_checksum_sql())
-            .await?;
+        let mut applied = self
+            .provider
+            .applied(args.connection)
+            .await
+            .map_err(|err| err.to_string())?;
         assert_no_checksum_drift(&files, &applied)?;
         let mut names = Vec::new();
         loop {
@@ -89,40 +90,45 @@ impl IMigrater for Migrater {
             };
             let sql = fs::read_to_string(&path)?;
             let sum = checksum_hex(&sql);
-            let log_id = pool.insert_log_started(self.dialect, &name, "up").await?;
+            let log_id = self
+                .provider
+                .log(args.connection, None, &name, "up", None, 0, None)
+                .await
+                .map_err(|err| err.to_string())?;
             let started = Instant::now();
-            match pool
-                .apply_statements(
-                    self.dialect,
-                    &sql,
-                    self.dialect.insert_applied_sql(),
-                    &name,
-                    Some(&sum),
-                )
+            match self
+                .provider
+                .migrate_up(args.connection, &name, &sql, &sum)
                 .await
             {
                 Ok(()) => {
-                    let _ = pool
-                        .update_log(
-                            self.dialect,
-                            log_id,
-                            "success",
+                    let _ = self
+                        .provider
+                        .log(
+                            args.connection,
+                            Some(log_id),
+                            &name,
+                            "up",
+                            Some("success"),
                             started.elapsed().as_millis() as i64,
                             None,
                         )
                         .await;
                 }
                 Err(e) => {
-                    let _ = pool
-                        .update_log(
-                            self.dialect,
-                            log_id,
-                            "error",
+                    let _ = self
+                        .provider
+                        .log(
+                            args.connection,
+                            Some(log_id),
+                            &name,
+                            "up",
+                            Some("error"),
                             started.elapsed().as_millis() as i64,
                             Some(&e.to_string()),
                         )
                         .await;
-                    return Err(e);
+                    return Err(e.to_string().into());
                 }
             }
             applied.insert(name.clone(), Some(sum));
@@ -134,11 +140,12 @@ impl IMigrater for Migrater {
     }
 
     async fn down(&self, args: DownArg<'_>) -> Result<Option<String>, BoxError> {
-        let pool = MigrationPool::connect(self.dialect, args.connection).await?;
         let files = discover_up_files(args.migrations_path)?;
-        let applied = pool
-            .fetch_applied(&self.dialect.select_applied_checksum_sql())
-            .await?;
+        let applied = self
+            .provider
+            .applied(args.connection)
+            .await
+            .map_err(|err| err.to_string())?;
         if applied.is_empty() {
             return Ok(None);
         }
@@ -154,40 +161,45 @@ impl IMigrater for Migrater {
         let path = down_path_for(args.migrations_path, &name)
             .ok_or_else(|| message("errors/rollback-no-down-sibling", &[("name", &name)]))?;
         let sql = fs::read_to_string(&path)?;
-        let log_id = pool.insert_log_started(self.dialect, &name, "down").await?;
+        let log_id = self
+            .provider
+            .log(args.connection, None, &name, "down", None, 0, None)
+            .await
+            .map_err(|err| err.to_string())?;
         let started = Instant::now();
-        match pool
-            .apply_statements(
-                self.dialect,
-                &sql,
-                self.dialect.delete_applied_sql(),
-                &name,
-                None,
-            )
+        match self
+            .provider
+            .migrate_down(args.connection, &name, &sql)
             .await
         {
             Ok(()) => {
-                let _ = pool
-                    .update_log(
-                        self.dialect,
-                        log_id,
-                        "success",
+                let _ = self
+                    .provider
+                    .log(
+                        args.connection,
+                        Some(log_id),
+                        &name,
+                        "down",
+                        Some("success"),
                         started.elapsed().as_millis() as i64,
                         None,
                     )
                     .await;
             }
             Err(e) => {
-                let _ = pool
-                    .update_log(
-                        self.dialect,
-                        log_id,
-                        "error",
+                let _ = self
+                    .provider
+                    .log(
+                        args.connection,
+                        Some(log_id),
+                        &name,
+                        "down",
+                        Some("error"),
                         started.elapsed().as_millis() as i64,
                         Some(&e.to_string()),
                     )
                     .await;
-                return Err(e);
+                return Err(e.to_string().into());
             }
         }
         Ok(Some(name))

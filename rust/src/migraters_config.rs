@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn reads_block_list() {
         let names = parse_providers(
-            "language: rust\nproviders:\n  - name: sqlite\n    location: dialects/sqlite\n  - name: postgres\n    location: dialects/postgres\nbinDir: rust/target/debug\n",
+            "language: rust\nproviders:\n  - name: sqlite\n    location: providers/sqlite\n  - name: postgres\n    location: providers/postgres\nbinDir: rust/target/debug\n",
         );
         assert_eq!(
             names.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),

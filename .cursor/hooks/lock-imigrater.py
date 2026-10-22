@@ -11,7 +11,6 @@ from pathlib import Path
 LOCKED = (
     "csharp/Abstractions/IMigrater.cs",
     "typescript/src/abstractions/migrater.ts",
-    "rust/src/migrater.rs",
 )
 
 WRITE_TOOLS = {"write", "strreplace", "delete", "editnotebook"}

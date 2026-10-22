@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { SqlDialectBase } from './abstractions/sql-dialect-base.ts';
 import { getMigrater } from './migrater.ts';
 import { defaultDialectFactory } from './infrastructure/default-factory.ts';
 
 describe('IMigrater setup bookkeeping', () => {
-  it('loads the shared DDL templates for every dialect', () => {
-    for (const dialect of defaultDialectFactory.all()) {
-      expect(dialect).toBeInstanceOf(SqlDialectBase);
-      const sql = dialect as SqlDialectBase;
-      expect(sql.migratesDdl).toMatch(/migrates/i);
-      expect(sql.migrateLogsDdl).toMatch(/migrate_logs/i);
+  it('loads a provider that implements setup for every dialect', () => {
+    for (const provider of defaultDialectFactory.all()) {
+      expect(provider.name).toBeTruthy();
+      expect(typeof provider.setup).toBe('function');
+      expect(typeof provider.applied).toBe('function');
+      expect(typeof provider.migrateUp).toBe('function');
     }
   });
 

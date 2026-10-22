@@ -23,7 +23,7 @@ languages:
     dialects:
       sqlite:
         files:
-          - typescript/dialects/sqlite/**
+          - typescript/providers/sqlite/**
           - shared/templates/sql/sqlite/**
         apk: sqlite
         packages:
@@ -31,27 +31,27 @@ languages:
             installScripts: true
       postgres:
         files:
-          - typescript/dialects/postgres/**
+          - typescript/providers/postgres/**
           - shared/templates/sql/postgres/**
         apk: postgresql-client
         packages:
           - name: pg
       mysql:
         files:
-          - typescript/dialects/mysql/**
+          - typescript/providers/mysql/**
           - shared/templates/sql/mysql/**
         apk: mysql-client
         packages:
           - name: mysql2
       sqlserver:
         files:
-          - typescript/dialects/sqlserver/**
+          - typescript/providers/sqlserver/**
           - shared/templates/sql/sqlserver/**
         packages:
           - name: mssql
       oracle:
         files:
-          - typescript/dialects/oracle/**
+          - typescript/providers/oracle/**
           - shared/templates/sql/oracle/**
         packages:
           - name: oracledb
@@ -104,26 +104,26 @@ languages:
     dialects:
       sqlite:
         files:
-          - rust/dialects/sqlite/**
+          - rust/providers/sqlite/**
           - shared/templates/sql/sqlite/**
         apk: sqlite
       postgres:
         files:
-          - rust/dialects/postgres/**
+          - rust/providers/postgres/**
           - shared/templates/sql/postgres/**
         apk: postgresql-client
       mysql:
         files:
-          - rust/dialects/mysql/**
+          - rust/providers/mysql/**
           - shared/templates/sql/mysql/**
         apk: mysql-client
       sqlserver:
         files:
-          - rust/dialects/sqlserver/**
+          - rust/providers/sqlserver/**
           - shared/templates/sql/sqlserver/**
       oracle:
         files:
-          - rust/dialects/oracle/**
+          - rust/providers/oracle/**
           - shared/templates/sql/oracle/**
     commands:
       setup: migrate-setup --provider {{provider}}
@@ -183,7 +183,7 @@ languages:
     dialects:
       sqlite:
         files:
-          - csharp/Dialects/Sqlite/**
+          - csharp/Providers/Sqlite/**
           - shared/templates/sql/sqlite/**
         apk: sqlite
         packages:
@@ -191,7 +191,7 @@ languages:
             version: "9.0.0"
       postgres:
         files:
-          - csharp/Dialects/Postgres/**
+          - csharp/Providers/Postgres/**
           - shared/templates/sql/postgres/**
         apk: postgresql-client
         packages:
@@ -199,7 +199,7 @@ languages:
             version: "9.0.2"
       mysql:
         files:
-          - csharp/Dialects/Mysql/**
+          - csharp/Providers/Mysql/**
           - shared/templates/sql/mysql/**
         apk: mysql-client
         packages:
@@ -207,14 +207,14 @@ languages:
             version: "2.4.0"
       sqlserver:
         files:
-          - csharp/Dialects/SqlServer/**
+          - csharp/Providers/SqlServer/**
           - shared/templates/sql/sqlserver/**
         packages:
           - name: Microsoft.Data.SqlClient
             version: "6.0.2"
       oracle:
         files:
-          - csharp/Dialects/Oracle/**
+          - csharp/Providers/Oracle/**
           - shared/templates/sql/oracle/**
         packages:
           - name: Oracle.ManagedDataAccess.Core

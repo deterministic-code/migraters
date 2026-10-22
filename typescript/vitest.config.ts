@@ -2,12 +2,12 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'test/**/*.test.ts', 'dialects/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'test/**/*.test.ts', 'providers/**/*.test.ts'],
     fileParallelism: false,
     coverage: {
       provider: 'v8',
-      include: ['dialects/**/*.ts'],
-      exclude: ['dialects/**/*.test.ts'],
+      include: ['providers/**/*.ts'],
+      exclude: ['providers/**/*.test.ts'],
       thresholds: {
         lines: 100,
         functions: 100,

@@ -9,8 +9,8 @@ import {
 describe('init manifests', () => {
   it('renders dialects.props with only selected dialect projects', () => {
     const props = renderDialectsProps(['sqlite', 'sqlserver']);
-    expect(props).toContain('$(MSBuildThisFileDirectory)Dialects/Sqlite/MigrateSqlite.csproj');
-    expect(props).toContain('Dialects/SqlServer/MigrateSqlServer.csproj');
+    expect(props).toContain('$(MSBuildThisFileDirectory)Providers/Sqlite/MigrateSqlite.csproj');
+    expect(props).toContain('Providers/SqlServer/MigrateSqlServer.csproj');
     expect(props).not.toContain('MigratePostgres');
     expect(props).not.toContain('PackageReference');
   });
@@ -26,10 +26,10 @@ describe('init manifests', () => {
 
   it('rewrites Cargo.toml path deps for selected dialect crates', () => {
     const next = setCargoDialectDeps(
-      '[dependencies]\n# migrate-init-dialects-start\nmigraters-postgres = { path = "dialects/postgres" }\n# migrate-init-dialects-end\n',
+      '[dependencies]\n# migrate-init-dialects-start\nmigraters-postgres = { path = "providers/postgres" }\n# migrate-init-dialects-end\n',
       ['sqlite'],
     );
-    expect(next).toContain('migraters-sqlite = { path = "dialects/sqlite" }');
+    expect(next).toContain('migraters-sqlite = { path = "providers/sqlite" }');
     expect(next).not.toContain('migraters-postgres');
   });
 

@@ -1,9 +1,9 @@
 const DIALECT_PROJECTS: Record<string, string> = {
-  sqlite: 'Dialects/Sqlite/MigrateSqlite.csproj',
-  postgres: 'Dialects/Postgres/MigratePostgres.csproj',
-  mysql: 'Dialects/Mysql/MigrateMysql.csproj',
-  sqlserver: 'Dialects/SqlServer/MigrateSqlServer.csproj',
-  oracle: 'Dialects/Oracle/MigrateOracle.csproj',
+  sqlite: 'Providers/Sqlite/MigrateSqlite.csproj',
+  postgres: 'Providers/Postgres/MigratePostgres.csproj',
+  mysql: 'Providers/Mysql/MigrateMysql.csproj',
+  sqlserver: 'Providers/SqlServer/MigrateSqlServer.csproj',
+  oracle: 'Providers/Oracle/MigrateOracle.csproj',
 };
 
 export const cargoDefaultFeaturesLine = (dialects: string[]): string =>
@@ -32,7 +32,7 @@ export const rustDialectCrate = (dialect: string): string => `migraters-${dialec
 export const rustDialectIdent = (dialect: string): string =>
   rustDialectCrate(dialect).replaceAll('-', '_');
 
-export const rustDialectPath = (dialect: string): string => `dialects/${dialect}`;
+export const rustDialectPath = (dialect: string): string => `providers/${dialect}`;
 
 export const renderAttachedDialects = (dialects: string[]): string =>
   [

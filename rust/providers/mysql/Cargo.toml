@@ -1,0 +1,12 @@
+[package]
+name = "migraters-mysql"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+async-trait = "0.1"
+inventory = "0.3"
+migraters-api = { path = "../../api" }
+migraters-sql = { path = "../sql" }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "mysql"] }
+tokio = { version = "1", features = ["net", "rt"] }

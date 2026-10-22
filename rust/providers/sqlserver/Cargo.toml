@@ -1,0 +1,13 @@
+[package]
+name = "migraters-sqlserver"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+async-trait = "0.1"
+inventory = "0.3"
+migraters-api = { path = "../../api" }
+migraters-sql = { path = "../sql" }
+tiberius = { version = "0.12", default-features = false, features = ["tds73", "chrono", "rustls"] }
+tokio = { version = "1", features = ["io-util", "net", "rt"] }
+tokio-util = { version = "0.7", features = ["compat"] }

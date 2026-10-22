@@ -33,7 +33,7 @@ coverage/
 # Rust
 **/target/
 **/*.rs.bk
-/rust/dialects/**/Cargo.lock
+/rust/providers/**/Cargo.lock
 
 # Proof Instant Client cache
 proof/.instantclient/

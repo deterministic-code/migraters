@@ -20,7 +20,7 @@
   "files": [
     "dist",
     "src",
-    "dialects",
+    "providers",
     "cli.yaml",
     "driver.yaml",
     "bundle.yaml",

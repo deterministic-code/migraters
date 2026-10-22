@@ -176,11 +176,11 @@ static string RenderProps(IReadOnlyList<string> enabled)
     sb.AppendLine("  <ItemGroup>");
     foreach (var (name, project) in new (string, string)[]
     {
-        ("sqlite", "Dialects/Sqlite/MigrateSqlite.csproj"),
-        ("postgres", "Dialects/Postgres/MigratePostgres.csproj"),
-        ("mysql", "Dialects/Mysql/MigrateMysql.csproj"),
-        ("sqlserver", "Dialects/SqlServer/MigrateSqlServer.csproj"),
-        ("oracle", "Dialects/Oracle/MigrateOracle.csproj"),
+        ("sqlite", "Providers/Sqlite/MigrateSqlite.csproj"),
+        ("postgres", "Providers/Postgres/MigratePostgres.csproj"),
+        ("mysql", "Providers/Mysql/MigrateMysql.csproj"),
+        ("sqlserver", "Providers/SqlServer/MigrateSqlServer.csproj"),
+        ("oracle", "Providers/Oracle/MigrateOracle.csproj"),
     })
     {
         if (!set.Contains(name))
