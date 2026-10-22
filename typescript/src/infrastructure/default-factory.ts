@@ -1,34 +1,44 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { existsSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { SqlDialectFactory } from '../abstractions/sql-dialect-factory.ts';
-import type { ISqlDialect } from '../abstractions/sql-dialect.ts';
+import type { IDatasourceProvider } from '../abstractions/datasource-provider.ts';
 import { ConnectionResolver } from './connection-resolver.ts';
-import { enabledDialects } from './migraters-config.ts';
+import { enabledProviders } from './migraters-config.ts';
 
-const dialectEntry = (name: string): string => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const ext = import.meta.url.endsWith('.ts') ? '.ts' : '.js';
-  return join(here, '..', '..', 'dialects', name, 'src', `index${ext}`);
+const loadModule = async (
+  location: string,
+  configDir: string,
+): Promise<IDatasourceProvider> => {
+  const relative = isAbsolute(location) ? location : resolve(configDir, location);
+  const stripped = location.startsWith('typescript/')
+    ? resolve(configDir, location.slice('typescript/'.length))
+    : relative;
+  const file = existsSync(relative) ? relative : stripped;
+  const specifier = existsSync(file) ? pathToFileURL(file).href : location;
+  const mod = (await import(specifier)) as {
+    provider?: () => IDatasourceProvider;
+    createDialect?: () => IDatasourceProvider;
+  };
+  const create = mod.provider ?? mod.createDialect;
+  if (typeof create !== 'function') throw new Error(location);
+  return create();
 };
 
-const loadInstalledDialects = async (): Promise<ISqlDialect[]> => {
-  const loaded: ISqlDialect[] = [];
-  for (const name of enabledDialects()) {
-    const file = dialectEntry(name);
+const loadInstalledProviders = async (): Promise<IDatasourceProvider[]> => {
+  const { configDir, entries } = enabledProviders();
+  const loaded: IDatasourceProvider[] = [];
+  for (const entry of entries) {
     try {
-      const mod = (await import(pathToFileURL(file).href)) as { createDialect?: () => ISqlDialect };
-      if (typeof mod.createDialect !== 'function') {
-        throw new Error(name);
-      }
-      loaded.push(mod.createDialect());
+      loaded.push(await loadModule(entry.location, configDir));
     } catch (err) {
-      if (err instanceof Error && err.message === name) throw err;
-      throw new Error(name, { cause: err });
+      if (err instanceof Error && err.message === entry.name) throw err;
+      throw new Error(entry.name, { cause: err });
     }
   }
   return loaded;
 };
 
-export const defaultDialectFactory = new SqlDialectFactory(await loadInstalledDialects());
+export const defaultDialectFactory = new SqlDialectFactory(await loadInstalledProviders());
 
 export const connectionResolver = new ConnectionResolver();

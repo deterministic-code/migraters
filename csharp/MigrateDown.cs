@@ -2,7 +2,7 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateDown(IDialectFactory dialects, IConnectionResolver connections)
+internal sealed class MigrateDown(IProviderFactory providers, IConnectionResolver connections)
     : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("down");
@@ -14,19 +14,16 @@ internal sealed class MigrateDown(IDialectFactory dialects, IConnectionResolver 
         if (!TryParse(args, out var provider, out var migratePath, out var connection, out var confirm, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
-        var resolved = MigrateCli.ResolveProvider(dialects, connections, provider, connection);
-        if (resolved is not ProviderResolution.Ready(var dialect, var resolvedConnection))
+        var resolved = MigrateCli.ResolveProvider(providers, connections, provider, connection);
+        if (resolved is not ProviderResolution.Ready(var loaded, var resolvedConnection))
             return Fail(((ProviderResolution.Rejected)resolved).Error);
 
-        if (dialect.PrerequisiteError(resolvedConnection) is { } prerequisite)
-            return Fail(prerequisite);
-
-        if (!ConfirmOrAbort(dialect.Name, confirm))
+        if (!ConfirmOrAbort(loaded.Name, confirm))
             return 2;
 
         try
         {
-            var name = await new Migrater(dialect).Down(new DownArg(resolvedConnection, migratePath)).ConfigureAwait(false);
+            var name = await new Migrater(loaded).Down(new DownArg(resolvedConnection, migratePath)).ConfigureAwait(false);
             Console.WriteLine(
                 name is null
                     ? HelpTemplates.Message("status/no-rollback")

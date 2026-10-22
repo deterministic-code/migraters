@@ -6,7 +6,7 @@ public sealed class RegistryTests
     public void RegistersAttachedCliYamlProvidersAndAliases()
     {
         var services = new ServiceCollection().AddMigrateRunner().BuildServiceProvider();
-        var factory = services.GetRequiredService<IDialectFactory>();
+        var factory = services.GetRequiredService<IProviderFactory>();
         var attached = factory.All().Select(d => d.Name).ToArray();
         Assert.NotEmpty(attached);
         Assert.Equal(CliSpec.Providers.Where(attached.Contains).ToArray(), attached);

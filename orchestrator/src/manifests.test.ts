@@ -9,8 +9,8 @@ import {
 describe('init manifests', () => {
   it('renders dialects.props with only selected dialect projects', () => {
     const props = renderDialectsProps(['sqlite', 'sqlserver']);
-    expect(props).toContain('$(MSBuildThisFileDirectory)Dialects/Sqlite/MigrateSqlite.csproj');
-    expect(props).toContain('Dialects/SqlServer/MigrateSqlServer.csproj');
+    expect(props).toContain('$(MSBuildThisFileDirectory)Providers/Sqlite/MigrateSqlite.csproj');
+    expect(props).toContain('Providers/SqlServer/MigrateSqlServer.csproj');
     expect(props).not.toContain('MigratePostgres');
     expect(props).not.toContain('PackageReference');
   });

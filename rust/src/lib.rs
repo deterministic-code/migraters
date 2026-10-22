@@ -45,17 +45,9 @@ mod driver_yaml {
     const RAW: &str = include_str!("../../driver.yaml");
 
     #[test]
-    fn lists_migration_driver() {
-        assert!(RAW.contains("interface: MigrationDriver"));
-        for method in [
-            "setup",
-            "applied",
-            "migrateUp",
-            "migrateDown",
-            "logStarted",
-            "logFinished",
-            "close",
-        ] {
+    fn lists_datasource_provider() {
+        assert!(RAW.contains("interface: IDatasourceProvider"));
+        for method in ["setup", "applied", "migrateUp", "migrateDown", "log"] {
             assert!(
                 RAW.contains(&format!("  - {method}")),
                 "driver.yaml missing method {method}"

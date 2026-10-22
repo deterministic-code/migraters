@@ -3,12 +3,18 @@ namespace Deterministic.MigrateRunner.Tests;
 public sealed class SqlDriverTests
 {
     [Fact]
-    public void SplitOnGoSplitsWholeLineBatches()
+    public async Task SplitOnGoRunsEachBatch()
     {
-        Assert.Equal(
-            ["CREATE TABLE a (id INT);", "CREATE TABLE b (id INT)"],
-            DbExecute.SplitOnGo("CREATE TABLE a (id INT);\nGO\nCREATE TABLE b (id INT)")
+        var provider = new SqliteProvider();
+        var connection = $"Data Source=migraters-go-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+        await provider.Setup(connection);
+        await provider.MigrateUp(
+            connection,
+            "go_split",
+            "CREATE TABLE a (id INT);\nGO\nCREATE TABLE b (id INT);",
+            "sum"
         );
-        Assert.Equal(["BEGIN\n  SELECT 1;\nEND;"], DbExecute.SplitOnGo("BEGIN\n  SELECT 1;\nEND;"));
+        var applied = await provider.Applied(connection);
+        Assert.True(applied.ContainsKey("go_split"));
     }
 }

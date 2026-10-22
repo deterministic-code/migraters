@@ -28,7 +28,7 @@
     "rust/api",
     "rust/dialects",
     "csharp/Abstractions",
-    "csharp/Dialects",
+    "csharp/Providers",
     "csharp/Infrastructure",
     "csharp/*.cs",
     "csharp/*.csproj",

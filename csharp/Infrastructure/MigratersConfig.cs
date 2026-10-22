@@ -1,13 +1,15 @@
 namespace Deterministic.MigrateRunner;
 
+internal sealed record ProviderEntry(string Name, string Location);
+
 internal static class MigratersConfig
 {
     internal const string FileName = ".migraters.yaml";
 
-    internal static IReadOnlyList<string> EnabledDialects()
+    internal static IReadOnlyList<ProviderEntry> EnabledProviders()
     {
         var path = FindPath(Environment.CurrentDirectory);
-        return path is null ? [] : ParseDialects(File.ReadAllText(path));
+        return path is null ? [] : ParseProviders(File.ReadAllText(path));
     }
 
     internal static string? FindPath(string start)
@@ -25,31 +27,40 @@ internal static class MigratersConfig
         }
     }
 
-    internal static IReadOnlyList<string> ParseDialects(string raw)
+    internal static IReadOnlyList<ProviderEntry> ParseProviders(string raw)
     {
-        var names = new List<string>();
-        var inDialects = false;
+        var entries = new List<ProviderEntry>();
+        var inProviders = false;
+        string? name = null;
         foreach (var line in raw.Split('\n'))
         {
             var trimmed = line.TrimEnd('\r');
-            if (!inDialects)
+            if (!inProviders)
             {
-                if (trimmed.Trim() == "dialects:")
-                    inDialects = true;
+                if (trimmed.Trim() == "providers:")
+                    inProviders = true;
                 continue;
             }
             var item = trimmed.Trim();
-            if (item.StartsWith("- ", StringComparison.Ordinal))
+            if (item.StartsWith("- name:", StringComparison.Ordinal))
             {
-                var name = item[2..].Trim();
-                if (name.Length > 0)
-                    names.Add(name);
+                name = item["- name:".Length..].Trim();
+                continue;
+            }
+            if (item.StartsWith("location:", StringComparison.Ordinal) && name is not null)
+            {
+                var location = item["location:".Length..].Trim();
+                if (name.Length > 0 && location.Length > 0)
+                    entries.Add(new ProviderEntry(name, location));
+                name = null;
                 continue;
             }
             if (item.Length == 0)
                 continue;
+            if (item.StartsWith("- ", StringComparison.Ordinal))
+                continue;
             break;
         }
-        return names;
+        return entries;
     }
 }

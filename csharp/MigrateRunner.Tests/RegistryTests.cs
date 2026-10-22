@@ -15,27 +15,35 @@ public sealed class RegistryTests
     }
 
     [Fact]
-    public void ReadsDialectsListFromMigratersYaml()
+    public void ReadsProvidersListFromMigratersYaml()
     {
         Assert.Equal(
             ["sqlite", "postgres"],
-            MigratersConfig.ParseDialects(
-                "language: csharp\ndialects:\n  - sqlite\n  - postgres\nbinDir: csharp/bin/Debug/net9.0\n"
-            )
+            MigratersConfig.ParseProviders(
+                """
+                language: csharp
+                providers:
+                  - name: sqlite
+                    location: MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider
+                  - name: postgres
+                    location: MigratePostgres.dll!Deterministic.MigrateRunner.PostgresProvider
+                binDir: csharp/bin/Debug/net9.0
+                """
+            ).Select(p => p.Name)
         );
-        Assert.Empty(MigratersConfig.ParseDialects("language: rust\ndialects: []\nbinDir: rust/target/debug\n"));
+        Assert.Empty(
+            MigratersConfig.ParseProviders("language: rust\nproviders: []\nbinDir: rust/target/debug\n")
+        );
     }
 
     [Fact]
     public void EnvVarOrderMatchesCliYaml()
     {
-        var services = new ServiceCollection().AddMigrateRunner().BuildServiceProvider();
-        foreach (var dialect in services.GetRequiredService<IDialectFactory>().All())
+        foreach (var name in CliSpec.Providers)
         {
-            Assert.Equal(
-                string.Join(CliSpec.EnvVarListSeparator, dialect.ConnectionEnvironmentVariables),
-                MigrateCli.EnvVarsList(dialect.ConnectionEnvironmentVariables)
-            );
+            if (!CliSpec.ConnectionEnvironment.TryGetValue(name, out var vars))
+                continue;
+            Assert.Equal(string.Join(CliSpec.EnvVarListSeparator, vars), MigrateCli.EnvVarsList(vars));
         }
     }
 }

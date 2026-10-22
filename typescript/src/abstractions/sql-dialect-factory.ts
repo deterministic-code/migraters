@@ -1,21 +1,21 @@
 import { normalizeDialect, type SqlDialect } from '../sql.ts';
-import type { ISqlDialect } from './sql-dialect.ts';
+import type { IDatasourceProvider } from './datasource-provider.ts';
 
 const VALID = 'sqlite, mysql, postgres, sqlserver, oracle';
 
 export class SqlDialectFactory {
-  private readonly byName: Map<SqlDialect, ISqlDialect>;
+  private readonly byName: Map<SqlDialect, IDatasourceProvider>;
 
-  constructor(dialects: readonly ISqlDialect[]) {
-    this.byName = new Map(dialects.map((d) => [d.name, d]));
+  constructor(providers: readonly IDatasourceProvider[]) {
+    this.byName = new Map(providers.map((d) => [d.name, d]));
   }
 
-  tryGet(raw: string): ISqlDialect | undefined {
+  tryGet(raw: string): IDatasourceProvider | undefined {
     const key = normalizeDialect(raw);
     return key ? this.byName.get(key) : undefined;
   }
 
-  get(raw: string): ISqlDialect {
+  get(raw: string): IDatasourceProvider {
     const dialect = this.tryGet(raw);
     if (!dialect) {
       throw new Error(`Unknown SQL dialect "${raw}". Valid: ${VALID}.`);
@@ -23,7 +23,7 @@ export class SqlDialectFactory {
     return dialect;
   }
 
-  all(): readonly ISqlDialect[] {
+  all(): readonly IDatasourceProvider[] {
     return [...this.byName.values()];
   }
 }

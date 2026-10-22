@@ -4,14 +4,24 @@ use std::path::{Path, PathBuf};
 
 pub const FILE_NAME: &str = ".migraters.yaml";
 
-pub fn enabled_dialects() -> Vec<String> {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProviderEntry {
+    pub name: String,
+    pub location: String,
+}
+
+pub fn enabled_providers() -> Vec<ProviderEntry> {
     match find_path(&env::current_dir().unwrap_or_else(|_| PathBuf::from("."))) {
         Some(path) => match fs::read_to_string(path) {
-            Ok(raw) => parse_dialects(&raw),
+            Ok(raw) => parse_providers(&raw),
             Err(_) => Vec::new(),
         },
         None => Vec::new(),
     }
+}
+
+pub fn enabled_dialects() -> Vec<String> {
+    enabled_providers().into_iter().map(|p| p.name).collect()
 }
 
 pub fn find_path(start: &Path) -> Option<PathBuf> {
@@ -27,44 +37,54 @@ pub fn find_path(start: &Path) -> Option<PathBuf> {
     }
 }
 
-pub fn parse_dialects(raw: &str) -> Vec<String> {
-    let mut names = Vec::new();
-    let mut in_dialects = false;
+pub fn parse_providers(raw: &str) -> Vec<ProviderEntry> {
+    let mut entries = Vec::new();
+    let mut in_providers = false;
+    let mut name: Option<String> = None;
     for line in raw.lines() {
-        if !in_dialects {
-            if line.trim() == "dialects:" {
-                in_dialects = true;
+        if !in_providers {
+            if line.trim() == "providers:" {
+                in_providers = true;
             }
             continue;
         }
         let item = line.trim();
-        if let Some(name) = item.strip_prefix("- ") {
-            let name = name.trim();
-            if !name.is_empty() {
-                names.push(name.to_string());
+        if let Some(rest) = item.strip_prefix("- name:") {
+            name = Some(rest.trim().to_string());
+            continue;
+        }
+        if let Some(rest) = item.strip_prefix("location:") {
+            if let Some(n) = name.take() {
+                let location = rest.trim().to_string();
+                if !n.is_empty() && !location.is_empty() {
+                    entries.push(ProviderEntry { name: n, location });
+                }
             }
             continue;
         }
-        if item.is_empty() {
+        if item.is_empty() || item.starts_with("- ") {
             continue;
         }
         break;
     }
-    names
+    entries
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_dialects;
+    use super::parse_providers;
 
     #[test]
     fn reads_block_list() {
-        let names = parse_dialects(
-            "language: rust\ndialects:\n  - sqlite\n  - postgres\nbinDir: rust/target/debug\n",
+        let names = parse_providers(
+            "language: rust\nproviders:\n  - name: sqlite\n    location: dialects/sqlite\n  - name: postgres\n    location: dialects/postgres\nbinDir: rust/target/debug\n",
         );
-        assert_eq!(names, ["sqlite", "postgres"]);
+        assert_eq!(
+            names.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
+            ["sqlite", "postgres"]
+        );
         assert!(
-            parse_dialects("language: rust\ndialects: []\nbinDir: rust/target/debug\n").is_empty()
+            parse_providers("language: rust\nproviders: []\nbinDir: rust/target/debug\n").is_empty()
         );
     }
 }

@@ -3,6 +3,8 @@ import { dirname, join, resolve } from 'node:path';
 
 export const CONFIG_NAME = '.migraters.yaml';
 
+export type ProviderEntry = { name: string; location: string };
+
 export const findConfigPath = (start: string): string | undefined => {
   let dir = resolve(start);
   while (true) {
@@ -14,28 +16,38 @@ export const findConfigPath = (start: string): string | undefined => {
   }
 };
 
-export const parseDialects = (raw: string): string[] => {
-  const names: string[] = [];
-  let inDialects = false;
+export const parseProviders = (raw: string): ProviderEntry[] => {
+  const entries: ProviderEntry[] = [];
+  let inProviders = false;
+  let name: string | undefined;
   for (const line of raw.split('\n')) {
     const trimmed = line.replace(/\r$/, '');
-    if (!inDialects) {
-      if (trimmed.trim() === 'dialects:') inDialects = true;
+    if (!inProviders) {
+      if (trimmed.trim() === 'providers:') inProviders = true;
       continue;
     }
     const item = trimmed.trim();
-    if (item.startsWith('- ')) {
-      const name = item.slice(2).trim();
-      if (name.length > 0) names.push(name);
+    if (item.startsWith('- name:')) {
+      name = item.slice('- name:'.length).trim();
+      continue;
+    }
+    if (item.startsWith('location:') && name) {
+      const location = item.slice('location:'.length).trim();
+      if (name.length > 0 && location.length > 0) entries.push({ name, location });
+      name = undefined;
       continue;
     }
     if (item.length === 0) continue;
+    if (item.startsWith('- ')) continue;
     break;
   }
-  return names;
+  return entries;
 };
 
-export const enabledDialects = (start = process.cwd()): string[] => {
+export const enabledProviders = (
+  start = process.cwd(),
+): { configDir: string; entries: ProviderEntry[] } => {
   const path = findConfigPath(start);
-  return path ? parseDialects(readFileSync(path, 'utf8')) : [];
+  if (!path) return { configDir: start, entries: [] };
+  return { configDir: dirname(path), entries: parseProviders(readFileSync(path, 'utf8')) };
 };

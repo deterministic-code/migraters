@@ -11,6 +11,7 @@ internal static class CliSpec
         string[] Providers,
         string[] Languages,
         IReadOnlyDictionary<string, string> ProviderAliases,
+        IReadOnlyDictionary<string, string[]> ConnectionEnvironment,
         string EnvVarListSeparator,
         Command[] Commands
     );
@@ -19,6 +20,8 @@ internal static class CliSpec
 
     internal static IReadOnlyList<string> Providers => Document.Providers;
     internal static IReadOnlyDictionary<string, string> ProviderAliases => Document.ProviderAliases;
+    internal static IReadOnlyDictionary<string, string[]> ConnectionEnvironment =>
+        Document.ConnectionEnvironment;
     internal static string EnvVarListSeparator => Document.EnvVarListSeparator;
 
     internal static string UsageLine(string verb)
@@ -60,11 +63,13 @@ internal static class CliSpec
         var providers = new List<string>();
         var languages = new List<string>();
         var providerAliases = new Dictionary<string, string>(StringComparer.Ordinal);
+        var connectionEnvironment = new Dictionary<string, string[]>(StringComparer.Ordinal);
         var envVarListSeparator = " / ";
         var commands = new List<Command>();
         var inProviders = false;
         var inLanguages = false;
         var inAliases = false;
+        var inConnectionEnv = false;
         var inCommands = false;
         string? currentVerb = null;
         var currentArgs = new List<Arg>();
@@ -90,6 +95,7 @@ internal static class CliSpec
                 inProviders = false;
                 inLanguages = false;
                 inAliases = false;
+                inConnectionEnv = false;
                 if (!line.StartsWith("commands:", StringComparison.Ordinal))
                 {
                     inCommands = false;
@@ -119,6 +125,11 @@ internal static class CliSpec
             if (line.StartsWith("provider_aliases:", StringComparison.Ordinal))
             {
                 inAliases = true;
+                continue;
+            }
+            if (line.StartsWith("connection_environment:", StringComparison.Ordinal))
+            {
+                inConnectionEnv = true;
                 continue;
             }
             if (line.StartsWith("commands:", StringComparison.Ordinal))
@@ -153,6 +164,19 @@ internal static class CliSpec
                 }
                 continue;
             }
+            if (inConnectionEnv)
+            {
+                var envLine = line.Trim();
+                var colon = envLine.IndexOf(':');
+                if (colon > 0)
+                {
+                    var name = envLine[..colon].Trim();
+                    var list = envLine[(colon + 1)..].Trim().Trim('[', ']');
+                    connectionEnvironment[name] = list
+                        .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                }
+                continue;
+            }
             if (!inCommands)
                 continue;
             var trimmed = line.Trim();
@@ -184,7 +208,15 @@ internal static class CliSpec
             }
         }
         Flush();
-        return new Spec(command, [.. providers], [.. languages], providerAliases, envVarListSeparator, [.. commands]);
+        return new Spec(
+            command,
+            [.. providers],
+            [.. languages],
+            providerAliases,
+            connectionEnvironment,
+            envVarListSeparator,
+            [.. commands]
+        );
     }
 
     internal static string StripKey(string raw) =>

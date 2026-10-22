@@ -2,7 +2,7 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver connections)
+internal sealed class MigrateSetup(IProviderFactory providers, IConnectionResolver connections)
     : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("setup");
@@ -14,17 +14,17 @@ internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver
         if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var andUp, out var createDatabase, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
-        var resolved = MigrateCli.ResolveProvider(dialects, connections, provider, connection);
-        if (resolved is not ProviderResolution.Ready(var dialect, var resolvedConnection))
+        var resolved = MigrateCli.ResolveProvider(providers, connections, provider, connection);
+        if (resolved is not ProviderResolution.Ready(var loaded, var resolvedConnection))
             return Fail(((ProviderResolution.Rejected)resolved).Error);
 
-        var resolvedMigrationsPath = migrationsPath ?? $"./sql/{dialect.Name}/migrations";
-        var migrater = new Migrater(dialect);
+        var resolvedMigrationsPath = migrationsPath ?? $"./sql/{loaded.Name}/migrations";
+        var migrater = new Migrater(loaded);
 
         try
         {
             if (createDatabase)
-                await CreateDatabase.RunAsync(dialect, resolvedConnection).ConfigureAwait(false);
+                await CreateDatabase.RunAsync(loaded, resolvedConnection).ConfigureAwait(false);
             await migrater.Setup(new SetupArg(resolvedConnection, resolvedMigrationsPath)).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -37,12 +37,12 @@ internal sealed class MigrateSetup(IDialectFactory dialects, IConnectionResolver
                 "setup-complete",
                 new Dictionary<string, string>
                 {
-                    ["dialect"] = dialect.Name,
+                    ["dialect"] = loaded.Name,
                     ["migrationsPath"] = resolvedMigrationsPath,
                     ["createExample"] =
-                        $"  migrate-create --provider {dialect.Name} --name add_users",
+                        $"  migrate-create --provider {loaded.Name} --name add_users",
                     ["upExample"] =
-                        $"  migrate-up --provider {dialect.Name} --connection {resolvedConnection}",
+                        $"  migrate-up --provider {loaded.Name} --connection {resolvedConnection}",
                 }
             )
         );

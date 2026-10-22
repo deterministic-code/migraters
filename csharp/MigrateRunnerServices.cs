@@ -4,7 +4,7 @@ internal static class MigrateRunnerServices
 {
     public static IServiceCollection AddMigrateRunner(this IServiceCollection services) =>
         services
-            .AddSingleton<IDialectFactory, DialectFactory>()
+            .AddSingleton<IProviderFactory, ProviderFactory>()
             .AddSingleton<IConnectionResolver, ConnectionResolver>()
             .AddSingleton<IMigrateCommand, MigrateSetup>()
             .AddSingleton<IMigrateCommand, MigrateUp>()

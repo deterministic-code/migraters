@@ -26,7 +26,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MigrateRunner.Core.csproj" />
-    <ProjectReference Include="..\SqlDriver\MigrateSqlDriver.csproj" />
   </ItemGroup>
 
   <ItemGroup>

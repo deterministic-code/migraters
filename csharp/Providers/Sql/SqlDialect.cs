@@ -1,7 +1,8 @@
 namespace Deterministic.MigrateRunner;
 
-public sealed class SqlDialect : IDialect
+internal sealed class SqlDialect
 {
+    private readonly ConcurrentDictionary<string, DbConnection> _open = new(StringComparer.Ordinal);
     private readonly Func<string, string> _normalize;
     private readonly Func<string, DbConnection> _createConnection;
     private readonly Action<DbCommand, string, object> _addParameter;
@@ -14,7 +15,6 @@ public sealed class SqlDialect : IDialect
 
     public SqlDialect(
         string name,
-        IReadOnlyList<string> connectionEnvironmentVariables,
         bool useTransaction,
         Func<string, string> normalizeConnectionString,
         Func<string, DbConnection> createConnection,
@@ -29,7 +29,6 @@ public sealed class SqlDialect : IDialect
     )
     {
         Name = name;
-        ConnectionEnvironmentVariables = connectionEnvironmentVariables;
         UseTransaction = useTransaction;
         NowExpr = nowExpr;
         _normalize = normalizeConnectionString;
@@ -44,7 +43,6 @@ public sealed class SqlDialect : IDialect
     }
 
     public string Name { get; }
-    public IReadOnlyList<string> ConnectionEnvironmentVariables { get; }
     public bool UseTransaction { get; }
     public string NowExpr { get; }
     public string MigratesDdl => SqlTemplates.Read(Name, "migrates");
@@ -68,11 +66,65 @@ public sealed class SqlDialect : IDialect
     public Task CreateDatabaseIfMissingAsync(string connection) =>
         _createDatabase?.Invoke(connection) ?? Task.CompletedTask;
 
-    public async Task<IMigrationDriver> OpenAsync(string connection)
+    public async Task Setup(string connection)
     {
-        var conn = _createConnection(_normalize(connection));
-        await conn.OpenAsync().ConfigureAwait(false);
-        return new SqlMigrationDriver(conn, this);
+        var conn = await OpenAsync(connection, requireExisting: false).ConfigureAwait(false);
+        await DbExecute.NonQueryAsync(conn, null, MigratesDdl).ConfigureAwait(false);
+        await DbExecute.NonQueryAsync(conn, null, MigrateLogsDdl).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyDictionary<string, string?>> Applied(string connection)
+    {
+        var conn = await OpenAsync(connection, requireExisting: true).ConfigureAwait(false);
+        return await SqlCatalog.AppliedAsync(conn, this).ConfigureAwait(false);
+    }
+
+    public async Task MigrateUp(string connection, string name, string body, string checksum)
+    {
+        var conn = await OpenAsync(connection, requireExisting: true).ConfigureAwait(false);
+        await DbExecute.ApplyStatementsAsync(
+            conn,
+            this,
+            body,
+            tx =>
+                DbExecute.CatalogWriteAsync(
+                    conn,
+                    tx,
+                    this,
+                    InsertAppliedSql,
+                    ("p1", name),
+                    ("p2", checksum)
+                )
+        ).ConfigureAwait(false);
+    }
+
+    public async Task MigrateDown(string connection, string name, string body)
+    {
+        var conn = await OpenAsync(connection, requireExisting: true).ConfigureAwait(false);
+        await DbExecute.ApplyStatementsAsync(
+            conn,
+            this,
+            body,
+            tx => DbExecute.CatalogWriteAsync(conn, tx, this, DeleteAppliedSql, ("p1", name))
+        ).ConfigureAwait(false);
+    }
+
+    public async Task<long> Log(
+        string connection,
+        long? id,
+        string name,
+        string direction,
+        string? status,
+        long durationMs,
+        string? error
+    )
+    {
+        var conn = await OpenAsync(connection, requireExisting: id is not null).ConfigureAwait(false);
+        if (id is null)
+            return await SqlCatalog.InsertLogStartedAsync(conn, this, name, direction).ConfigureAwait(false);
+        await SqlCatalog.UpdateLogAsync(conn, this, id.Value, status ?? "started", durationMs, error)
+            .ConfigureAwait(false);
+        return id.Value;
     }
 
     public static void Bind(DbCommand command, string parameterName, object value)
@@ -81,5 +133,18 @@ public sealed class SqlDialect : IDialect
         p.ParameterName = parameterName;
         p.Value = value;
         command.Parameters.Add(p);
+    }
+
+    private async Task<DbConnection> OpenAsync(string connection, bool requireExisting)
+    {
+        if (requireExisting && PrerequisiteError(connection) is { } error)
+            throw new InvalidOperationException(error);
+        var key = _normalize(connection);
+        if (_open.TryGetValue(key, out var existing))
+            return existing;
+        var conn = _createConnection(key);
+        await conn.OpenAsync().ConfigureAwait(false);
+        _open[key] = conn;
+        return conn;
     }
 }

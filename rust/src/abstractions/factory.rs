@@ -11,10 +11,10 @@ fn enabled() -> &'static [&'static dyn Dialect] {
     ENABLED
         .get_or_init(|| {
             let registered = registered_dialects();
-            migraters_config::enabled_dialects()
+            migraters_config::enabled_providers()
                 .into_iter()
-                .map(|raw| {
-                    let name = normalize_provider(&raw).unwrap_or(raw.as_str());
+                .map(|entry| {
+                    let name = normalize_provider(&entry.name).unwrap_or(entry.name.as_str());
                     registered
                         .iter()
                         .copied()

@@ -13,12 +13,27 @@ const requireStatus = (result) => {
   if ((result.status ?? 1) !== 0) process.exit(result.status ?? 1);
 };
 
+const locations = {
+  typescript: {
+    sqlite: 'typescript/dialects/sqlite/src/index.ts',
+  },
+  csharp: {
+    sqlite: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider',
+  },
+  rust: {
+    sqlite: 'dialects/sqlite',
+  },
+};
+
 const writeConfig = (lang, dialects, binDir) => {
-  const lines = [`language: ${lang}`, 'dialects:'];
+  const lines = [`language: ${lang}`, 'providers:'];
   if (dialects.length === 0) {
-    lines[1] = 'dialects: []';
+    lines[1] = 'providers: []';
   } else {
-    for (const name of dialects) lines.push(`  - ${name}`);
+    for (const name of dialects) {
+      lines.push(`  - name: ${name}`);
+      lines.push(`    location: ${locations[lang][name]}`);
+    }
   }
   lines.push(`binDir: ${binDir}`, '');
   writeFileSync(join(root, '.migraters.yaml'), lines.join('\n'));
@@ -36,6 +51,17 @@ if (language === 'typescript') {
     );
   }
   writeConfig('typescript', ['sqlite'], 'typescript/dist/src/bin');
+  writeFileSync(
+    join(tsRoot, '.migraters.yaml'),
+    [
+      'language: typescript',
+      'providers:',
+      '  - name: sqlite',
+      '    location: dialects/sqlite/src/index.ts',
+      'binDir: dist/src/bin',
+      '',
+    ].join('\n'),
+  );
   process.exit(0);
 }
 
@@ -61,7 +87,7 @@ if (language === 'csharp') {
     [
       '<Project>',
       '  <ItemGroup>',
-      '    <ProjectReference Include="$(MSBuildThisFileDirectory)Dialects/Sqlite/MigrateSqlite.csproj" />',
+      '    <ProjectReference Include="$(MSBuildThisFileDirectory)Providers/Sqlite/MigrateSqlite.csproj" />',
       '  </ItemGroup>',
       '</Project>',
       '',

@@ -2,7 +2,7 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateUp(IDialectFactory dialects, IConnectionResolver connections)
+internal sealed class MigrateUp(IProviderFactory providers, IConnectionResolver connections)
     : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("up");
@@ -14,16 +14,13 @@ internal sealed class MigrateUp(IDialectFactory dialects, IConnectionResolver co
         if (!TryParse(args, out var provider, out var migratePath, out var connection, out var one, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
-        var resolved = MigrateCli.ResolveProvider(dialects, connections, provider, connection);
-        if (resolved is not ProviderResolution.Ready(var dialect, var resolvedConnection))
+        var resolved = MigrateCli.ResolveProvider(providers, connections, provider, connection);
+        if (resolved is not ProviderResolution.Ready(var loaded, var resolvedConnection))
             return Fail(((ProviderResolution.Rejected)resolved).Error);
-
-        if (dialect.PrerequisiteError(resolvedConnection) is { } prerequisite)
-            return Fail(prerequisite);
 
         try
         {
-            var names = await new Migrater(dialect).Up(new UpArg(resolvedConnection, migratePath, one)).ConfigureAwait(false);
+            var names = await new Migrater(loaded).Up(new UpArg(resolvedConnection, migratePath, one)).ConfigureAwait(false);
             if (names.Count == 0)
                 Console.WriteLine(HelpTemplates.Message("status/no-pending"));
             else

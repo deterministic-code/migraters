@@ -3,36 +3,63 @@ using SQLitePCL;
 
 namespace Deterministic.MigrateRunner;
 
-public static class SqliteDialect
+public sealed class SqliteProvider : IDatasourceProvider
 {
-    static SqliteDialect()
+    private readonly SqlDialect _sql;
+
+    static SqliteProvider() => Batteries.Init();
+
+    public SqliteProvider()
     {
-        Batteries.Init();
+        _sql = new SqlDialect(
+            "sqlite",
+            useTransaction: true,
+            NormalizeConnection,
+            s => new SqliteConnection(s),
+            (cmd, n, v) => SqlDialect.Bind(cmd, $"${n}", v),
+            ident => $"\"{ident}\"",
+            name => $"${name}",
+            connection =>
+            {
+                var path = FilesystemPath(connection);
+                return path is null || File.Exists(path)
+                    ? null
+                    : HelpTemplates.Message(
+                        "errors/sqlite-prerequisite",
+                        new Dictionary<string, string> { ["path"] = path }
+                    );
+            },
+            PrepareParent
+        );
     }
 
-    public static readonly IDialect Instance = new SqlDialect(
-        "sqlite",
-        ["SQLITE_PATH", "DB_PATH"],
-        useTransaction: true,
-        NormalizeConnection,
-        s => new SqliteConnection(s),
-        (cmd, n, v) => SqlDialect.Bind(cmd, $"${n}", v),
-        ident => $"\"{ident}\"",
-        name => $"${name}",
-        connection =>
-        {
-            var path = FilesystemPath(connection);
-            return path is null || File.Exists(path)
-                ? null
-                : HelpTemplates.Message(
-                    "errors/sqlite-prerequisite",
-                    new Dictionary<string, string> { ["path"] = path }
-                );
-        },
-        PrepareSetup
-    );
+    internal SqlDialect Sql => _sql;
+    public string Name => _sql.Name;
+    public void PrepareSetup(string connection) => _sql.PrepareSetup(connection);
+    public Task CreateDatabaseIfMissingAsync(string connection) =>
+        _sql.CreateDatabaseIfMissingAsync(connection);
+    public Task Setup(string connection) => _sql.Setup(connection);
+    public Task<IReadOnlyDictionary<string, string?>> Applied(string connection) =>
+        _sql.Applied(connection);
+    public Task MigrateUp(string connection, string name, string body, string checksum) =>
+        _sql.MigrateUp(connection, name, body, checksum);
+    public Task MigrateDown(string connection, string name, string body) =>
+        _sql.MigrateDown(connection, name, body);
+    public Task<long> Log(
+        string connection,
+        long? id,
+        string name,
+        string direction,
+        string? status,
+        long durationMs,
+        string? error
+    ) => _sql.Log(connection, id, name, direction, status, durationMs, error);
 
-    private static void PrepareSetup(string connection)
+    public string NormalizeConnectionString(string connection) =>
+        _sql.NormalizeConnectionString(connection);
+    public string? PrerequisiteError(string connection) => _sql.PrerequisiteError(connection);
+
+    private static void PrepareParent(string connection)
     {
         var path = FilesystemPath(connection);
         if (path is null)
@@ -42,7 +69,7 @@ public static class SqliteDialect
             Directory.CreateDirectory(parent);
     }
 
-    private static string NormalizeConnection(string connection)
+    internal static string NormalizeConnection(string connection)
     {
         var c = connection ?? string.Empty;
         if (c.Contains('=', StringComparison.Ordinal))

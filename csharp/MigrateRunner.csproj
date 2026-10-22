@@ -21,8 +21,7 @@
     <Compile Include="GlobalUsings.cs" />
     <Compile Remove="MigrateRunner.Tests/**" />
     <Compile Remove="MigrateInit/**" />
-    <Compile Remove="Dialects/**" />
-    <Compile Remove="SqlDriver/**" />
+    <Compile Remove="Providers/**" />
   </ItemGroup>
 
   <PropertyGroup>
