@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
-    <Compile Include="..\Sql\*.cs" />
     <InternalsVisibleTo Include="MigrateRunner.Tests" />
     <InternalsVisibleTo Include="MigrateRunner.ProviderTests" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />

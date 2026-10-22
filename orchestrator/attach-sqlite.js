@@ -18,7 +18,7 @@ const locations = {
     sqlite: 'typescript/dialects/sqlite/src/index.ts',
   },
   csharp: {
-    sqlite: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider',
+    sqlite: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteDialect',
   },
   rust: {
     sqlite: 'dialects/sqlite',
@@ -87,7 +87,7 @@ if (language === 'csharp') {
     [
       '<Project>',
       '  <ItemGroup>',
-      '    <ProjectReference Include="$(MSBuildThisFileDirectory)Providers/Sqlite/MigrateSqlite.csproj" />',
+      '    <ProjectReference Include="$(MSBuildThisFileDirectory)Dialects/Sqlite/MigrateSqlite.csproj" />',
       '  </ItemGroup>',
       '</Project>',
       '',

@@ -12,7 +12,7 @@ internal static class PostgresCreateDatabase
         var name = uri.AbsolutePath.Trim('/');
         if (string.IsNullOrEmpty(name) || name == "postgres")
             return;
-        var b = new NpgsqlConnectionStringBuilder(PostgresProvider.NormalizeConnection(connection))
+        var b = new NpgsqlConnectionStringBuilder(PostgresDialect.NormalizeConnection(connection))
         {
             Database = "postgres",
         };

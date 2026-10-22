@@ -8,7 +8,7 @@
     <RootNamespace>Deterministic.MigrateRunner.ProviderTests</RootNamespace>
     <CollectCoverage>true</CollectCoverage>
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <Include>[Migrate*]*Provider*</Include>
+    <Include>[Migrate*]*Dialect*</Include>
     <Exclude>[MigrateCore]*</Exclude>
     <Threshold>100</Threshold>
     <ThresholdType>line,branch,method</ThresholdType>
