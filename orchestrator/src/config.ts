@@ -39,7 +39,10 @@ export const parseConfig = (raw: string): MigratersConfig => {
     dialects?: unknown;
     binDir?: string;
   } | null;
-  const language = typeof doc?.language === 'string' ? normalizeLanguage(doc.language) : undefined;
+  if (!doc || typeof doc.language !== 'string') {
+    throw new Error(`${CONFIG_NAME} is missing a valid language`);
+  }
+  const language = normalizeLanguage(doc.language);
   if (!language) {
     throw new Error(`${CONFIG_NAME} is missing a valid language`);
   }
