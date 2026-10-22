@@ -15,10 +15,14 @@ export type MigratersConfig = {
 
 export const configPath = (dir: string): string => join(dir, CONFIG_NAME);
 
-export const renderConfig = (language: Language, dialects: string[]): string =>
+export const renderConfig = (
+  language: Language,
+  dialects: string[],
+  configDir = '',
+): string =>
   stringify({
     language,
-    providers: providerEntries(language, dialects),
+    providers: providerEntries(language, dialects, configDir),
     binDir: binDirFor(language),
   });
 
@@ -28,7 +32,13 @@ export const writeConfig = async (
   dialects: string[],
 ): Promise<string> => {
   const path = configPath(dir);
-  await writeFile(path, renderConfig(language, dialects));
+  await writeFile(path, renderConfig(language, dialects, dir));
+  if (language === 'typescript') {
+    const tsDir = join(dir, 'typescript');
+    if (existsSync(tsDir)) {
+      await writeFile(configPath(tsDir), renderConfig(language, dialects, tsDir));
+    }
+  }
   return path;
 };
 

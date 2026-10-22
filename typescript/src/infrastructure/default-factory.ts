@@ -10,7 +10,11 @@ const loadModule = async (
   location: string,
   configDir: string,
 ): Promise<IDatasourceProvider> => {
-  const file = isAbsolute(location) ? location : resolve(configDir, location);
+  const relative = isAbsolute(location) ? location : resolve(configDir, location);
+  const stripped = location.startsWith('typescript/')
+    ? resolve(configDir, location.slice('typescript/'.length))
+    : relative;
+  const file = existsSync(relative) ? relative : stripped;
   const specifier = existsSync(file) ? pathToFileURL(file).href : location;
   const mod = (await import(specifier)) as {
     provider?: () => IDatasourceProvider;

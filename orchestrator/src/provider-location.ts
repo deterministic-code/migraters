@@ -1,3 +1,4 @@
+import { basename } from 'node:path';
 import type { Language } from './languages.ts';
 
 export type ProviderEntry = {
@@ -13,15 +14,27 @@ const csharpType: Record<string, { dll: string; type: string }> = {
   oracle: { dll: 'MigrateOracle.dll', type: 'Deterministic.MigrateRunner.OracleProvider' },
 };
 
-export const providerLocation = (language: Language, name: string): string => {
+export const providerLocation = (
+  language: Language,
+  name: string,
+  configDir = '',
+): string => {
   if (language === 'csharp') {
     const entry = csharpType[name];
     if (!entry) throw new Error(name);
     return `${entry.dll}!${entry.type}`;
   }
-  if (language === 'typescript') return `typescript/dialects/${name}/src/index.ts`;
+  if (language === 'typescript') {
+    return basename(configDir) === 'typescript'
+      ? `dialects/${name}/src/index.ts`
+      : `typescript/dialects/${name}/src/index.ts`;
+  }
   return `dialects/${name}`;
 };
 
-export const providerEntries = (language: Language, names: string[]): ProviderEntry[] =>
-  names.map((name) => ({ name, location: providerLocation(language, name) }));
+export const providerEntries = (
+  language: Language,
+  names: string[],
+  configDir = '',
+): ProviderEntry[] =>
+  names.map((name) => ({ name, location: providerLocation(language, name, configDir) }));
