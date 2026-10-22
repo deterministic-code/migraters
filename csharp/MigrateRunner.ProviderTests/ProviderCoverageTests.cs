@@ -2,45 +2,76 @@ namespace Deterministic.MigrateRunner.ProviderTests;
 
 public sealed class ProviderCoverageTests
 {
-    private static IDialectFactory Factory() =>
+    private static IProviderFactory Factory() =>
         new ServiceCollection()
             .AddMigrateRunner()
             .BuildServiceProvider()
-            .GetRequiredService<IDialectFactory>();
+            .GetRequiredService<IProviderFactory>();
 
-    private static IEnumerable<IDialect> EveryDialect() => Factory().All();
+    private static IEnumerable<IDatasourceProvider> EveryProvider() => Factory().All();
 
-    private static bool TryGet(string name, out IDialect dialect) => Factory().TryGet(name, out dialect);
+    private static bool TryGet(string name, out IDatasourceProvider provider) =>
+        Factory().TryGet(name, out provider);
 
     [Fact]
-    public void SurfaceOfEveryDialect()
+    public void SurfaceOfEveryProvider()
     {
-        foreach (var dialect in EveryDialect())
+        foreach (var provider in EveryProvider())
         {
-            Assert.False(string.IsNullOrEmpty(dialect.Name));
-            Assert.NotEmpty(dialect.ConnectionEnvironmentVariables);
-            dialect.PrepareSetup("coverage");
-            var sql = Assert.IsType<SqlDialect>(dialect);
-            Assert.Contains("migrates", sql.MigratesDdl, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("migrate_logs", sql.MigrateLogsDdl, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("migrates", sql.SelectAppliedChecksumSql, StringComparison.OrdinalIgnoreCase);
-            Assert.False(string.IsNullOrEmpty(sql.InsertAppliedSql));
-            Assert.False(string.IsNullOrEmpty(sql.DeleteAppliedSql));
-            Assert.False(string.IsNullOrEmpty(sql.QuoteIdent("t")));
-            Assert.False(string.IsNullOrEmpty(sql.Placeholder("p1")));
-            Assert.False(string.IsNullOrEmpty(sql.NowExpr));
-            Assert.Contains("1", sql.LimitClause(1), StringComparison.Ordinal);
-            using var conn = sql.CreateConnection(sql.NormalizeConnectionString(ConnectionFor(dialect)));
-            using var cmd = conn.CreateCommand();
-            sql.AddParameter(cmd, "p1", "v");
-            Assert.NotEmpty(cmd.Parameters);
+            Assert.False(string.IsNullOrEmpty(provider.Name));
+            Assert.True(CliSpec.ConnectionEnvironment[provider.Name].Length > 0);
+            provider.PrepareSetup("coverage");
+            AssertSqlSurface(provider);
         }
+    }
+
+    private static void AssertSqlSurface(IDatasourceProvider provider)
+    {
+        switch (provider)
+        {
+            case SqliteProvider p:
+                AssertSql(p.Sql, ConnectionFor(provider));
+                break;
+            case PostgresProvider p:
+                AssertSql(p.Sql, ConnectionFor(provider));
+                break;
+            case MysqlProvider p:
+                AssertSql(p.Sql, ConnectionFor(provider));
+                break;
+            case SqlServerProvider p:
+                AssertSql(p.Sql, ConnectionFor(provider));
+                break;
+            case OracleProvider p:
+                AssertSql(p.Sql, ConnectionFor(provider));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(provider), provider.Name, null);
+        }
+    }
+
+    private static void AssertSql<T>(T sql, string connection)
+        where T : class
+    {
+        dynamic d = sql;
+        Assert.Contains("migrates", (string)d.MigratesDdl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("migrate_logs", (string)d.MigrateLogsDdl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("migrates", (string)d.SelectAppliedChecksumSql, StringComparison.OrdinalIgnoreCase);
+        Assert.False(string.IsNullOrEmpty((string)d.InsertAppliedSql));
+        Assert.False(string.IsNullOrEmpty((string)d.DeleteAppliedSql));
+        Assert.False(string.IsNullOrEmpty((string)d.QuoteIdent("t")));
+        Assert.False(string.IsNullOrEmpty((string)d.Placeholder("p1")));
+        Assert.False(string.IsNullOrEmpty((string)d.NowExpr));
+        Assert.Contains("1", (string)d.LimitClause(1), StringComparison.Ordinal);
+        using var conn = (System.Data.Common.DbConnection)d.CreateConnection(d.NormalizeConnectionString(connection));
+        using var cmd = conn.CreateCommand();
+        d.AddParameter(cmd, "p1", "v");
+        Assert.NotEmpty(cmd.Parameters);
     }
 
     [Fact]
     public void SqliteMemoryAndNormalizeStrings()
     {
-        var d = SqliteDialect.Instance;
+        var d = new SqliteProvider();
         Assert.Equal("Data Source=:memory:", d.NormalizeConnectionString(null!));
         Assert.Null(d.PrerequisiteError(null!));
         d.PrepareSetup(null!);
@@ -66,7 +97,7 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void SqliteFilePathsAndSetup()
     {
-        var d = SqliteDialect.Instance;
+        var d = new SqliteProvider();
         d.PrepareSetup("app.sqlite");
 
         var dir = Path.Combine(Path.GetTempPath(), $"migraters-cs-sqlite-{Guid.NewGuid():N}");
@@ -103,10 +134,9 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void PostgresNormalizesUriAndLeavesAdoStrings()
     {
-        if (!TryGet("postgres", out var dialect))
+        if (!TryGet("postgres", out var dialect) || dialect is not PostgresProvider d)
             return;
-        var d = (SqlDialect)dialect;
-        Assert.True(d.UseTransaction);
+        Assert.True(d.Sql.UseTransaction);
         Assert.Equal("Host=localhost", d.NormalizeConnectionString("Host=localhost"));
 
         var full = d.NormalizeConnectionString(
@@ -128,12 +158,11 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void MysqlNormalizesUriAndLeavesAdoStrings()
     {
-        if (!TryGet("mysql", out var dialect))
+        if (!TryGet("mysql", out var dialect) || dialect is not MysqlProvider d)
             return;
-        var d = (SqlDialect)dialect;
-        Assert.False(d.UseTransaction);
-        Assert.Equal("`t`", d.QuoteIdent("t"));
-        Assert.Equal("@p1", d.Placeholder("p1"));
+        Assert.False(d.Sql.UseTransaction);
+        Assert.Equal("`t`", d.Sql.QuoteIdent("t"));
+        Assert.Equal("@p1", d.Sql.Placeholder("p1"));
         Assert.Equal("Server=localhost", d.NormalizeConnectionString("Server=localhost"));
 
         var full = d.NormalizeConnectionString(
@@ -151,14 +180,13 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void SqlServerQuotesAndLimit()
     {
-        if (!TryGet("sqlserver", out var dialect))
+        if (!TryGet("sqlserver", out var dialect) || dialect is not SqlServerProvider d)
             return;
-        var d = (SqlDialect)dialect;
-        Assert.True(d.UseTransaction);
-        Assert.Equal("[t]", d.QuoteIdent("t"));
-        Assert.Equal("@p1", d.Placeholder("p1"));
-        Assert.Equal("SYSUTCDATETIME()", d.NowExpr);
-        Assert.Equal("OFFSET 0 ROWS FETCH NEXT 4 ROWS ONLY", d.LimitClause(4));
+        Assert.True(d.Sql.UseTransaction);
+        Assert.Equal("[t]", d.Sql.QuoteIdent("t"));
+        Assert.Equal("@p1", d.Sql.Placeholder("p1"));
+        Assert.Equal("SYSUTCDATETIME()", d.Sql.NowExpr);
+        Assert.Equal("OFFSET 0 ROWS FETCH NEXT 4 ROWS ONLY", d.Sql.LimitClause(4));
         Assert.Equal("Server=localhost", d.NormalizeConnectionString("Server=localhost"));
         Assert.Null(d.PrerequisiteError("Server=localhost"));
         d.PrepareSetup("Server=localhost");
@@ -167,13 +195,12 @@ public sealed class ProviderCoverageTests
     [Fact]
     public void OracleParsesUserPasswordConnect()
     {
-        if (!TryGet("oracle", out var dialect))
+        if (!TryGet("oracle", out var dialect) || dialect is not OracleProvider d)
             return;
-        var d = (SqlDialect)dialect;
-        Assert.True(d.UseTransaction);
-        Assert.Equal("\"t\"", d.QuoteIdent("t"));
-        Assert.Equal(":p1", d.Placeholder("p1"));
-        Assert.Equal("FETCH FIRST 5 ROWS ONLY", d.LimitClause(5));
+        Assert.True(d.Sql.UseTransaction);
+        Assert.Equal("\"t\"", d.Sql.QuoteIdent("t"));
+        Assert.Equal(":p1", d.Sql.Placeholder("p1"));
+        Assert.Equal("FETCH FIRST 5 ROWS ONLY", d.Sql.LimitClause(5));
         Assert.Equal(
             "User Id=scott;Password=tiger;Data Source=localhost/orcl",
             d.NormalizeConnectionString("scott/tiger@localhost/orcl")
@@ -188,7 +215,7 @@ public sealed class ProviderCoverageTests
     [Fact]
     public async Task CreateDatabaseIfMissingNoOpsWhenThereIsNoDatabaseName()
     {
-        await SqliteDialect.Instance.CreateDatabaseIfMissingAsync(":memory:");
+        await new SqliteProvider().CreateDatabaseIfMissingAsync(":memory:");
         if (TryGet("postgres", out var postgres))
         {
             await postgres.CreateDatabaseIfMissingAsync("Host=localhost");
@@ -205,15 +232,15 @@ public sealed class ProviderCoverageTests
             await oracle.CreateDatabaseIfMissingAsync("u/p@c");
     }
 
-    private static string ConnectionFor(IDialect dialect) =>
-        dialect.Name switch
+    private static string ConnectionFor(IDatasourceProvider provider) =>
+        provider.Name switch
         {
             "sqlite" => ":memory:",
             "postgres" => "Host=127.0.0.1;Database=coverage",
             "mysql" => "Server=127.0.0.1;Database=coverage",
             "sqlserver" => "Server=127.0.0.1;Database=coverage",
             "oracle" => "scott/tiger@localhost/orcl",
-            _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect.Name, null),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider.Name, null),
         };
 
     private static void StringAssertContainsAll(string haystack, string[] needles)

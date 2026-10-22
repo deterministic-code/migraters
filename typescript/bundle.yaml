@@ -183,7 +183,7 @@ languages:
     dialects:
       sqlite:
         files:
-          - csharp/Dialects/Sqlite/**
+          - csharp/Providers/Sqlite/**
           - shared/templates/sql/sqlite/**
         apk: sqlite
         packages:
@@ -191,7 +191,7 @@ languages:
             version: "9.0.0"
       postgres:
         files:
-          - csharp/Dialects/Postgres/**
+          - csharp/Providers/Postgres/**
           - shared/templates/sql/postgres/**
         apk: postgresql-client
         packages:
@@ -199,7 +199,7 @@ languages:
             version: "9.0.2"
       mysql:
         files:
-          - csharp/Dialects/Mysql/**
+          - csharp/Providers/Mysql/**
           - shared/templates/sql/mysql/**
         apk: mysql-client
         packages:
@@ -207,14 +207,14 @@ languages:
             version: "2.4.0"
       sqlserver:
         files:
-          - csharp/Dialects/SqlServer/**
+          - csharp/Providers/SqlServer/**
           - shared/templates/sql/sqlserver/**
         packages:
           - name: Microsoft.Data.SqlClient
             version: "6.0.2"
       oracle:
         files:
-          - csharp/Dialects/Oracle/**
+          - csharp/Providers/Oracle/**
           - shared/templates/sql/oracle/**
         packages:
           - name: Oracle.ManagedDataAccess.Core

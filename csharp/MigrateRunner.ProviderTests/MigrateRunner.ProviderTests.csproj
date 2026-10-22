@@ -8,8 +8,8 @@
     <RootNamespace>Deterministic.MigrateRunner.ProviderTests</RootNamespace>
     <CollectCoverage>true</CollectCoverage>
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <Include>[Migrate*]*Dialect*</Include>
-    <Exclude>[MigrateCore]*,[MigrateSqlDriver]*</Exclude>
+    <Include>[Migrate*]*Provider*</Include>
+    <Exclude>[MigrateCore]*</Exclude>
     <Threshold>100</Threshold>
     <ThresholdType>line,branch,method</ThresholdType>
   </PropertyGroup>
@@ -31,7 +31,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MigrateRunner.Core.csproj" />
-    <ProjectReference Include="..\SqlDriver\MigrateSqlDriver.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -42,6 +42,82 @@ pub trait Dialect: Send + Sync {
         connection: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>>;
 
+    fn setup<'a>(
+        &'a self,
+        connection: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<(), BoxError>> + Send + 'a>> {
+        Box::pin(async move {
+            let driver = self.connect(connection).await?;
+            driver.setup().await?;
+            driver.close().await
+        })
+    }
+
+    fn applied<'a>(
+        &'a self,
+        connection: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<HashMap<String, Option<String>>, BoxError>> + Send + 'a>>
+    {
+        Box::pin(async move {
+            let driver = self.connect(connection).await?;
+            let map = driver.applied().await?;
+            driver.close().await?;
+            Ok(map)
+        })
+    }
+
+    fn migrate_up<'a>(
+        &'a self,
+        connection: &'a str,
+        name: &'a str,
+        body: &'a str,
+        checksum: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<(), BoxError>> + Send + 'a>> {
+        Box::pin(async move {
+            let driver = self.connect(connection).await?;
+            driver.migrate_up(name, body, checksum).await?;
+            driver.close().await
+        })
+    }
+
+    fn migrate_down<'a>(
+        &'a self,
+        connection: &'a str,
+        name: &'a str,
+        body: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<(), BoxError>> + Send + 'a>> {
+        Box::pin(async move {
+            let driver = self.connect(connection).await?;
+            driver.migrate_down(name, body).await?;
+            driver.close().await
+        })
+    }
+
+    fn log<'a>(
+        &'a self,
+        connection: &'a str,
+        id: Option<i64>,
+        name: &'a str,
+        direction: &'a str,
+        status: Option<&'a str>,
+        duration_ms: i64,
+        error: Option<&'a str>,
+    ) -> Pin<Box<dyn Future<Output = Result<i64, BoxError>> + Send + 'a>> {
+        Box::pin(async move {
+            let driver = self.connect(connection).await?;
+            let result = if let Some(id) = id {
+                driver
+                    .log_finished(id, status.unwrap_or("started"), duration_ms, error)
+                    .await?;
+                id
+            } else {
+                driver.log_started(name, direction).await?
+            };
+            driver.close().await?;
+            Ok(result)
+        })
+    }
+
     fn create_database<'a>(
         &'a self,
         _connection: &'a str,

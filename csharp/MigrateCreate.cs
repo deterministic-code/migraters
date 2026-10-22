@@ -2,7 +2,7 @@
 
 namespace Deterministic.MigrateRunner;
 
-internal sealed class MigrateCreate(IDialectFactory dialects) : IMigrateCommand
+internal sealed class MigrateCreate(IProviderFactory providers) : IMigrateCommand
 {
     private static readonly string HelpText = HelpTemplates.Read("create");
 
@@ -13,7 +13,7 @@ internal sealed class MigrateCreate(IDialectFactory dialects) : IMigrateCommand
         if (!TryParse(args, out var provider, out var name, out var migrationsPath, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
-        if (!dialects.TryGet(provider, out var dialect))
+        if (!providers.TryGet(provider, out var loaded))
             return Fail(
                 HelpTemplates.Message(
                     "errors/unsupported-provider",
@@ -21,10 +21,10 @@ internal sealed class MigrateCreate(IDialectFactory dialects) : IMigrateCommand
                 )
             );
 
-        var dir = migrationsPath ?? $"./sql/{dialect.Name}/migrations";
+        var dir = migrationsPath ?? $"./sql/{loaded.Name}/migrations";
         try
         {
-            var created = await new Migrater(dialect).Create(new CreateArg(name, dir)).ConfigureAwait(false);
+            var created = await new Migrater(loaded).Create(new CreateArg(name, dir)).ConfigureAwait(false);
             Console.WriteLine(
                 HelpTemplates.Message("status/created", new Dictionary<string, string> { ["file"] = created.UpName })
             );

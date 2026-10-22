@@ -3,12 +3,13 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { stringify, parse } from 'yaml';
 import { binDirFor, normalizeLanguage, type Language } from './languages.ts';
+import { providerEntries, type ProviderEntry } from './provider-location.ts';
 
 export const CONFIG_NAME = '.migraters.yaml';
 
 export type MigratersConfig = {
   language: Language;
-  dialects: string[];
+  providers: ProviderEntry[];
   binDir: string;
 };
 
@@ -17,7 +18,7 @@ export const configPath = (dir: string): string => join(dir, CONFIG_NAME);
 export const renderConfig = (language: Language, dialects: string[]): string =>
   stringify({
     language,
-    dialects,
+    providers: providerEntries(language, dialects),
     binDir: binDirFor(language),
   });
 
@@ -32,16 +33,39 @@ export const writeConfig = async (
 };
 
 export const parseConfig = (raw: string): MigratersConfig => {
-  const doc = parse(raw) as Partial<MigratersConfig> | null;
+  const doc = parse(raw) as {
+    language?: string;
+    providers?: unknown;
+    dialects?: unknown;
+    binDir?: string;
+  } | null;
   const language = typeof doc?.language === 'string' ? normalizeLanguage(doc.language) : undefined;
   if (!language) {
     throw new Error(`${CONFIG_NAME} is missing a valid language`);
   }
-  if (!Array.isArray(doc?.dialects) || doc.dialects.some((d) => typeof d !== 'string')) {
-    throw new Error(`${CONFIG_NAME} is missing a dialects list`);
-  }
+  const providers = parseProviders(doc);
   const binDir = typeof doc.binDir === 'string' && doc.binDir.length > 0 ? doc.binDir : binDirFor(language);
-  return { language, dialects: doc.dialects, binDir };
+  return { language, providers, binDir };
+};
+
+const parseProviders = (doc: {
+  providers?: unknown;
+  dialects?: unknown;
+}): ProviderEntry[] => {
+  if (Array.isArray(doc.providers)) {
+    return doc.providers.map((item) => {
+      if (
+        item &&
+        typeof item === 'object' &&
+        typeof (item as ProviderEntry).name === 'string' &&
+        typeof (item as ProviderEntry).location === 'string'
+      ) {
+        return { name: (item as ProviderEntry).name, location: (item as ProviderEntry).location };
+      }
+      throw new Error(`${CONFIG_NAME} is missing a providers list`);
+    });
+  }
+  throw new Error(`${CONFIG_NAME} is missing a providers list`);
 };
 
 export const findConfigPath = (start: string, fallbackRoot?: string): string | undefined => {

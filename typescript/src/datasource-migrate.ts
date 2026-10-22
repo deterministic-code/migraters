@@ -1,10 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { defaultDialectFactory } from './infrastructure/default-factory.ts';
 import { fillTemplate, loadMessage } from './infrastructure/message-templates.ts';
-import type { MigrationDriver } from './abstractions/migration-driver.ts';
-import type { SqlDialect } from './sql.ts';
+import type { IDatasourceProvider } from './abstractions/datasource-provider.ts';
 
 export { normalizeDialect } from './sql.ts';
 export type {
@@ -13,7 +11,7 @@ export type {
   MigrationSqlParam,
   SqliteRawDatabase,
 } from './migration-client.ts';
-export type { MigrationDriver, MigrationDriverId } from './abstractions/migration-driver.ts';
+export type { IDatasourceProvider, ProviderLogId } from './abstractions/datasource-provider.ts';
 export { applyMysqlDdlViaTextProtocol } from './infrastructure/mysql-text-protocol.ts';
 
 /** One discovered migration: its up script and the rollback sibling when present. */
@@ -50,7 +48,7 @@ export async function discoverMigrations({
   migratePath: string;
   dialect: string;
 }): Promise<MigrationDescriptor[]> {
-  requireDialect(dialect);
+  void dialect;
   let st;
   try {
     st = await stat(migratePath);
@@ -85,15 +83,17 @@ export function checksum(text: string): string {
 }
 
 export async function applyOneUp({
-  driver,
+  provider,
+  connection,
   migrations,
   env = process.env,
 }: {
-  driver: MigrationDriver;
+  provider: IDatasourceProvider;
+  connection: string;
   migrations: MigrationDescriptor[];
   env?: NodeJS.ProcessEnv;
 }): Promise<{ applied: boolean; name: string | null }> {
-  const applied = await driver.applied();
+  const applied = await provider.applied(connection);
   await assertNoChecksumDrift({ migrations, applied, env });
   const next = migrations.find((m) => !applied.has(m.name));
   if (!next) return { applied: false, name: null };
@@ -101,31 +101,33 @@ export async function applyOneUp({
   const sqlText = await readFile(next.upPath, 'utf8');
   const sum = checksum(sqlText);
 
-  const logId = await driver.logStarted(next.name, 'up');
+  const logId = await provider.log(connection, null, next.name, 'up', null, 0, null);
   const startedAt = Date.now();
 
   try {
-    await driver.migrateUp(next.name, sqlText, sum);
+    await provider.migrateUp(connection, next.name, sqlText, sum);
   } catch (e) {
     const err = e as Error;
-    await driver.logFinished(logId, 'error', Date.now() - startedAt, String(err?.message ?? e));
+    await provider.log(connection, logId, next.name, 'up', 'error', Date.now() - startedAt, String(err?.message ?? e));
     throw e;
   }
 
-  await driver.logFinished(logId, 'success', Date.now() - startedAt, null);
+  await provider.log(connection, logId, next.name, 'up', 'success', Date.now() - startedAt, null);
   return { applied: true, name: next.name };
 }
 
 export async function applyOneDown({
-  driver,
+  provider,
+  connection,
   migrations,
   env = process.env,
 }: {
-  driver: MigrationDriver;
+  provider: IDatasourceProvider;
+  connection: string;
   migrations: MigrationDescriptor[];
   env?: NodeJS.ProcessEnv;
 }): Promise<{ rolledBack: boolean; name: string | null }> {
-  const applied = await driver.applied();
+  const applied = await provider.applied(connection);
   await assertNoChecksumDrift({ migrations, applied, env });
   if (applied.size === 0) return { rolledBack: false, name: null };
 
@@ -140,18 +142,26 @@ export async function applyOneDown({
   }
   const downPath = lastApplied.downPath;
 
-  const logId = await driver.logStarted(lastApplied.name, 'down');
+  const logId = await provider.log(connection, null, lastApplied.name, 'down', null, 0, null);
   const startedAt = Date.now();
 
   try {
-    await driver.migrateDown(lastApplied.name, await readFile(downPath, 'utf8'));
+    await provider.migrateDown(connection, lastApplied.name, await readFile(downPath, 'utf8'));
   } catch (e) {
     const err = e as Error;
-    await driver.logFinished(logId, 'error', Date.now() - startedAt, String(err?.message ?? e));
+    await provider.log(
+      connection,
+      logId,
+      lastApplied.name,
+      'down',
+      'error',
+      Date.now() - startedAt,
+      String(err?.message ?? e),
+    );
     throw e;
   }
 
-  await driver.logFinished(logId, 'success', Date.now() - startedAt, null);
+  await provider.log(connection, logId, lastApplied.name, 'down', 'success', Date.now() - startedAt, null);
   return { rolledBack: true, name: lastApplied.name };
 }
 
@@ -184,8 +194,4 @@ async function assertNoChecksumDrift({
     )
     .join('\n');
   throw new Error(fillTemplate(checksumDriftTpl, { lines }).trimEnd());
-}
-
-function requireDialect(dialect: string): SqlDialect {
-  return defaultDialectFactory.get(dialect).name;
 }

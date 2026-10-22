@@ -28,13 +28,13 @@ internal static class MigrateCli
         return sub.ToLowerInvariant();
     }
     internal static ProviderResolution ResolveProvider(
-        IDialectFactory dialects,
+        IProviderFactory providers,
         IConnectionResolver connections,
         string provider,
         string? connection
     )
     {
-        if (!dialects.TryGet(provider, out var dialect))
+        if (!providers.TryGet(provider, out var resolved))
         {
             return new ProviderResolution.Rejected(
                 HelpTemplates.Message(
@@ -45,20 +45,20 @@ internal static class MigrateCli
         }
         var resolvedConnection = connection ?? string.Empty;
         if (string.IsNullOrEmpty(resolvedConnection))
-            resolvedConnection = connections.FromEnvironment(dialect) ?? string.Empty;
+            resolvedConnection = connections.FromEnvironment(resolved.Name) ?? string.Empty;
         if (string.IsNullOrEmpty(resolvedConnection))
         {
+            var envVars = CliSpec.ConnectionEnvironment.TryGetValue(resolved.Name, out var names)
+                ? names
+                : [];
             return new ProviderResolution.Rejected(
                 HelpTemplates.Message(
                     "errors/missing-connection",
-                    new Dictionary<string, string>
-                    {
-                        ["envVars"] = EnvVarsList(dialect.ConnectionEnvironmentVariables),
-                    }
+                    new Dictionary<string, string> { ["envVars"] = EnvVarsList(envVars) }
                 )
             );
         }
-        return new ProviderResolution.Ready(dialect, resolvedConnection);
+        return new ProviderResolution.Ready(resolved, resolvedConnection);
     }
 
     internal static string MigratePath(string provider, string? migratePath, string? migrateRoot) =>
@@ -149,7 +149,7 @@ internal static class MigrateCli
 
 internal abstract record ProviderResolution
 {
-    internal sealed record Ready(IDialect Dialect, string Connection) : ProviderResolution;
+    internal sealed record Ready(IDatasourceProvider Provider, string Connection) : ProviderResolution;
 
     internal sealed record Rejected(string Error) : ProviderResolution;
 }

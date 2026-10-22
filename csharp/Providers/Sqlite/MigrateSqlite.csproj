@@ -4,12 +4,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Deterministic.MigrateRunner</RootNamespace>
-    <AssemblyName>MigratePostgres</AssemblyName>
+    <AssemblyName>MigrateSqlite</AssemblyName>
     <IsPackable>false</IsPackable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
-    <ProjectReference Include="..\..\SqlDriver\MigrateSqlDriver.csproj" />
-    <PackageReference Include="Npgsql" Version="9.0.2" />
+    <Compile Include="..\Sql\*.cs" />
+    <InternalsVisibleTo Include="MigrateRunner.Tests" />
+    <InternalsVisibleTo Include="MigrateRunner.ProviderTests" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
   </ItemGroup>
 </Project>

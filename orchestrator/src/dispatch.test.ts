@@ -6,7 +6,11 @@ describe('orchestrator dispatch', () => {
     expect(
       planDispatch(
         '/repo',
-        { language: 'typescript', dialects: ['sqlite'], binDir: 'typescript/dist/src/bin' },
+        {
+          language: 'typescript',
+          providers: [{ name: 'sqlite', location: 'typescript/dialects/sqlite/src/index.ts' }],
+          binDir: 'typescript/dist/src/bin',
+        },
         'up',
         ['--provider', 'sqlite', '--connection', './app.sqlite'],
         '/usr/bin/node',
@@ -26,7 +30,13 @@ describe('orchestrator dispatch', () => {
   it('runs the C# host binary with the original argv', () => {
     const plan = planDispatch(
       '/repo',
-      { language: 'csharp', dialects: ['sqlite'], binDir: 'csharp/bin/Debug/net9.0' },
+      {
+        language: 'csharp',
+        providers: [
+          { name: 'sqlite', location: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider' },
+        ],
+        binDir: 'csharp/bin/Debug/net9.0',
+      },
       'setup',
       ['--provider', 'sqlite'],
     );

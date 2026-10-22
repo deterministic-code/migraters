@@ -1,5 +1,5 @@
 import { connectionResolver, defaultDialectFactory } from './infrastructure/default-factory.ts';
-import type { ISqlDialect } from './abstractions/sql-dialect.ts';
+import type { IDatasourceProvider } from './abstractions/datasource-provider.ts';
 import { cliSpec } from './cli-spec.ts';
 import { fillTemplate, loadMessage } from './infrastructure/message-templates.ts';
 
@@ -9,7 +9,7 @@ const missingConnectionTpl = await loadMessage('errors/missing-connection');
 
 export { missingProviderMsg };
 
-export const requireDialect = (provider: string | null): ISqlDialect => {
+export const requireDialect = (provider: string | null): IDatasourceProvider => {
   if (!provider) {
     process.stderr.write(missingProviderMsg);
     process.exit(2);
@@ -22,12 +22,14 @@ export const requireDialect = (provider: string | null): ISqlDialect => {
   return dialect;
 };
 
-export const requireConnection = (dialect: ISqlDialect, fromFlag: string | null): string => {
-  const connection = connectionResolver.resolve(dialect, fromFlag);
+export const requireConnection = (dialect: IDatasourceProvider, fromFlag: string | null): string => {
+  const connection = connectionResolver.resolve(dialect.name, fromFlag);
   if (!connection) {
     process.stderr.write(
       fillTemplate(missingConnectionTpl, {
-        envVars: dialect.connectionEnvironmentVariables.join(cliSpec.env_var_list_separator),
+        envVars: (cliSpec.connection_environment[dialect.name] ?? []).join(
+          cliSpec.env_var_list_separator,
+        ),
       }),
     );
     process.exit(2);

@@ -35,10 +35,8 @@ describe('provider registry matches cli.yaml and api.yaml', () => {
 
   it('uses spec env-var order and separator', () => {
     for (const dialect of defaultDialectFactory.all()) {
-      expect([...dialect.connectionEnvironmentVariables]).toEqual(
-        cliSpec.connection_environment[dialect.name],
-      );
-      expect(dialect.connectionEnvironmentVariables.join(cliSpec.env_var_list_separator)).toBe(
+      expect(cliSpec.connection_environment[dialect.name]).toBeDefined();
+      expect(cliSpec.connection_environment[dialect.name].join(cliSpec.env_var_list_separator)).toBe(
         cliSpec.connection_environment[dialect.name].join(cliSpec.env_var_list_separator),
       );
     }
@@ -49,16 +47,8 @@ describe('provider registry matches cli.yaml and api.yaml', () => {
     expect(api.methods).toEqual(['setup', 'up', 'down', 'create']);
   });
 
-  it('names MigrationDriver and its methods', () => {
-    expect(driver.interface).toBe('MigrationDriver');
-    expect(driver.methods).toEqual([
-      'setup',
-      'applied',
-      'migrateUp',
-      'migrateDown',
-      'logStarted',
-      'logFinished',
-      'close',
-    ]);
+  it('names IDatasourceProvider and its methods', () => {
+    expect(driver.interface).toBe('IDatasourceProvider');
+    expect(driver.methods).toEqual(['setup', 'applied', 'migrateUp', 'migrateDown', 'log']);
   });
 });

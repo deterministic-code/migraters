@@ -6,7 +6,7 @@ internal static class MysqlCreateDatabase
 {
     public static async Task IfMissingAsync(string connection)
     {
-        var normalized = MysqlDialect.Instance.NormalizeConnectionString(connection);
+        var normalized = MysqlProvider.NormalizeConnection(connection);
         var b = new MySqlConnectionStringBuilder(normalized);
         if (string.IsNullOrEmpty(b.Database))
             return;
