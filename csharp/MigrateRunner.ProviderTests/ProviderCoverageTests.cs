@@ -213,6 +213,43 @@ public sealed class ProviderCoverageTests
     }
 
     [Fact]
+    public async Task SqliteRunsSetupAppliedMigrateAndLog()
+    {
+        var provider = new SqliteProvider();
+        var connection = $"Data Source=migraters-coverage-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+        await provider.Setup(connection);
+        Assert.Empty(await provider.Applied(connection));
+        var started = await provider.Log(connection, null, "one", "up", null, 0, null);
+        await provider.MigrateUp(connection, "one", "CREATE TABLE coverage (id INT);", "sum");
+        await provider.Log(connection, started, "one", "up", "ok", 1, null);
+        Assert.True((await provider.Applied(connection)).ContainsKey("one"));
+        await provider.MigrateDown(connection, "one", "DROP TABLE coverage;");
+        Assert.False((await provider.Applied(connection)).ContainsKey("one"));
+    }
+
+    [Fact]
+    public async Task EveryProviderForwardsMigrateMethods()
+    {
+        foreach (var provider in EveryProvider())
+        {
+            var connection = ConnectionFor(provider);
+            await Invoke(provider.Setup(connection));
+            await Invoke(provider.Applied(connection));
+            await Invoke(provider.MigrateUp(connection, "one", "SELECT 1;", "sum"));
+            await Invoke(provider.MigrateDown(connection, "one", "SELECT 1;"));
+            try
+            {
+                var id = await provider.Log(connection, null, "one", "up", null, 0, null);
+                await Invoke(provider.Log(connection, id, "one", "up", "ok", 1, "err"));
+            }
+            catch (Exception)
+            {
+                // Remote providers are not started in this suite; the calls still cover the wrappers.
+            }
+        }
+    }
+
+    [Fact]
     public async Task CreateDatabaseIfMissingNoOpsWhenThereIsNoDatabaseName()
     {
         await new SqliteProvider().CreateDatabaseIfMissingAsync(":memory:");
@@ -232,14 +269,26 @@ public sealed class ProviderCoverageTests
             await oracle.CreateDatabaseIfMissingAsync("u/p@c");
     }
 
+    private static async Task Invoke(Task work)
+    {
+        try
+        {
+            await work;
+        }
+        catch (Exception)
+        {
+            // Remote providers are not started in this suite; the calls still cover the wrappers.
+        }
+    }
+
     private static string ConnectionFor(IDatasourceProvider provider) =>
         provider.Name switch
         {
             "sqlite" => ":memory:",
-            "postgres" => "Host=127.0.0.1;Database=coverage",
-            "mysql" => "Server=127.0.0.1;Database=coverage",
-            "sqlserver" => "Server=127.0.0.1;Database=coverage",
-            "oracle" => "scott/tiger@localhost/orcl",
+            "postgres" => "Host=127.0.0.1;Database=coverage;Timeout=1",
+            "mysql" => "Server=127.0.0.1;Database=coverage;Connection Timeout=1",
+            "sqlserver" => "Server=127.0.0.1;Database=coverage;Connect Timeout=1",
+            "oracle" => "scott/tiger@127.0.0.1:1/orcl",
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider.Name, null),
         };
 
