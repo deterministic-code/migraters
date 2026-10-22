@@ -78,6 +78,7 @@ describe('OracleProvider', () => {
     expect(dialect.migrateLogsDdl).toMatch(/migrate_logs/i);
     expect(await dialect.prerequisiteError('u/p@c')).toBeNull();
     await dialect.prepareSetup('u/p@c');
+    await dialect.createDatabaseIfMissing('u/p@c');
   });
 
   it('createClient parses the DSN, lowercases row keys, and commits or rolls back', async () => {
@@ -114,5 +115,15 @@ describe('OracleProvider', () => {
     warn.mockRestore();
     await client.close();
     expect(oracle.state.closed).toBe(true);
+  });
+
+  it('runs setup, applied, migrate, and log through the sql helper', async () => {
+    const url = 'scott/tiger@localhost/orcl';
+    await dialect.setup(url);
+    expect(await dialect.applied(url)).toBeInstanceOf(Map);
+    await dialect.migrateUp(url, 'a', 'SELECT 1', 'sum');
+    await dialect.migrateDown(url, 'a', 'SELECT 1');
+    await dialect.log(url, null, 'a', 'up', null, 0, null);
+    await dialect.log(url, 1, 'a', 'up', 'ok', 1, null);
   });
 });

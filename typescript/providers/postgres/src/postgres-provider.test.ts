@@ -95,4 +95,14 @@ describe('PostgresProvider', () => {
     await client.close();
     expect(pg.state.ended).toBe(true);
   });
+
+  it('runs setup, applied, migrate, and log through the sql helper', async () => {
+    const url = 'postgresql://localhost/db';
+    await dialect.setup(url);
+    expect(await dialect.applied(url)).toBeInstanceOf(Map);
+    await dialect.migrateUp(url, 'a', 'SELECT 1', 'sum');
+    await dialect.migrateDown(url, 'a', 'SELECT 1');
+    await dialect.log(url, null, 'a', 'up', null, 0, null);
+    await dialect.log(url, 1, 'a', 'up', 'ok', 1, null);
+  });
 });
