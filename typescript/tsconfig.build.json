@@ -15,6 +15,6 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "dialects/*/src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/generate-help.ts", "dialects/**/*.test.ts"]
+  "include": ["src/**/*.ts", "providers/*/src/**/*.ts", "providers/sql/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/generate-help.ts", "providers/**/*.test.ts"]
 }

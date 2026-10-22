@@ -5,7 +5,7 @@ public sealed class SqlDriverTests
     [Fact]
     public async Task SplitOnGoRunsEachBatch()
     {
-        var provider = new SqliteDialect();
+        var provider = new SqliteProvider();
         var connection = $"Data Source=migraters-go-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
         await provider.Setup(connection);
         await provider.MigrateUp(

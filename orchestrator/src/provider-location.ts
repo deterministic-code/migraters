@@ -7,11 +7,11 @@ export type ProviderEntry = {
 };
 
 const csharpType: Record<string, { dll: string; type: string }> = {
-  sqlite: { dll: 'MigrateSqlite.dll', type: 'Deterministic.MigrateRunner.SqliteDialect' },
-  postgres: { dll: 'MigratePostgres.dll', type: 'Deterministic.MigrateRunner.PostgresDialect' },
-  mysql: { dll: 'MigrateMysql.dll', type: 'Deterministic.MigrateRunner.MysqlDialect' },
-  sqlserver: { dll: 'MigrateSqlServer.dll', type: 'Deterministic.MigrateRunner.SqlServerDialect' },
-  oracle: { dll: 'MigrateOracle.dll', type: 'Deterministic.MigrateRunner.OracleDialect' },
+  sqlite: { dll: 'MigrateSqlite.dll', type: 'Deterministic.MigrateRunner.SqliteProvider' },
+  postgres: { dll: 'MigratePostgres.dll', type: 'Deterministic.MigrateRunner.PostgresProvider' },
+  mysql: { dll: 'MigrateMysql.dll', type: 'Deterministic.MigrateRunner.MysqlProvider' },
+  sqlserver: { dll: 'MigrateSqlServer.dll', type: 'Deterministic.MigrateRunner.SqlServerProvider' },
+  oracle: { dll: 'MigrateOracle.dll', type: 'Deterministic.MigrateRunner.OracleProvider' },
 };
 
 export const providerLocation = (
@@ -26,10 +26,10 @@ export const providerLocation = (
   }
   if (language === 'typescript') {
     return basename(configDir) === 'typescript'
-      ? `dialects/${name}/src/index.ts`
-      : `typescript/dialects/${name}/src/index.ts`;
+      ? `providers/${name}/src/index.ts`
+      : `typescript/providers/${name}/src/index.ts`;
   }
-  return `dialects/${name}`;
+  return `providers/${name}`;
 };
 
 export const providerEntries = (

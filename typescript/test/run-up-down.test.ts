@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SqliteDialect } from '../dialects/sqlite/src/sqlite-dialect.ts';
+import { SqliteProvider } from '../providers/sqlite/src/sqlite-provider.ts';
 import { getMigrater } from '../src/migrater.ts';
 
 const pair = async (migrationsPath: string, name: string, upSql: string, downSql: string) => {
@@ -13,7 +13,7 @@ const pair = async (migrationsPath: string, name: string, upSql: string, downSql
 const withMemory = async (name: string, fn: (connection: string, migrationsPath: string) => Promise<void>) => {
   const dir = await mkdtemp(join(tmpdir(), `${name}-`));
   const connection = `file:${name}-${process.pid}-${Date.now()}?mode=memory&cache=shared`;
-  const keep = await new SqliteDialect().createClient(connection);
+  const keep = await new SqliteProvider().createClient(connection);
   try {
     await fn(connection, join(dir, 'migrations'));
   } finally {

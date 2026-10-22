@@ -15,7 +15,7 @@ const dialectPackage = (name: string): string => `@deterministic-code/migraters-
 const dialectRuntimeDeps = async (tsRoot: string, dialects: string[]): Promise<string[]> => {
   const names = new Set<string>();
   for (const dialect of dialects) {
-    const raw = await readFile(join(tsRoot, 'dialects', dialect, 'package.json'), 'utf8');
+    const raw = await readFile(join(tsRoot, 'providers', dialect, 'package.json'), 'utf8');
     const pkg = JSON.parse(raw) as { dependencies?: Record<string, string> };
     for (const name of Object.keys(pkg.dependencies ?? {})) {
       if (!name.startsWith('@types/')) names.add(name);
@@ -27,7 +27,7 @@ const dialectRuntimeDeps = async (tsRoot: string, dialects: string[]): Promise<s
 const initTypescript = async (root: string, dialects: string[]): Promise<void> => {
   const tsRoot = join(root, 'typescript');
   requireStatus(runCommand(npmCmd(), ['install', ...npmFlags], { cwd: tsRoot }));
-  const specs = dialects.map((name) => join(tsRoot, 'dialects', name));
+  const specs = dialects.map((name) => join(tsRoot, 'providers', name));
   if (specs.length > 0) {
     requireStatus(
       runCommand(npmCmd(), ['install', ...npmFlags, '--no-save', ...specs], { cwd: tsRoot }),

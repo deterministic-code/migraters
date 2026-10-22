@@ -1,1 +1,1 @@
-pub use migraters_api::{Dialect, SqlDialect};
+pub use migraters_api::{Dialect, IDatasourceProvider, SqlDialect};

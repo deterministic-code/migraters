@@ -8,7 +8,7 @@ pub fn catalog_name(stored: &str) -> &str {
     stored.strip_suffix("_up.sql").unwrap_or(stored)
 }
 
-pub trait Dialect: Send + Sync {
+pub trait IDatasourceProvider: Send + Sync {
     fn name(&self) -> &'static str;
     fn connection_env_vars(&self) -> &'static [&'static str];
     fn normalize_connection(&self, connection: &str) -> String;
@@ -126,7 +126,8 @@ pub trait Dialect: Send + Sync {
     }
 }
 
-pub use Dialect as SqlDialect;
+pub use IDatasourceProvider as Dialect;
+pub use IDatasourceProvider as SqlDialect;
 
 #[async_trait::async_trait]
 pub trait MigrationDriver: Send + Sync {
@@ -146,19 +147,19 @@ pub trait MigrationDriver: Send + Sync {
 }
 
 pub struct DialectPlugin {
-    pub dialect: &'static dyn Dialect,
+    pub dialect: &'static dyn IDatasourceProvider,
 }
 
 inventory::collect!(DialectPlugin);
 
-pub fn registered_dialects() -> Vec<&'static dyn Dialect> {
+pub fn registered_dialects() -> Vec<&'static dyn IDatasourceProvider> {
     inventory::iter::<DialectPlugin>
         .into_iter()
         .map(|p| p.dialect)
         .collect()
 }
 
-pub fn assert_dialect_surface(d: &dyn Dialect) {
+pub fn assert_dialect_surface(d: &dyn IDatasourceProvider) {
     assert!(!d.name().is_empty());
     assert!(!d.connection_env_vars().is_empty());
     assert!(d.migrates_ddl().to_ascii_lowercase().contains("migrates"));

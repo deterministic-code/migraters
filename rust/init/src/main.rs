@@ -212,7 +212,7 @@ fn set_dialect_deps(cargo_toml: &str, dialects: &[String]) -> Result<String, Str
     let marker = "# migrate-init-dialects";
     let lines: Vec<String> = dialects
         .iter()
-        .map(|name| format!("{} = {{ path = \"dialects/{name}\" }}", rust_crate(name)))
+        .map(|name| format!("{} = {{ path = \"providers/{name}\" }}", rust_crate(name)))
         .collect();
     let block = format!("{marker}-start\n{}\n{marker}-end", lines.join("\n"));
     if cargo_toml.contains(&format!("{marker}-start")) {

@@ -15,13 +15,13 @@ const requireStatus = (result) => {
 
 const locations = {
   typescript: {
-    sqlite: 'typescript/dialects/sqlite/src/index.ts',
+    sqlite: 'typescript/providers/sqlite/src/index.ts',
   },
   csharp: {
-    sqlite: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteDialect',
+    sqlite: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider',
   },
   rust: {
-    sqlite: 'dialects/sqlite',
+    sqlite: 'providers/sqlite',
   },
 };
 
@@ -57,7 +57,7 @@ if (language === 'typescript') {
       'language: typescript',
       'providers:',
       '  - name: sqlite',
-      '    location: dialects/sqlite/src/index.ts',
+      '    location: providers/sqlite/src/index.ts',
       'binDir: dist/src/bin',
       '',
     ].join('\n'),
@@ -87,7 +87,7 @@ if (language === 'csharp') {
     [
       '<Project>',
       '  <ItemGroup>',
-      '    <ProjectReference Include="$(MSBuildThisFileDirectory)Dialects/Sqlite/MigrateSqlite.csproj" />',
+      '    <ProjectReference Include="$(MSBuildThisFileDirectory)Providers/Sqlite/MigrateSqlite.csproj" />',
       '  </ItemGroup>',
       '</Project>',
       '',

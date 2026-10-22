@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { splitOnGo } from '../src/infrastructure/split-on-go.ts';
+import { splitOnGo } from '../providers/sql/split-on-go.ts';
 
 describe('splitOnGo', () => {
   it('splits on whole-line GO and keeps semicolons inside a batch', () => {

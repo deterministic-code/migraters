@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { checksum } from '../src/datasource-migrate.ts';
 import { getMigrater } from '../src/migrater.ts';
-import { SqliteDialect } from '../dialects/sqlite/src/sqlite-dialect.ts';
+import { SqliteProvider } from '../providers/sqlite/src/sqlite-provider.ts';
 
 const MEMORY = `file:migraters-api-${process.pid}-${Date.now()}?mode=memory&cache=shared`;
 
@@ -12,17 +12,17 @@ describe('sqlite IMigrater', () => {
   it('setup, up, down', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'migraters-api-'));
     const connection = MEMORY;
-    const keep = await new SqliteDialect().createClient(connection);
+    const keep = await new SqliteProvider().createClient(connection);
     try {
       const migrationsPath = join(dir, 'migrations');
       const migrater = getMigrater('sqlite');
-      expect(migrater.name).toBe(new SqliteDialect().name);
+      expect(migrater.name).toBe(new SqliteProvider().name);
       await migrater.setup({ connection, migrationsPath });
       const upSql = 'CREATE TABLE t (id INTEGER);\n';
       await writeFile(join(migrationsPath, '0001_init_up.sql'), upSql);
       await writeFile(join(migrationsPath, '0001_init_down.sql'), 'DROP TABLE t;\n');
       expect(await migrater.up({ connection, migrationsPath })).toEqual(['0001_init']);
-      const client = await new SqliteDialect().createClient(connection);
+      const client = await new SqliteProvider().createClient(connection);
       try {
         const applied = await client.query('SELECT name, checksum FROM migrates');
         expect(applied).toEqual([{ name: '0001_init', checksum: checksum(upSql) }]);
@@ -30,7 +30,7 @@ describe('sqlite IMigrater', () => {
         await client.close();
       }
       expect(await migrater.down({ connection, migrationsPath })).toBe('0001_init');
-      const after = await new SqliteDialect().createClient(connection);
+      const after = await new SqliteProvider().createClient(connection);
       try {
         expect(await after.query('SELECT name FROM migrates')).toEqual([]);
       } finally {

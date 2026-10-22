@@ -1,0 +1,108 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const pg = vi.hoisted(() => {
+  const state = {
+    failRollback: false,
+    fail: false,
+    boom: false,
+    ended: false,
+    queries: [] as { sql: string; params?: unknown[] }[],
+  };
+  class Client {
+    constructor(public readonly opts: { connectionString: string }) {}
+    async connect() {}
+    async query(sql: string, params?: unknown[]) {
+      state.queries.push({ sql, params });
+      if (state.boom) throw new Error('connect refused');
+      if (state.fail) throw new Error('database "proof" already exists');
+      if (sql === 'ROLLBACK' && state.failRollback) throw new Error('rollback failed');
+      return { rows: [{ n: 1 }] };
+    }
+    async end() {
+      state.ended = true;
+    }
+  }
+  return { Client, state };
+});
+
+vi.mock('pg', () => ({ default: { Client: pg.Client } }));
+
+import { PostgresProvider } from './postgres-provider.ts';
+
+const dialect = new PostgresProvider();
+
+describe('PostgresProvider', () => {
+  afterEach(() => {
+    pg.state.failRollback = false;
+    pg.state.fail = false;
+    pg.state.boom = false;
+    pg.state.ended = false;
+    pg.state.queries = [];
+  });
+
+  it('registers as postgres with NOW() and $n placeholders', async () => {
+    expect(dialect.name).toBe('postgres');
+    expect([...dialect.connectionEnvironmentVariables]).toEqual([
+      'PG_CONNECTION_STRING',
+      'DATABASE_URL',
+    ]);
+    expect(dialect.usesLastInsertRowid).toBe(false);
+    expect(dialect.nowExpr()).toBe('NOW()');
+    expect(dialect.translatePlaceholders('WHERE a = ? AND b = ?')).toBe('WHERE a = $1 AND b = $2');
+    expect(dialect.migratesDdl).toMatch(/migrates/i);
+    expect(dialect.migrateLogsDdl).toMatch(/migrate_logs/i);
+    expect(await dialect.prerequisiteError('pg://x')).toBeNull();
+    await dialect.prepareSetup('pg://x');
+  });
+
+  it('createDatabaseIfMissing creates the database and ignores already exists', async () => {
+    await dialect.createDatabaseIfMissing('postgresql://proof:proof@postgres:5432/proof');
+    expect(pg.state.queries[0]?.sql).toContain('CREATE DATABASE "proof"');
+    pg.state.fail = true;
+    await dialect.createDatabaseIfMissing('postgresql://proof:proof@postgres:5432/proof');
+    await dialect.createDatabaseIfMissing('postgresql://proof:proof@postgres:5432/postgres');
+    pg.state.boom = true;
+    await expect(
+      dialect.createDatabaseIfMissing('postgresql://proof:proof@postgres:5432/other'),
+    ).rejects.toThrow(/connect refused/);
+  });
+
+  it('createClient talks through pg.Client with translated placeholders', async () => {
+    const client = await dialect.createClient('postgresql://localhost/db');
+    expect(client.dialect).toBe('postgres');
+    await client.exec('SELECT 1');
+    expect(await client.query('SELECT ?', [1])).toEqual([{ n: 1 }]);
+    expect(pg.state.queries.some((q) => q.sql === 'SELECT $1' && q.params?.[0] === 1)).toBe(true);
+    await client.run('UPDATE t SET x = ?', [2]);
+    expect(await client.transaction(async () => 'ok')).toBe('ok');
+    expect(pg.state.queries.map((q) => q.sql)).toContain('BEGIN');
+    expect(pg.state.queries.map((q) => q.sql)).toContain('COMMIT');
+    await expect(
+      client.transaction(async () => {
+        throw new Error('tx');
+      }),
+    ).rejects.toThrow('tx');
+    expect(pg.state.queries.map((q) => q.sql)).toContain('ROLLBACK');
+    pg.state.failRollback = true;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(
+      client.transaction(async () => {
+        throw new Error('tx2');
+      }),
+    ).rejects.toThrow('tx2');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    await client.close();
+    expect(pg.state.ended).toBe(true);
+  });
+
+  it('runs setup, applied, migrate, and log through the sql helper', async () => {
+    const url = 'postgresql://localhost/db';
+    await dialect.setup(url);
+    expect(await dialect.applied(url)).toBeInstanceOf(Map);
+    await dialect.migrateUp(url, 'a', 'SELECT 1', 'sum');
+    await dialect.migrateDown(url, 'a', 'SELECT 1');
+    await dialect.log(url, null, 'a', 'up', null, 0, null);
+    await dialect.log(url, 1, 'a', 'up', 'ok', 1, null);
+  });
+});

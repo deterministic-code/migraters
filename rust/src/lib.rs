@@ -11,7 +11,7 @@ pub mod migraters_config;
 pub mod migrations;
 pub mod provider;
 
-pub use abstractions::{all, try_get, Dialect, SqlDialect};
+pub use abstractions::{all, try_get, Dialect, IDatasourceProvider, SqlDialect};
 pub use argv::{is_help, take_value};
 pub use checksum::checksum_hex;
 pub use cli_spec::join_env_vars;
@@ -62,7 +62,7 @@ mod core_lifecycle {
     use std::sync::{Arc, Mutex};
 
     use async_trait::async_trait;
-    use migraters_api::{BoxError, Dialect, MigrationDriver};
+    use migraters_api::{BoxError, IDatasourceProvider, MigrationDriver};
 
     use crate::checksum::checksum_hex;
     use crate::infrastructure::MigrationPool;
@@ -148,7 +148,7 @@ mod core_lifecycle {
 
     struct CoreDialect;
 
-    impl Dialect for CoreDialect {
+    impl IDatasourceProvider for CoreDialect {
         fn name(&self) -> &'static str {
             "core"
         }

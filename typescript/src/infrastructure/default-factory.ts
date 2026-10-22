@@ -18,9 +18,9 @@ const loadModule = async (
   const specifier = existsSync(file) ? pathToFileURL(file).href : location;
   const mod = (await import(specifier)) as {
     provider?: () => IDatasourceProvider;
-    createDialect?: () => IDatasourceProvider;
+    createProvider?: () => IDatasourceProvider;
   };
-  const create = mod.provider ?? mod.createDialect;
+  const create = mod.provider ?? mod.createProvider;
   if (typeof create !== 'function') throw new Error(location);
   return create();
 };
