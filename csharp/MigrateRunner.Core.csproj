@@ -26,18 +26,12 @@
     <Compile Remove="Program.cs" />
     <Compile Remove="MigrateRunner.Tests/**" />
     <Compile Remove="MigrateInit/**" />
-    <Compile Remove="Providers/**" />
-    <Compile Remove="SqlDriver/**" />
     <Compile Remove="Dialects/**" />
     <Content Remove="MigrateRunner.Tests/**" />
     <Content Remove="MigrateInit/**" />
-    <Content Remove="Providers/**" />
-    <Content Remove="SqlDriver/**" />
     <Content Remove="Dialects/**" />
     <None Remove="MigrateRunner.Tests/**" />
     <None Remove="MigrateInit/**" />
-    <None Remove="Providers/**" />
-    <None Remove="SqlDriver/**" />
     <None Remove="Dialects/**" />
   </ItemGroup>
 

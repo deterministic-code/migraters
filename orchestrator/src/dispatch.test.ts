@@ -33,7 +33,7 @@ describe('orchestrator dispatch', () => {
       {
         language: 'csharp',
         providers: [
-          { name: 'sqlite', location: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider' },
+          { name: 'sqlite', location: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteDialect' },
         ],
         binDir: 'csharp/bin/Debug/net9.0',
       },

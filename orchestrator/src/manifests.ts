@@ -1,9 +1,9 @@
 const DIALECT_PROJECTS: Record<string, string> = {
-  sqlite: 'Providers/Sqlite/MigrateSqlite.csproj',
-  postgres: 'Providers/Postgres/MigratePostgres.csproj',
-  mysql: 'Providers/Mysql/MigrateMysql.csproj',
-  sqlserver: 'Providers/SqlServer/MigrateSqlServer.csproj',
-  oracle: 'Providers/Oracle/MigrateOracle.csproj',
+  sqlite: 'Dialects/Sqlite/MigrateSqlite.csproj',
+  postgres: 'Dialects/Postgres/MigratePostgres.csproj',
+  mysql: 'Dialects/Mysql/MigrateMysql.csproj',
+  sqlserver: 'Dialects/SqlServer/MigrateSqlServer.csproj',
+  oracle: 'Dialects/Oracle/MigrateOracle.csproj',
 };
 
 export const cargoDefaultFeaturesLine = (dialects: string[]): string =>

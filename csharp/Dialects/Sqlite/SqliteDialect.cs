@@ -3,20 +3,17 @@ using SQLitePCL;
 
 namespace Deterministic.MigrateRunner;
 
-public sealed class SqliteProvider : IDatasourceProvider
+public sealed class SqliteDialect : SqlDialect
 {
-    private readonly SqlDialect _sql;
+    static SqliteDialect() => Batteries.Init();
 
-    static SqliteProvider() => Batteries.Init();
-
-    public SqliteProvider()
-    {
-        _sql = new SqlDialect(
+    public SqliteDialect()
+        : base(
             "sqlite",
             useTransaction: true,
             NormalizeConnection,
             s => new SqliteConnection(s),
-            (cmd, n, v) => SqlDialect.Bind(cmd, $"${n}", v),
+            (cmd, n, v) => Bind(cmd, $"${n}", v),
             ident => $"\"{ident}\"",
             name => $"${name}",
             connection =>
@@ -30,34 +27,7 @@ public sealed class SqliteProvider : IDatasourceProvider
                     );
             },
             PrepareParent
-        );
-    }
-
-    internal SqlDialect Sql => _sql;
-    public string Name => _sql.Name;
-    public void PrepareSetup(string connection) => _sql.PrepareSetup(connection);
-    public Task CreateDatabaseIfMissingAsync(string connection) =>
-        _sql.CreateDatabaseIfMissingAsync(connection);
-    public Task Setup(string connection) => _sql.Setup(connection);
-    public Task<IReadOnlyDictionary<string, string?>> Applied(string connection) =>
-        _sql.Applied(connection);
-    public Task MigrateUp(string connection, string name, string body, string checksum) =>
-        _sql.MigrateUp(connection, name, body, checksum);
-    public Task MigrateDown(string connection, string name, string body) =>
-        _sql.MigrateDown(connection, name, body);
-    public Task<long> Log(
-        string connection,
-        long? id,
-        string name,
-        string direction,
-        string? status,
-        long durationMs,
-        string? error
-    ) => _sql.Log(connection, id, name, direction, status, durationMs, error);
-
-    public string NormalizeConnectionString(string connection) =>
-        _sql.NormalizeConnectionString(connection);
-    public string? PrerequisiteError(string connection) => _sql.PrerequisiteError(connection);
+        ) { }
 
     private static void PrepareParent(string connection)
     {

@@ -5,7 +5,7 @@ public sealed class SqliteApiTests
     [Fact]
     public async Task SetupUpDown()
     {
-        var provider = new SqliteProvider();
+        var provider = new SqliteDialect();
         var dir = Path.Combine(Path.GetTempPath(), $"migraters-api-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
         var connection = $"Data Source=migraters-api-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";

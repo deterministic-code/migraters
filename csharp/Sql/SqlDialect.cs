@@ -1,6 +1,6 @@
 namespace Deterministic.MigrateRunner;
 
-internal sealed class SqlDialect
+public class SqlDialect : IDatasourceProvider
 {
     private readonly ConcurrentDictionary<string, DbConnection> _open = new(StringComparer.Ordinal);
     private readonly Func<string, string> _normalize;
@@ -13,7 +13,7 @@ internal sealed class SqlDialect
     private readonly Func<string, Task>? _createDatabase;
     private readonly Func<int, string> _limitClause;
 
-    public SqlDialect(
+    protected SqlDialect(
         string name,
         bool useTransaction,
         Func<string, string> normalizeConnectionString,

@@ -5,8 +5,8 @@ public sealed class DialectCoverageTests
     [Fact]
     public void SqliteSurfaceAndMemory()
     {
-        var dialect = new SqliteProvider();
-        var d = dialect.Sql;
+        var dialect = new SqliteDialect();
+        var d = dialect;
         Assert.True(d.UseTransaction);
         Assert.Equal("\"t\"", d.QuoteIdent("t"));
         Assert.Equal("$p1", d.Placeholder("p1"));
@@ -39,6 +39,6 @@ public sealed class DialectCoverageTests
     [Fact]
     public async Task SqliteCreateDatabaseIfMissingNoOpsMemory()
     {
-        await new SqliteProvider().CreateDatabaseIfMissingAsync(":memory:");
+        await new SqliteDialect().CreateDatabaseIfMissingAsync(":memory:");
     }
 }
