@@ -32,6 +32,8 @@
     "csharp/Infrastructure",
     "csharp/*.cs",
     "csharp/*.csproj",
+    "csharp/Directory.Build.props",
+    "csharp/Directory.Build.targets",
     "cli.yaml",
     "bundle.yaml",
     "shared"

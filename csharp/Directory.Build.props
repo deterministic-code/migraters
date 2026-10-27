@@ -1,0 +1,7 @@
+<Project>
+  <!-- Runner and Core share this directory. A shared obj/project.assets.json
+       drops SQLite native runtime targets from MigrateRunner.deps.json. -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
