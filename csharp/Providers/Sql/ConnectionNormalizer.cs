@@ -9,7 +9,7 @@ internal static class ConnectionNormalizer
             return c;
         if (c.StartsWith("sqlite://", StringComparison.OrdinalIgnoreCase))
         {
-            var path = c["sqlite://".Length..];
+            var path = RelativeDotPath(c["sqlite://".Length..]);
             return string.IsNullOrEmpty(path) ? "Data Source=:memory:" : $"Data Source={path}";
         }
         return string.IsNullOrEmpty(c) ? "Data Source=:memory:" : $"Data Source={c}";
@@ -56,8 +56,13 @@ internal static class ConnectionNormalizer
         var q = s.IndexOf('?', StringComparison.Ordinal);
         if (q >= 0)
             s = s[..q];
+        s = RelativeDotPath(s);
         return s.Length == 0 ? null : s;
     }
+
+    // sqlite:///./app.sqlite keeps the URI slash and would open /./app.sqlite.
+    private static string RelativeDotPath(string path) =>
+        path.StartsWith("/./", StringComparison.Ordinal) ? path[1..] : path;
 
     public static string Oracle(string connection)
     {

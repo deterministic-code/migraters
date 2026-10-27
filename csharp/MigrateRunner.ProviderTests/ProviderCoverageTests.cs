@@ -68,6 +68,7 @@ public sealed class ProviderCoverageTests
         Assert.Equal("Data Source=:memory:", d.NormalizeConnectionString(""));
         Assert.Equal("Data Source=:memory:", d.NormalizeConnectionString("sqlite://"));
         Assert.Equal("Data Source=./app.sqlite", d.NormalizeConnectionString("sqlite://./app.sqlite"));
+        Assert.Equal("Data Source=./app.sqlite", d.NormalizeConnectionString("sqlite:///./app.sqlite"));
         Assert.Equal("Data Source=./app.sqlite", d.NormalizeConnectionString("./app.sqlite"));
         Assert.Equal("Data Source=x.db", d.NormalizeConnectionString("Data Source=x.db"));
         Assert.Equal("Data Source=foo.db", d.NormalizeConnectionString("SQLITE://foo.db"));

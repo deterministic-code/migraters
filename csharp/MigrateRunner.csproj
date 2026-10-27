@@ -10,6 +10,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <UseAppHost>true</UseAppHost>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NoWarn>$(NoWarn);CA1031;CA1303;CA1812;CA1848;CA2007</NoWarn>
   </PropertyGroup>
 
@@ -32,6 +33,17 @@
     <ProjectReference Include="MigrateRunner.Core.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
   </ItemGroup>
+
+  <Target Name="CopyProviderOutputs" AfterTargets="CopyFilesToOutputDirectory">
+    <ItemGroup>
+      <_ProviderOutput Include="$(MSBuildThisFileDirectory)Providers\*\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_ProviderOutput)"
+      DestinationFiles="@(_ProviderOutput->'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true"
+    />
+  </Target>
 
   <Target Name="CopyMigrateCommandHosts" AfterTargets="CopyFilesToOutputDirectory">
     <PropertyGroup>

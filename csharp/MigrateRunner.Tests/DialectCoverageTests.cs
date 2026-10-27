@@ -19,6 +19,7 @@ public sealed class DialectCoverageTests
         Assert.Equal("Data Source=:memory:", dialect.NormalizeConnectionString(""));
         Assert.Equal("Data Source=:memory:", dialect.NormalizeConnectionString("sqlite://"));
         Assert.Equal("Data Source=./app.sqlite", dialect.NormalizeConnectionString("sqlite://./app.sqlite"));
+        Assert.Equal("Data Source=./app.sqlite", dialect.NormalizeConnectionString("sqlite:///./app.sqlite"));
         Assert.Equal("Data Source=./app.sqlite", dialect.NormalizeConnectionString("./app.sqlite"));
         Assert.Equal("Data Source=x.db", dialect.NormalizeConnectionString("Data Source=x.db"));
         Assert.Equal("Data Source=foo.db", dialect.NormalizeConnectionString("SQLITE://foo.db"));

@@ -1,0 +1,7 @@
+<Project>
+  <ItemGroup>
+    <!-- Each project keeps its own obj folder. The default glob would compile a
+         sibling project's generated AssemblyInfo and duplicate attributes. -->
+    <Compile Remove="obj/**/*.cs" />
+  </ItemGroup>
+</Project>
