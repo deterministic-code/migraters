@@ -144,6 +144,15 @@ public sealed class ProviderCoverageTests
         var noDb = d.NormalizeConnectionString("postgres://127.0.0.1");
         Assert.Contains("Host=127.0.0.1", noDb, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Database=", noDb, StringComparison.OrdinalIgnoreCase);
+
+        var withSchema = d.NormalizeConnectionString(
+            "postgres://ds:ds@127.0.0.1:5432/datasources?schema=qs_iso"
+        );
+        StringAssertContainsAll(
+            withSchema,
+            ["Host=127.0.0.1", "Database=datasources", "Search Path=qs_iso"]
+        );
+        Assert.DoesNotContain("schema=", withSchema, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

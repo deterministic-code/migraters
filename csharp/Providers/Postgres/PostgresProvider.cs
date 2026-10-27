@@ -60,7 +60,14 @@ public sealed class PostgresProvider : IDatasourceProvider
                     b.Password = p;
             },
             db => b.Database = db,
-            (k, v) => b[k] = v
+            (k, v) =>
+            {
+                _ = k switch
+                {
+                    "schema" => b.SearchPath = v,
+                    _ => b[k] = v,
+                };
+            }
         );
         return b.ConnectionString;
     }
