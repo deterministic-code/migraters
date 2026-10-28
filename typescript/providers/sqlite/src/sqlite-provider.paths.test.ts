@@ -18,6 +18,21 @@ describe('SqliteProvider file paths', () => {
     expect(err).toMatch(/migrate-setup --provider sqlite/);
   });
 
+  it('createClient opens sqlite:///./app.sqlite as ./app.sqlite', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'sqlite-rel-uri-'));
+    const prev = process.cwd();
+    process.chdir(dir);
+    try {
+      const client = await dialect.createClient('sqlite:///./app.sqlite');
+      await client.exec('CREATE TABLE t (id INTEGER)');
+      await client.close();
+      const { pathExists } = await import('../../../src/path-exists.ts');
+      expect(await pathExists(join(dir, 'app.sqlite'))).toBe(true);
+    } finally {
+      process.chdir(prev);
+    }
+  });
+
   it('prepareSetup creates parent directories for file connections', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'sqlite-setup-'));
     const file = join(dir, 'nested', 'db', 'app.sqlite');

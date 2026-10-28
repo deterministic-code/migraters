@@ -58,7 +58,8 @@ export class SqliteProvider implements IDatasourceProvider {
   async createClient(connection: string): Promise<MigrationClient> {
     if (!connection) throw new Error('sqlite requires a database file path');
     const { default: Database } = await import('better-sqlite3');
-    const db = new Database(connection);
+    const filePath = sqliteFilesystemPath(connection);
+    const db = new Database(filePath ?? connection);
     return {
       dialect: 'sqlite',
       async exec(sql) {

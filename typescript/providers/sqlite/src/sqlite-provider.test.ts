@@ -23,6 +23,7 @@ describe('SqliteProvider', () => {
     expect(sqliteFilesystemPath('file:migraters-test?mode=memory&cache=shared')).toBeNull();
     expect(sqliteFilesystemPath('Data Source=migraters-test;Mode=Memory;Cache=Shared')).toBeNull();
     expect(sqliteFilesystemPath('./app.sqlite')).toBe('./app.sqlite');
+    expect(sqliteFilesystemPath('sqlite:///./app.sqlite')).toBe('./app.sqlite');
     expect(sqliteFilesystemPath('sqlite:///abs/app.sqlite')).toBe('/abs/app.sqlite');
     expect(sqliteFilesystemPath('sqlite://rel.sqlite')).toBe('rel.sqlite');
     expect(sqliteFilesystemPath('sqlite:foo.db')).toBe('foo.db');
@@ -61,5 +62,23 @@ describe('SqliteProvider', () => {
       }),
     ).rejects.toThrow('boom');
     await client.close();
+  });
+
+  it('createClient opens sqlite:///./app.sqlite as a relative file', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = await mkdtemp(join(tmpdir(), 'sqlite-rel-uri-unit-'));
+    const prev = process.cwd();
+    process.chdir(dir);
+    try {
+      const client = await dialect.createClient('sqlite:///./app.sqlite');
+      await client.exec('CREATE TABLE t (id INTEGER)');
+      await client.close();
+      const { pathExists } = await import('../../../src/path-exists.ts');
+      expect(await pathExists(join(dir, 'app.sqlite'))).toBe(true);
+    } finally {
+      process.chdir(prev);
+    }
   });
 });

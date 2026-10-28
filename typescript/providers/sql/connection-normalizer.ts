@@ -26,6 +26,8 @@ export const sqliteFilesystemPath = (connection: string): string | null => {
   }
   const q = s.indexOf('?');
   if (q >= 0) s = s.slice(0, q);
+  // sqlite:///./app.sqlite keeps the URI slash and would open /./app.sqlite.
+  if (s.startsWith('/./')) s = s.slice(1);
   if (s === ':memory:' || s === '') return null;
   return s;
 };
