@@ -1,22 +1,13 @@
-import { existsSync } from 'node:fs';
-import { isAbsolute, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SqlDialectFactory } from '../abstractions/sql-dialect-factory.ts';
 import type { IDatasourceProvider } from '../abstractions/datasource-provider.ts';
 import { ConnectionResolver } from './connection-resolver.ts';
 import { enabledProviders } from './migraters-config.ts';
+import { importableProviderFile, resolveProviderFile } from './resolve-provider.ts';
 
-const loadModule = async (
-  location: string,
-  configDir: string,
-): Promise<IDatasourceProvider> => {
-  const relative = isAbsolute(location) ? location : resolve(configDir, location);
-  const stripped = location.startsWith('typescript/')
-    ? resolve(configDir, location.slice('typescript/'.length))
-    : relative;
-  const file = existsSync(relative) ? relative : stripped;
-  const specifier = existsSync(file) ? pathToFileURL(file).href : location;
-  const mod = (await import(specifier)) as {
+const loadModule = async (location: string, configDir: string): Promise<IDatasourceProvider> => {
+  const file = importableProviderFile(resolveProviderFile(configDir, location, import.meta.url));
+  const mod = (await import(pathToFileURL(file).href)) as {
     provider?: () => IDatasourceProvider;
     createProvider?: () => IDatasourceProvider;
   };
