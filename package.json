@@ -1,6 +1,6 @@
 {
   "name": "@deterministic-code/migraters",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
   "type": "module",
   "publishConfig": {
@@ -35,6 +35,7 @@
     "csharp/Directory.Build.props",
     "csharp/Directory.Build.targets",
     "cli.yaml",
+    "driver.yaml",
     "bundle.yaml",
     "shared"
   ],
