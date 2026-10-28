@@ -75,7 +75,7 @@ struct MysqlSession {
 #[async_trait]
 impl SqlSession for MysqlSession {
     async fn execute(&self, sql: &str) -> Result<(), BoxError> {
-        sqlx::query(sql).execute(&self.pool).await?;
+        sqlx::raw_sql(sql).execute(&self.pool).await?;
         Ok(())
     }
 
@@ -96,14 +96,10 @@ impl SqlSession for MysqlSession {
         p1: &str,
         p2: Option<&str>,
     ) -> Result<(), BoxError> {
-        use sqlx::Executor;
-        let mut tx = self.pool.begin().await?;
         for stmt in stmts {
-            tx.execute(stmt.as_str()).await?;
+            self.execute(stmt).await?;
         }
-        catalog_exec_tx(&mut tx, catalog_sql, p1, p2).await?;
-        tx.commit().await?;
-        Ok(())
+        catalog_exec_pool(&self.pool, catalog_sql, p1, p2).await
     }
 
     async fn catalog_write(
@@ -143,24 +139,6 @@ impl SqlSession for MysqlSession {
             .await?;
         Ok(())
     }
-}
-
-async fn catalog_exec_tx(
-    tx: &mut sqlx::Transaction<'_, sqlx::MySql>,
-    sql: &str,
-    p1: &str,
-    p2: Option<&str>,
-) -> Result<(), BoxError> {
-    if let Some(p2) = p2 {
-        sqlx::query(sql)
-            .bind(p1)
-            .bind(p2)
-            .execute(&mut **tx)
-            .await?;
-    } else {
-        sqlx::query(sql).bind(p1).execute(&mut **tx).await?;
-    }
-    Ok(())
 }
 
 async fn catalog_exec_pool(
@@ -228,5 +206,44 @@ mod tests {
         assert_eq!(d.quote_ident("t"), "`t`");
         assert_eq!(d.now_expr(), "CURRENT_TIMESTAMP");
         assert_eq!(d.limit_clause(2), "LIMIT 2");
+    }
+
+    #[tokio::test]
+    async fn applies_create_trigger_after_go() {
+        let Ok(url) = std::env::var("MYSQL_URL").or_else(|_| std::env::var("DATABASE_URL")) else {
+            return;
+        };
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let table = format!("t_{stamp}");
+        let trigger = format!("trg_{stamp}");
+        let sql = format!(
+            r#"
+CREATE TABLE {table} (id INT PRIMARY KEY, updated DATETIME(3));
+GO
+CREATE TRIGGER {trigger} BEFORE UPDATE ON {table}
+FOR EACH ROW SET NEW.updated = (UTC_TIMESTAMP(3));
+GO
+"#
+        );
+        let dir = std::env::temp_dir().join(format!("migraters-mysql-trigger-{stamp}"));
+        let migrations = dir.join("migrations");
+        std::fs::create_dir_all(&migrations).unwrap();
+        std::fs::write(migrations.join("0001_trigger_up.sql"), &sql).unwrap();
+        let d = MysqlProvider;
+        d.create_database(&url).await.expect("create database");
+        d.setup(&url).await.expect("setup");
+        let result = d.migrate_up(&url, "0001_trigger", &sql, "test").await;
+        let _ = d
+            .migrate_down(
+                &url,
+                "0001_trigger",
+                &format!("DROP TRIGGER IF EXISTS {trigger};\nGO\nDROP TABLE IF EXISTS {table};"),
+            )
+            .await;
+        let _ = std::fs::remove_dir_all(&dir);
+        result.expect("CREATE TRIGGER after GO must not be MySQL 1295");
     }
 }
