@@ -42,10 +42,10 @@ impl IDatasourceProvider for SqliteProvider {
         r#"DELETE FROM "migrates" WHERE "name" = ?"#
     }
     fn normalize_connection(&self, connection: &str) -> String {
-        if connection.starts_with("sqlite:") {
-            connection.to_string()
-        } else {
-            format!("sqlite://{}?mode=rwc", connection)
+        match sqlite_filesystem_path(connection) {
+            Some(path) => format!("sqlite://{path}?mode=rwc"),
+            None if connection.starts_with("sqlite:") => connection.to_string(),
+            None => format!("sqlite://{connection}?mode=rwc"),
         }
     }
     fn prerequisite_error(&self, connection: &str) -> Option<String> {
@@ -189,6 +189,7 @@ async fn catalog_exec_pool(
 mod tests {
     use super::SqliteProvider;
     use migraters_api::{assert_dialect_surface, IDatasourceProvider};
+    use migraters_sql::sqlite_filesystem_path;
 
     #[test]
     fn surface_and_path_parsing() {
@@ -204,11 +205,44 @@ mod tests {
         assert!(d.delete_applied_sql().contains('?'));
 
         assert_eq!(
-            d.normalize_connection("sqlite://./app.sqlite"),
-            "sqlite://./app.sqlite"
+            sqlite_filesystem_path("sqlite:///./app.sqlite").as_deref(),
+            Some("./app.sqlite")
+        );
+        assert_eq!(
+            d.normalize_connection("sqlite:///./app.sqlite"),
+            "sqlite://./app.sqlite?mode=rwc"
+        );
+        assert_eq!(
+            sqlite_filesystem_path("./app.sqlite").as_deref(),
+            Some("./app.sqlite")
         );
         assert_eq!(
             d.normalize_connection("./app.sqlite"),
+            "sqlite://./app.sqlite?mode=rwc"
+        );
+        assert_eq!(
+            sqlite_filesystem_path("sqlite:///abs/app.sqlite").as_deref(),
+            Some("/abs/app.sqlite")
+        );
+        assert_eq!(
+            d.normalize_connection("sqlite:///abs/app.sqlite"),
+            "sqlite:///abs/app.sqlite?mode=rwc"
+        );
+        assert_eq!(
+            sqlite_filesystem_path("sqlite:////tmp/app.db").as_deref(),
+            Some("//tmp/app.db")
+        );
+        assert_eq!(
+            d.normalize_connection("sqlite:////tmp/app.db"),
+            "sqlite:////tmp/app.db?mode=rwc"
+        );
+        assert_eq!(sqlite_filesystem_path("sqlite:///:memory:"), None);
+        assert_eq!(
+            d.normalize_connection("sqlite:///:memory:"),
+            "sqlite:///:memory:"
+        );
+        assert_eq!(
+            d.normalize_connection("sqlite://./app.sqlite"),
             "sqlite://./app.sqlite?mode=rwc"
         );
 
@@ -276,4 +310,35 @@ mod tests {
         assert!(d.prerequisite_error("other=value.sqlite").is_some());
         let _ = std::fs::remove_dir_all(dir);
     }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn relative_dot_uri_setup_creates_app_sqlite() {
+        let d = SqliteProvider;
+        let dir = std::env::temp_dir().join(format!(
+            "migraters-sqlite-rel-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let _cwd = CWD_LOCK.lock().unwrap();
+        let prev = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+        let result = async {
+            d.prepare_setup("sqlite:///./app.sqlite")?;
+            let driver = d.connect("sqlite:///./app.sqlite").await?;
+            driver.setup().await?;
+            driver.close().await?;
+            Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+        }
+        .await;
+        let created = dir.join("app.sqlite").is_file();
+        let _ = std::env::set_current_dir(prev);
+        let _ = std::fs::remove_dir_all(&dir);
+        result.unwrap();
+        assert!(created);
+    }
+
+    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }

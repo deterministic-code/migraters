@@ -328,5 +328,29 @@ describe('CLI sqlite lifecycle across languages', () => {
       expect(badName.stderr).toContain(invalidName.trim());
     }
   }, 180_000);
+
+  it('setup accepts sqlite:///./app.sqlite and creates ./app.sqlite', async () => {
+    const { rm } = await import('node:fs/promises');
+    for (const proc of langs) {
+      await initSqlite(proc.lang);
+      // Under the repo so walk-up still finds .migraters.yaml; same URL for every language.
+      const dir = await mkdtemp(join(MIGRATERS, `migraters-e2e-rel-${proc.lang}-`));
+      try {
+        const setup = await run(
+          proc,
+          'setup',
+          ['--provider', 'sqlite', '--connection', 'sqlite:///./app.sqlite'],
+          { cwd: dir },
+        );
+        expect(
+          setup.code,
+          `${proc.lang} setup sqlite:///./app.sqlite\n${setup.stdout}\n${setup.stderr}`,
+        ).toBe(0);
+        expect(await exists(join(dir, 'app.sqlite')), `${proc.lang} created ./app.sqlite`).toBe(true);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+  }, 180_000);
 });
 
