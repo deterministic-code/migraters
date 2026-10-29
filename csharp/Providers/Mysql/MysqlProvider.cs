@@ -42,8 +42,15 @@ public sealed class MysqlProvider : IDatasourceProvider
 
     internal static string NormalizeConnection(string connection)
     {
-        if (ConnectionStringUrl.TryUri(connection, "mysql") is not { } url)
-            return connection;
+        var b = ConnectionStringUrl.TryUri(connection, "mysql") is { } url
+            ? FromMysqlUrl(url)
+            : new MySqlConnectionStringBuilder(connection);
+        b.AllowUserVariables = true;
+        return b.ConnectionString;
+    }
+
+    private static MySqlConnectionStringBuilder FromMysqlUrl(string url)
+    {
         var uri = new Uri(url);
         var b = new MySqlConnectionStringBuilder
         {
@@ -62,6 +69,6 @@ public sealed class MysqlProvider : IDatasourceProvider
             db => b.Database = db,
             (k, v) => b[k] = v
         );
-        return b.ConnectionString;
+        return b;
     }
 }
