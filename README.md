@@ -76,7 +76,7 @@ npx migrate-init --language rust --dialect sqlite
 Creates the `migrates` and `migrate_logs` tables and the migrations directory. Idempotent.
 
 ```shell
-npx migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <url> [--migrations-path <dir>] [--and-up] [--create-database]
+npx migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connection <url> [--migrations-path <dir>] [--and-up] [--create-database] [--batch-separator <token>]
 ```
 
 `--create-database` creates the database named in `--connection` if it does not exist. `--and-up` runs `migrate-up` immediately after setup. Default migrations directory is `./sql/<dialect>/migrations`.
@@ -86,17 +86,17 @@ npx migrate-setup --provider <sqlite|postgres|mysql|sqlserver|oracle> --connecti
 Applies every pending migration, each in its own transaction.
 
 ```shell
-npx migrate-up --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--one]
+npx migrate-up --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--one] [--batch-separator <token>]
 ```
 
-`--migrations-root` looks under `<root>/<dialect>/migrations` and defaults to `sql`. It is ignored when `--migrations-path` is set. `--one` applies only the next pending migration. A whole-line `GO` (sqlcmd-style) splits a file into batches; each batch is executed separately.
+`--migrations-root` looks under `<root>/<dialect>/migrations` and defaults to `sql`. It is ignored when `--migrations-path` is set. `--one` applies only the next pending migration. A batch-separator line starts with `GO` by default (sqlcmd-style), or with `--batch-separator`. A trailing `--` comment or `YYYY-MM-DD` date is allowed. Each batch is executed separately.
 
 ### down
 
 Rolls back the most recently applied migration, one step. Type `confirm` at the prompt, or pass `--confirm`.
 
 ```shell
-npx migrate-down --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--confirm]
+npx migrate-down --provider <…> --connection <url> [--migrations-path <dir>] [--migrations-root <dir>] [--confirm] [--batch-separator <token>]
 ```
 
 ### create

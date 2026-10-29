@@ -2,7 +2,14 @@
 // Default: applies ALL pending migrations in sequence, each in its own transaction. Pass --one to apply only the next pending migration (legacy one-shot behavior; useful when wrapping in an external loop or when you want to inspect state between steps).
 
 import { resolve } from 'node:path';
-import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
+import {
+  DEFAULT_BATCH_SEPARATOR,
+  missingProviderMsg,
+  requireBatchSeparator,
+  requireConnection,
+  requireDialect,
+  takeFlag,
+} from '../cli.ts';
 import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
 import { loadHelp, Migrater } from '../index.ts';
 
@@ -21,12 +28,14 @@ const parseArgs = (argv: string[]) => {
     migrateRoot: string | null;
     connection: string | null;
     one: boolean;
+    batchSeparator: string;
   } = {
     provider: null,
     migratePath: null,
     migrateRoot: null,
     connection: null,
     one: false,
+    batchSeparator: DEFAULT_BATCH_SEPARATOR,
   };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
@@ -57,6 +66,9 @@ const parseArgs = (argv: string[]) => {
       i = taken.next;
     } else if ((taken = takeFlag(rest, i, a, '--connection'))) {
       args.connection = taken.value;
+      i = taken.next;
+    } else if ((taken = takeFlag(rest, i, a, '--batch-separator'))) {
+      args.batchSeparator = requireBatchSeparator(taken.value);
       i = taken.next;
     } else {
       process.stderr.write(fillTemplate(unknownArgTpl, { arg: a }));
@@ -91,7 +103,7 @@ const main = async () => {
   }
 
   const migratePath = resolve(resolveMigratePath(args, dialect.name));
-  const names = await new Migrater(dialect).up({
+  const names = await new Migrater(dialect, args.batchSeparator).up({
     connection,
     migrationsPath: migratePath,
     one: args.one,

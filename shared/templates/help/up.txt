@@ -8,6 +8,7 @@ Applies ALL pending migrations in sequence, each in its own transaction.
   --migrations-root  Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
                      Defaults to 'sql'. Ignored when --migrations-path is also set.
   --one              Apply only the next pending migration, then exit. Default is to apply all pending migrations.
+  --batch-separator  Token that starts a batch-separator line (default: GO). A trailing -- comment or YYYY-MM-DD date is allowed.
 
 Examples:
   # sqlite — bare path or sqlite:// URL; both create a file on disk.

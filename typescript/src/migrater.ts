@@ -16,7 +16,10 @@ import { fillTemplate, loadMessage, loadScaffold } from './infrastructure/messag
 const invalidNameTpl = await loadMessage('errors/invalid-name');
 
 export class Migrater implements IMigrater {
-  constructor(private readonly provider: IDatasourceProvider) {}
+  constructor(
+    private readonly provider: IDatasourceProvider,
+    private readonly batchSeparator = 'GO',
+  ) {}
 
   get name(): string {
     return this.provider.name;
@@ -35,7 +38,12 @@ export class Migrater implements IMigrater {
     });
     const applied: string[] = [];
     for (;;) {
-      const result = await applyOneUp({ provider: this.provider, connection, migrations });
+      const result = await applyOneUp({
+        provider: this.provider,
+        connection,
+        migrations,
+        batchSeparator: this.batchSeparator,
+      });
       if (!result.applied || result.name == null) break;
       applied.push(result.name);
       if (one) break;
@@ -48,7 +56,12 @@ export class Migrater implements IMigrater {
       migratePath: migrationsPath,
       dialect: this.provider.name,
     });
-    const result = await applyOneDown({ provider: this.provider, connection, migrations });
+    const result = await applyOneDown({
+      provider: this.provider,
+      connection,
+      migrations,
+      batchSeparator: this.batchSeparator,
+    });
     return result.rolledBack ? result.name : null;
   }
 

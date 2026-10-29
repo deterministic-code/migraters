@@ -13,6 +13,7 @@ connect. oracle uses the existing service.
   --migrations-path  Migrations directory (default: ./sql/<dialect>/migrations).
   --and-up           After setup, immediately invoke migrate-up so the chain is applied in one step.
   --create-database  Create the database named in --connection if it does not exist.
+  --batch-separator  Token that starts a batch-separator line when --and-up runs (default: GO). A trailing -- comment or YYYY-MM-DD date is allowed.
 
 Examples:
   # sqlite — bare path or sqlite:// URL; both create a file on disk.

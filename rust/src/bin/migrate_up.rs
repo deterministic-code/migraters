@@ -19,6 +19,7 @@ struct Args {
     migrate_path: String,
     connection: String,
     one: bool,
+    batch_separator: String,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -27,6 +28,7 @@ fn parse_args() -> Result<Args, String> {
     let mut migrate_root: Option<String> = None;
     let mut connection: Option<String> = None;
     let mut one = false;
+    let mut batch_separator = String::from("GO");
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
         if is_help(&a) {
@@ -49,6 +51,12 @@ fn parse_args() -> Result<Args, String> {
             migrate_root = Some(v);
         } else if let Some(v) = take_value(&a, &mut iter, "--connection") {
             connection = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--batch-separator") {
+            let token = v.trim();
+            if token.is_empty() {
+                return Err(message("errors/empty-batch-separator", &[]));
+            }
+            batch_separator = token.to_string();
         } else {
             return Err(message("errors/unknown-arg", &[("arg", &a)]));
         }
@@ -80,11 +88,12 @@ fn parse_args() -> Result<Args, String> {
         migrate_path,
         connection,
         one,
+        batch_separator,
     })
 }
 
 async fn apply_pending(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    let names = Migrater::new(args.dialect)
+    let names = Migrater::with_batch_separator(args.dialect, args.batch_separator.clone())
         .up(UpArg {
             connection: &args.connection,
             migrations_path: &args.migrate_path,

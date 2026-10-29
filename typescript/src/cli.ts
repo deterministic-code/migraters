@@ -6,6 +6,9 @@ import { fillTemplate, loadMessage } from './infrastructure/message-templates.ts
 const missingProviderMsg = await loadMessage('errors/missing-provider');
 const unsupportedProviderTpl = await loadMessage('errors/unsupported-provider');
 const missingConnectionTpl = await loadMessage('errors/missing-connection');
+const emptyBatchSeparatorMsg = await loadMessage('errors/empty-batch-separator');
+
+export const DEFAULT_BATCH_SEPARATOR = 'GO';
 
 export { missingProviderMsg };
 
@@ -35,6 +38,15 @@ export const requireConnection = (dialect: IDatasourceProvider, fromFlag: string
     process.exit(2);
   }
   return connection;
+};
+
+export const requireBatchSeparator = (value: string): string => {
+  const token = value.trim();
+  if (token.length === 0) {
+    process.stderr.write(emptyBatchSeparatorMsg);
+    process.exit(2);
+  }
+  return token;
 };
 
 export const takeFlag = (

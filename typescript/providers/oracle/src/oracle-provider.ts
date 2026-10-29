@@ -96,12 +96,18 @@ export class OracleProvider implements IDatasourceProvider {
     return sqlRun.applied(this, connection);
   }
 
-  migrateUp(connection: string, name: string, body: string, checksum: string): Promise<void> {
-    return sqlRun.migrateUp(this, connection, name, body, checksum);
+  migrateUp(
+    connection: string,
+    name: string,
+    body: string,
+    checksum: string,
+    batchSeparator?: string,
+  ): Promise<void> {
+    return sqlRun.migrateUp(this, connection, name, body, checksum, batchSeparator);
   }
 
-  migrateDown(connection: string, name: string, body: string): Promise<void> {
-    return sqlRun.migrateDown(this, connection, name, body);
+  migrateDown(connection: string, name: string, body: string, batchSeparator?: string): Promise<void> {
+    return sqlRun.migrateDown(this, connection, name, body, batchSeparator);
   }
 
   log(

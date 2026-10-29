@@ -129,6 +129,7 @@ internal static class MigrateCli
             "--migrations-root",
             "--migrate-root",
             "--name",
+            "--batch-separator",
         ];
         foreach (var flag in flags)
         {
@@ -136,6 +137,18 @@ internal static class MigrateCli
                 return true;
         }
         return false;
+    }
+
+    internal static bool TryBatchSeparator(string value, out string separator, out string error)
+    {
+        separator = value.Trim();
+        if (string.IsNullOrEmpty(separator))
+        {
+            error = HelpTemplates.Message("errors/empty-batch-separator");
+            return false;
+        }
+        error = string.Empty;
+        return true;
     }
 
     internal static string ParseArgError(string arg, bool missingValue) =>

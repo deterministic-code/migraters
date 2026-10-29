@@ -20,6 +20,7 @@ struct Args {
     migrations_path: String,
     and_up: bool,
     create_database: bool,
+    batch_separator: String,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -28,6 +29,7 @@ fn parse_args() -> Result<Args, String> {
     let mut migrations_path: Option<String> = None;
     let mut and_up = false;
     let mut create_database = false;
+    let mut batch_separator = String::from("GO");
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
         if is_help(&a) {
@@ -50,6 +52,12 @@ fn parse_args() -> Result<Args, String> {
             .or_else(|| take_value(&a, &mut iter, "--migrate-path"))
         {
             migrations_path = Some(v);
+        } else if let Some(v) = take_value(&a, &mut iter, "--batch-separator") {
+            let token = v.trim();
+            if token.is_empty() {
+                return Err(message("errors/empty-batch-separator", &[]));
+            }
+            batch_separator = token.to_string();
         } else {
             return Err(message("errors/unknown-arg", &[("arg", &a)]));
         }
@@ -80,6 +88,7 @@ fn parse_args() -> Result<Args, String> {
         migrations_path,
         and_up,
         create_database,
+        batch_separator,
     })
 }
 
@@ -100,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.create_database {
         create_database(args.dialect.name(), &args.connection).await?;
     }
-    let migrater = Migrater::new(args.dialect);
+    let migrater = Migrater::with_batch_separator(args.dialect, args.batch_separator.clone());
     migrater
         .setup(SetupArg {
             connection: &args.connection,

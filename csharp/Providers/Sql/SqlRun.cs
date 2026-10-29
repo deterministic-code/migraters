@@ -79,7 +79,13 @@ internal sealed class SqlRun
         return await SqlCatalog.AppliedAsync(conn, this).ConfigureAwait(false);
     }
 
-    public async Task MigrateUp(string connection, string name, string body, string checksum)
+    public async Task MigrateUp(
+        string connection,
+        string name,
+        string body,
+        string checksum,
+        string batchSeparator = "GO"
+    )
     {
         var conn = await OpenAsync(connection, requireExisting: true).ConfigureAwait(false);
         await DbExecute.ApplyStatementsAsync(
@@ -94,18 +100,20 @@ internal sealed class SqlRun
                     InsertAppliedSql,
                     ("p1", name),
                     ("p2", checksum)
-                )
+                ),
+            batchSeparator
         ).ConfigureAwait(false);
     }
 
-    public async Task MigrateDown(string connection, string name, string body)
+    public async Task MigrateDown(string connection, string name, string body, string batchSeparator = "GO")
     {
         var conn = await OpenAsync(connection, requireExisting: true).ConfigureAwait(false);
         await DbExecute.ApplyStatementsAsync(
             conn,
             this,
             body,
-            tx => DbExecute.CatalogWriteAsync(conn, tx, this, DeleteAppliedSql, ("p1", name))
+            tx => DbExecute.CatalogWriteAsync(conn, tx, this, DeleteAppliedSql, ("p1", name)),
+            batchSeparator
         ).ConfigureAwait(false);
     }
 

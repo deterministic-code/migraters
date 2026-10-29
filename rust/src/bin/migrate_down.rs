@@ -20,6 +20,7 @@ struct Args {
     migrate_path: String,
     connection: String,
     confirm: bool,
+    batch_separator: String,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -28,6 +29,7 @@ fn parse_args() -> Result<Args, String> {
     let mut migrate_root: Option<String> = None;
     let mut connection: Option<String> = None;
     let mut confirm = false;
+    let mut batch_separator = String::from("GO");
     let mut iter = env::args().skip(1);
     while let Some(a) = iter.next() {
         if is_help(&a) {
@@ -48,6 +50,12 @@ fn parse_args() -> Result<Args, String> {
             connection = Some(v);
         } else if a == "--confirm" {
             confirm = true;
+        } else if let Some(v) = take_value(&a, &mut iter, "--batch-separator") {
+            let token = v.trim();
+            if token.is_empty() {
+                return Err(message("errors/empty-batch-separator", &[]));
+            }
+            batch_separator = token.to_string();
         } else {
             return Err(message("errors/unknown-arg", &[("arg", &a)]));
         }
@@ -79,6 +87,7 @@ fn parse_args() -> Result<Args, String> {
         migrate_path,
         connection,
         confirm,
+        batch_separator,
     })
 }
 
@@ -115,7 +124,7 @@ fn confirm_or_abort(dialect: &str, confirm: bool) {
 }
 
 async fn rollback_last(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    match Migrater::new(args.dialect)
+    match Migrater::with_batch_separator(args.dialect, args.batch_separator.clone())
         .down(DownArg {
             connection: &args.connection,
             migrations_path: &args.migrate_path,
