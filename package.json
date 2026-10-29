@@ -1,6 +1,6 @@
 {
   "name": "@deterministic-code/migraters",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
   "type": "module",
   "publishConfig": {
