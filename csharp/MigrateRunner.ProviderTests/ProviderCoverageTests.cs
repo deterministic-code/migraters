@@ -163,18 +163,40 @@ public sealed class ProviderCoverageTests
         Assert.False(d.Sql.UseTransaction);
         Assert.Equal("`t`", d.Sql.QuoteIdent("t"));
         Assert.Equal("@p1", d.Sql.Placeholder("p1"));
-        Assert.Equal("Server=localhost", d.NormalizeConnectionString("Server=localhost"));
+        var ado = d.NormalizeConnectionString("Server=localhost");
+        Assert.Contains("Server=localhost", ado, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Allow User Variables=true", ado, StringComparison.OrdinalIgnoreCase);
 
         var full = d.NormalizeConnectionString(
             "mysql://root:secret@127.0.0.1:3307/app?AllowUserVariables=true"
         );
         StringAssertContainsAll(
             full,
-            ["Server=127.0.0.1", "Port=3307", "User ID=root", "Password=secret", "Database=app"]
+            [
+                "Server=127.0.0.1",
+                "Port=3307",
+                "User ID=root",
+                "Password=secret",
+                "Database=app",
+                "Allow User Variables=true",
+            ]
         );
 
         var defaultPort = d.NormalizeConnectionString("mysql://127.0.0.1/app");
-        StringAssertContainsAll(defaultPort, ["Port=3306", "Database=app"]);
+        StringAssertContainsAll(defaultPort, ["Port=3306", "Database=app", "Allow User Variables=true"]);
+
+        var fromUrl = d.NormalizeConnectionString("mysql://ds:ds@127.0.0.1:3306/app");
+        StringAssertContainsAll(
+            fromUrl,
+            [
+                "Server=127.0.0.1",
+                "Port=3306",
+                "User ID=ds",
+                "Password=ds",
+                "Database=app",
+                "Allow User Variables=true",
+            ]
+        );
     }
 
     [Fact]
