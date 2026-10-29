@@ -235,12 +235,13 @@ GO
         let d = MysqlProvider;
         d.create_database(&url).await.expect("create database");
         d.setup(&url).await.expect("setup");
-        let result = d.migrate_up(&url, "0001_trigger", &sql, "test").await;
+        let result = d.migrate_up(&url, "0001_trigger", &sql, "test", "GO").await;
         let _ = d
             .migrate_down(
                 &url,
                 "0001_trigger",
                 &format!("DROP TRIGGER IF EXISTS {trigger};\nGO\nDROP TABLE IF EXISTS {table};"),
+                "GO",
             )
             .await;
         let _ = std::fs::remove_dir_all(&dir);

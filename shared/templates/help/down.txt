@@ -9,6 +9,7 @@ to proceed unless the operator types confirm on stdin, or passes --confirm.
   --migrations-root  Root prefix; the script then looks at <migrations-root>/<dialect>/migrations.
                      Defaults to 'sql'. Ignored when --migrations-path is also set.
   --confirm          Skip the interactive prompt.
+  --batch-separator  Token that starts a batch-separator line (default: GO). A trailing -- comment or YYYY-MM-DD date is allowed.
 
 Examples:
   # sqlite — bare path or sqlite:// URL.

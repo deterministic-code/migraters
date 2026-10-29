@@ -12,6 +12,9 @@ public sealed class RegistryTests
         Assert.Contains("--language", CliSpec.UsageLine("init"), StringComparison.Ordinal);
         Assert.Contains("--dialect", CliSpec.UsageLine("init"), StringComparison.Ordinal);
         Assert.Contains("--all", CliSpec.UsageLine("init"), StringComparison.Ordinal);
+        Assert.Contains("--batch-separator", CliSpec.UsageLine("setup"), StringComparison.Ordinal);
+        Assert.Contains("--batch-separator", CliSpec.UsageLine("up"), StringComparison.Ordinal);
+        Assert.Contains("--batch-separator", CliSpec.UsageLine("down"), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -3,7 +3,14 @@
 
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
+import {
+  DEFAULT_BATCH_SEPARATOR,
+  missingProviderMsg,
+  requireBatchSeparator,
+  requireConnection,
+  requireDialect,
+  takeFlag,
+} from '../cli.ts';
 import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
 import { loadHelp, Migrater } from '../index.ts';
 
@@ -34,12 +41,14 @@ const parseArgs = (argv: string[]) => {
     migrateRoot: string | null;
     connection: string | null;
     confirm: boolean;
+    batchSeparator: string;
   } = {
     provider: null,
     migratePath: null,
     migrateRoot: null,
     connection: null,
     confirm: false,
+    batchSeparator: DEFAULT_BATCH_SEPARATOR,
   };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
@@ -69,6 +78,9 @@ const parseArgs = (argv: string[]) => {
       i = taken.next;
     } else if (a === '--confirm') {
       args.confirm = true;
+    } else if ((taken = takeFlag(rest, i, a, '--batch-separator'))) {
+      args.batchSeparator = requireBatchSeparator(taken.value);
+      i = taken.next;
     } else {
       process.stderr.write(fillTemplate(unknownArgTpl, { arg: a }));
       process.exit(2);
@@ -126,7 +138,7 @@ const main = async () => {
   }
 
   const migratePath = resolve(resolveMigratePath(args, dialect.name));
-  const name = await new Migrater(dialect).down({
+  const name = await new Migrater(dialect, args.batchSeparator).down({
     connection,
     migrationsPath: migratePath,
   });

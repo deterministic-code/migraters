@@ -68,12 +68,13 @@ export const sqlRun = {
     name: string,
     body: string,
     checksum: string,
+    batchSeparator?: string,
   ): Promise<void> {
     const client = await openExisting(surface, connection);
     try {
       const q = (ident: string) => quoteIdent(surface, ident);
       await client.transaction(async () => {
-        for (const stmt of splitOnGo(body)) {
+        for (const stmt of splitOnGo(body, batchSeparator)) {
           await client.exec(stmt);
         }
         const t = q('migrates');
@@ -92,12 +93,13 @@ export const sqlRun = {
     connection: string,
     name: string,
     body: string,
+    batchSeparator?: string,
   ): Promise<void> {
     const client = await openExisting(surface, connection);
     try {
       const q = (ident: string) => quoteIdent(surface, ident);
       await client.transaction(async () => {
-        for (const stmt of splitOnGo(body)) {
+        for (const stmt of splitOnGo(body, batchSeparator)) {
           await client.exec(stmt);
         }
         const t = q('migrates');

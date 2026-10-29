@@ -7,8 +7,8 @@ public interface IDatasourceProvider
     Task CreateDatabaseIfMissingAsync(string connection);
     Task Setup(string connection);
     Task<IReadOnlyDictionary<string, string?>> Applied(string connection);
-    Task MigrateUp(string connection, string name, string body, string checksum);
-    Task MigrateDown(string connection, string name, string body);
+    Task MigrateUp(string connection, string name, string body, string checksum, string batchSeparator = "GO");
+    Task MigrateDown(string connection, string name, string body, string batchSeparator = "GO");
     Task<long> Log(
         string connection,
         long? id,

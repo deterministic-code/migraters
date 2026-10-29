@@ -107,7 +107,13 @@ mod core_lifecycle {
             Ok(self.store.applied.lock().unwrap().clone())
         }
 
-        async fn migrate_up(&self, name: &str, body: &str, checksum: &str) -> Result<(), BoxError> {
+        async fn migrate_up(
+            &self,
+            name: &str,
+            body: &str,
+            checksum: &str,
+            _batch_separator: &str,
+        ) -> Result<(), BoxError> {
             if body.contains("NOT VALID") {
                 return Err("not valid sql".into());
             }
@@ -119,7 +125,12 @@ mod core_lifecycle {
             Ok(())
         }
 
-        async fn migrate_down(&self, name: &str, _body: &str) -> Result<(), BoxError> {
+        async fn migrate_down(
+            &self,
+            name: &str,
+            _body: &str,
+            _batch_separator: &str,
+        ) -> Result<(), BoxError> {
             self.store.applied.lock().unwrap().remove(name);
             Ok(())
         }

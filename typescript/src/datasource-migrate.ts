@@ -87,11 +87,13 @@ export async function applyOneUp({
   connection,
   migrations,
   env = process.env,
+  batchSeparator,
 }: {
   provider: IDatasourceProvider;
   connection: string;
   migrations: MigrationDescriptor[];
   env?: NodeJS.ProcessEnv;
+  batchSeparator?: string;
 }): Promise<{ applied: boolean; name: string | null }> {
   const applied = await provider.applied(connection);
   await assertNoChecksumDrift({ migrations, applied, env });
@@ -105,7 +107,7 @@ export async function applyOneUp({
   const startedAt = Date.now();
 
   try {
-    await provider.migrateUp(connection, next.name, sqlText, sum);
+    await provider.migrateUp(connection, next.name, sqlText, sum, batchSeparator);
   } catch (e) {
     const err = e as Error;
     await provider.log(connection, logId, next.name, 'up', 'error', Date.now() - startedAt, String(err?.message ?? e));
@@ -121,11 +123,13 @@ export async function applyOneDown({
   connection,
   migrations,
   env = process.env,
+  batchSeparator,
 }: {
   provider: IDatasourceProvider;
   connection: string;
   migrations: MigrationDescriptor[];
   env?: NodeJS.ProcessEnv;
+  batchSeparator?: string;
 }): Promise<{ rolledBack: boolean; name: string | null }> {
   const applied = await provider.applied(connection);
   await assertNoChecksumDrift({ migrations, applied, env });
@@ -146,7 +150,12 @@ export async function applyOneDown({
   const startedAt = Date.now();
 
   try {
-    await provider.migrateDown(connection, lastApplied.name, await readFile(downPath, 'utf8'));
+    await provider.migrateDown(
+      connection,
+      lastApplied.name,
+      await readFile(downPath, 'utf8'),
+      batchSeparator,
+    );
   } catch (e) {
     const err = e as Error;
     await provider.log(

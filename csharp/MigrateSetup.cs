@@ -11,7 +11,7 @@ internal sealed class MigrateSetup(IProviderFactory providers, IConnectionResolv
 
     public async Task<int> RunAsync(string[] args)
     {
-        if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var andUp, out var createDatabase, out var showHelp, out var error))
+        if (!TryParse(args, out var provider, out var connection, out var migrationsPath, out var andUp, out var createDatabase, out var batchSeparator, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
         var resolved = MigrateCli.ResolveProvider(providers, connections, provider, connection);
@@ -19,7 +19,7 @@ internal sealed class MigrateSetup(IProviderFactory providers, IConnectionResolv
             return Fail(((ProviderResolution.Rejected)resolved).Error);
 
         var resolvedMigrationsPath = migrationsPath ?? $"./sql/{loaded.Name}/migrations";
-        var migrater = new Migrater(loaded);
+        var migrater = new Migrater(loaded, batchSeparator);
 
         try
         {
@@ -76,6 +76,7 @@ internal sealed class MigrateSetup(IProviderFactory providers, IConnectionResolv
         out string? migrationsPath,
         out bool andUp,
         out bool createDatabase,
+        out string batchSeparator,
         out bool showHelp,
         out string error
     )
@@ -85,6 +86,7 @@ internal sealed class MigrateSetup(IProviderFactory providers, IConnectionResolv
         migrationsPath = null;
         andUp = false;
         createDatabase = false;
+        batchSeparator = "GO";
         showHelp = false;
         error = string.Empty;
 
@@ -120,6 +122,12 @@ internal sealed class MigrateSetup(IProviderFactory providers, IConnectionResolv
                 || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-path", out takenPath))
             {
                 migrationsPath = takenPath;
+                continue;
+            }
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--batch-separator", out var takenSeparator))
+            {
+                if (!MigrateCli.TryBatchSeparator(takenSeparator, out batchSeparator, out error))
+                    return false;
                 continue;
             }
 

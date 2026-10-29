@@ -11,7 +11,7 @@ internal sealed class MigrateUp(IProviderFactory providers, IConnectionResolver 
 
     public async Task<int> RunAsync(string[] args)
     {
-        if (!TryParse(args, out var provider, out var migratePath, out var connection, out var one, out var showHelp, out var error))
+        if (!TryParse(args, out var provider, out var migratePath, out var connection, out var one, out var batchSeparator, out var showHelp, out var error))
             return showHelp ? WriteHelp() : Fail(error);
 
         var resolved = MigrateCli.ResolveProvider(providers, connections, provider, connection);
@@ -20,7 +20,7 @@ internal sealed class MigrateUp(IProviderFactory providers, IConnectionResolver 
 
         try
         {
-            var names = await new Migrater(loaded).Up(new UpArg(resolvedConnection, migratePath, one)).ConfigureAwait(false);
+            var names = await new Migrater(loaded, batchSeparator).Up(new UpArg(resolvedConnection, migratePath, one)).ConfigureAwait(false);
             if (names.Count == 0)
                 Console.WriteLine(HelpTemplates.Message("status/no-pending"));
             else
@@ -46,6 +46,7 @@ internal sealed class MigrateUp(IProviderFactory providers, IConnectionResolver 
         out string migratePath,
         out string? connection,
         out bool one,
+        out string batchSeparator,
         out bool showHelp,
         out string error
     )
@@ -54,6 +55,7 @@ internal sealed class MigrateUp(IProviderFactory providers, IConnectionResolver 
         migratePath = string.Empty;
         connection = null;
         one = false;
+        batchSeparator = "GO";
         showHelp = false;
         error = string.Empty;
         string? migrateRoot = null;
@@ -91,6 +93,12 @@ internal sealed class MigrateUp(IProviderFactory providers, IConnectionResolver 
                 || MigrateCli.TryTakeFlag(args, ref i, a, "--migrate-root", out takenRoot))
             {
                 migrateRoot = takenRoot;
+                continue;
+            }
+            if (MigrateCli.TryTakeFlag(args, ref i, a, "--batch-separator", out var takenSeparator))
+            {
+                if (!MigrateCli.TryBatchSeparator(takenSeparator, out batchSeparator, out error))
+                    return false;
                 continue;
             }
 

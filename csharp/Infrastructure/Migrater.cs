@@ -1,6 +1,6 @@
 namespace Deterministic.MigrateRunner;
 
-internal sealed class Migrater(IDatasourceProvider provider) : IMigrater
+internal sealed class Migrater(IDatasourceProvider provider, string batchSeparator = "GO") : IMigrater
 {
     public string Name => provider.Name;
 
@@ -33,7 +33,7 @@ internal sealed class Migrater(IDatasourceProvider provider) : IMigrater
             var started = DateTime.UtcNow;
             try
             {
-                await provider.MigrateUp(args.Connection, next.Name, sql, checksum).ConfigureAwait(false);
+                await provider.MigrateUp(args.Connection, next.Name, sql, checksum, batchSeparator).ConfigureAwait(false);
                 await provider
                     .Log(
                         args.Connection,
@@ -94,7 +94,7 @@ internal sealed class Migrater(IDatasourceProvider provider) : IMigrater
         var started = DateTime.UtcNow;
         try
         {
-            await provider.MigrateDown(args.Connection, last.Name, sql).ConfigureAwait(false);
+            await provider.MigrateDown(args.Connection, last.Name, sql, batchSeparator).ConfigureAwait(false);
             await provider
                 .Log(
                     args.Connection,

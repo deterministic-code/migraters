@@ -22,10 +22,10 @@ public sealed class MysqlProvider : IDatasourceProvider
     public Task Setup(string connection) => _sql.Setup(connection);
     public Task<IReadOnlyDictionary<string, string?>> Applied(string connection) =>
         _sql.Applied(connection);
-    public Task MigrateUp(string connection, string name, string body, string checksum) =>
-        _sql.MigrateUp(connection, name, body, checksum);
-    public Task MigrateDown(string connection, string name, string body) =>
-        _sql.MigrateDown(connection, name, body);
+    public Task MigrateUp(string connection, string name, string body, string checksum, string batchSeparator = "GO") =>
+        _sql.MigrateUp(connection, name, body, checksum, batchSeparator);
+    public Task MigrateDown(string connection, string name, string body, string batchSeparator = "GO") =>
+        _sql.MigrateDown(connection, name, body, batchSeparator);
     public Task<long> Log(
         string connection,
         long? id,

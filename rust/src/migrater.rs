@@ -48,11 +48,22 @@ pub trait IMigrater: Send + Sync {
 
 pub struct Migrater {
     provider: &'static dyn IDatasourceProvider,
+    batch_separator: String,
 }
 
 impl Migrater {
     pub fn new(provider: &'static dyn IDatasourceProvider) -> Self {
-        Self { provider }
+        Self::with_batch_separator(provider, "GO")
+    }
+
+    pub fn with_batch_separator(
+        provider: &'static dyn IDatasourceProvider,
+        batch_separator: impl Into<String>,
+    ) -> Self {
+        Self {
+            provider,
+            batch_separator: batch_separator.into(),
+        }
     }
 }
 
@@ -98,7 +109,7 @@ impl IMigrater for Migrater {
             let started = Instant::now();
             match self
                 .provider
-                .migrate_up(args.connection, &name, &sql, &sum)
+                .migrate_up(args.connection, &name, &sql, &sum, &self.batch_separator)
                 .await
             {
                 Ok(()) => {
@@ -169,7 +180,7 @@ impl IMigrater for Migrater {
         let started = Instant::now();
         match self
             .provider
-            .migrate_down(args.connection, &name, &sql)
+            .migrate_down(args.connection, &name, &sql, &self.batch_separator)
             .await
         {
             Ok(()) => {

@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 // Idempotent migrate-setup — creates the migrates + migrate_logs tracking tables per dialect.
 
-import { missingProviderMsg, requireConnection, requireDialect, takeFlag } from '../cli.ts';
+import {
+  DEFAULT_BATCH_SEPARATOR,
+  missingProviderMsg,
+  requireBatchSeparator,
+  requireConnection,
+  requireDialect,
+  takeFlag,
+} from '../cli.ts';
 import { createDatabase } from '../create-database.ts';
 import { fillTemplate, loadMessage } from '../infrastructure/message-templates.ts';
 import { loadHelp, Migrater } from '../index.ts';
@@ -19,12 +26,14 @@ const parseArgs = (argv: string[]) => {
     migrationsPath: string | null;
     andUp: boolean;
     createDatabase: boolean;
+    batchSeparator: string;
   } = {
     provider: null,
     connection: null,
     migrationsPath: null,
     andUp: false,
     createDatabase: false,
+    batchSeparator: DEFAULT_BATCH_SEPARATOR,
   };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
@@ -54,6 +63,9 @@ const parseArgs = (argv: string[]) => {
     ) {
       args.migrationsPath = taken.value;
       i = taken.next;
+    } else if ((taken = takeFlag(rest, i, a, '--batch-separator'))) {
+      args.batchSeparator = requireBatchSeparator(taken.value);
+      i = taken.next;
     } else {
       process.stderr.write(fillTemplate(unknownArgTpl, { arg: a }));
       process.exit(2);
@@ -73,7 +85,7 @@ const main = async () => {
 
   const migrationsPath = args.migrationsPath ?? `./sql/${dialect.name}/migrations`;
   if (args.createDatabase) await createDatabase(dialect.name, connection);
-  const migrater = new Migrater(dialect);
+  const migrater = new Migrater(dialect, args.batchSeparator);
   await migrater.setup({ connection, migrationsPath });
   process.stdout.write(
     fillTemplate(setupCompleteTpl, {

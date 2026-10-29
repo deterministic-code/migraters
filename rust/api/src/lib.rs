@@ -72,10 +72,13 @@ pub trait IDatasourceProvider: Send + Sync {
         name: &'a str,
         body: &'a str,
         checksum: &'a str,
+        batch_separator: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<(), BoxError>> + Send + 'a>> {
         Box::pin(async move {
             let driver = self.connect(connection).await?;
-            driver.migrate_up(name, body, checksum).await?;
+            driver
+                .migrate_up(name, body, checksum, batch_separator)
+                .await?;
             driver.close().await
         })
     }
@@ -85,10 +88,11 @@ pub trait IDatasourceProvider: Send + Sync {
         connection: &'a str,
         name: &'a str,
         body: &'a str,
+        batch_separator: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<(), BoxError>> + Send + 'a>> {
         Box::pin(async move {
             let driver = self.connect(connection).await?;
-            driver.migrate_down(name, body).await?;
+            driver.migrate_down(name, body, batch_separator).await?;
             driver.close().await
         })
     }
@@ -133,8 +137,19 @@ pub use IDatasourceProvider as SqlDialect;
 pub trait MigrationDriver: Send + Sync {
     async fn setup(&self) -> Result<(), BoxError>;
     async fn applied(&self) -> Result<HashMap<String, Option<String>>, BoxError>;
-    async fn migrate_up(&self, name: &str, body: &str, checksum: &str) -> Result<(), BoxError>;
-    async fn migrate_down(&self, name: &str, body: &str) -> Result<(), BoxError>;
+    async fn migrate_up(
+        &self,
+        name: &str,
+        body: &str,
+        checksum: &str,
+        batch_separator: &str,
+    ) -> Result<(), BoxError>;
+    async fn migrate_down(
+        &self,
+        name: &str,
+        body: &str,
+        batch_separator: &str,
+    ) -> Result<(), BoxError>;
     async fn log_started(&self, name: &str, direction: &str) -> Result<i64, BoxError>;
     async fn log_finished(
         &self,

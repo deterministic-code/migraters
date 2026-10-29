@@ -146,6 +146,10 @@ commands:
       - flag: --create-database
         required: false
         help: "Create the database named in --connection if it does not exist."
+      - flag: --batch-separator
+        placeholder: token
+        required: false
+        help: "Token that starts a batch-separator line when --and-up runs (default: GO). A trailing -- comment or YYYY-MM-DD date is allowed."
 
   - verb: up
     show_connection_env: true
@@ -198,6 +202,10 @@ commands:
       - flag: --one
         required: false
         help: "Apply only the next pending migration, then exit. Default is to apply all pending migrations."
+      - flag: --batch-separator
+        placeholder: token
+        required: false
+        help: "Token that starts a batch-separator line (default: GO). A trailing -- comment or YYYY-MM-DD date is allowed."
 
   - verb: down
     show_connection_env: true
@@ -247,6 +255,10 @@ commands:
       - flag: --confirm
         required: false
         help: Skip the interactive prompt.
+      - flag: --batch-separator
+        placeholder: token
+        required: false
+        help: "Token that starts a batch-separator line (default: GO). A trailing -- comment or YYYY-MM-DD date is allowed."
 
   - verb: create
     summary: |

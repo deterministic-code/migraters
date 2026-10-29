@@ -17,7 +17,10 @@ pub struct MigrationPool {
 }
 
 impl MigrationPool {
-    pub async fn connect(dialect: &'static dyn Dialect, connection: &str) -> Result<Self, BoxError> {
+    pub async fn connect(
+        dialect: &'static dyn Dialect,
+        connection: &str,
+    ) -> Result<Self, BoxError> {
         Ok(Self {
             dialect,
             connection: connection.to_string(),
@@ -61,12 +64,12 @@ impl MigrationPool {
     ) -> Result<(), BoxError> {
         if catalog_sql.to_ascii_uppercase().contains("DELETE") {
             self.dialect
-                .migrate_down(&self.connection, p1, sql)
+                .migrate_down(&self.connection, p1, sql, "GO")
                 .await
                 .map_err(cast)
         } else {
             self.dialect
-                .migrate_up(&self.connection, p1, sql, p2.unwrap_or(""))
+                .migrate_up(&self.connection, p1, sql, p2.unwrap_or(""), "GO")
                 .await
                 .map_err(cast)
         }
@@ -74,14 +77,14 @@ impl MigrationPool {
 
     pub async fn migrate_up(&self, name: &str, body: &str, checksum: &str) -> Result<(), BoxError> {
         self.dialect
-            .migrate_up(&self.connection, name, body, checksum)
+            .migrate_up(&self.connection, name, body, checksum, "GO")
             .await
             .map_err(cast)
     }
 
     pub async fn migrate_down(&self, name: &str, body: &str) -> Result<(), BoxError> {
         self.dialect
-            .migrate_down(&self.connection, name, body)
+            .migrate_down(&self.connection, name, body, "GO")
             .await
             .map_err(cast)
     }
