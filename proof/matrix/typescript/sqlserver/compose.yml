@@ -18,7 +18,10 @@ services:
       retries: 30
       start_period: 20s
   e2e:
-    build: .
+    build:
+      context: .
+      args:
+        MIGRATERS_SOURCE: ${MIGRATERS_SOURCE:-published}
     depends_on:
       sqlserver:
         condition: service_healthy

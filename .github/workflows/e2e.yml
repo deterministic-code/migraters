@@ -22,7 +22,6 @@ jobs:
 
       - name: Proof e2e
         run: |
-          bash proof/stage-cell.sh "${{ matrix.language }}" "${{ matrix.dialect }}"
           project="migraters-e2e-${{ matrix.language }}-${{ matrix.dialect }}"
           compose="proof/matrix/${{ matrix.language }}/${{ matrix.dialect }}/compose.yml"
           docker compose -p "$project" -f "$compose" up --build --abort-on-container-exit --exit-code-from e2e

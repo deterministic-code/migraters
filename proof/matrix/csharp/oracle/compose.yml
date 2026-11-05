@@ -12,7 +12,10 @@ services:
       retries: 40
       start_period: 90s
   e2e:
-    build: .
+    build:
+      context: .
+      args:
+        MIGRATERS_SOURCE: ${MIGRATERS_SOURCE:-published}
     depends_on:
       oracle:
         condition: service_healthy
