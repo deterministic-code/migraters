@@ -48,9 +48,14 @@ internal sealed class ProviderFactory : IProviderFactory
         var path = Path.Combine(AppContext.BaseDirectory, mapped.Dll);
         if (!File.Exists(path))
             throw new InvalidOperationException(entry.Name);
-        var type = Assembly.LoadFrom(path).GetType(mapped.Type);
+        return Activate(path, mapped.Type, entry.Name);
+    }
+
+    internal static IDatasourceProvider Activate(string path, string typeName, string errorName)
+    {
+        var type = Assembly.LoadFrom(path).GetType(typeName);
         if (type is null || Activator.CreateInstance(type) is not IDatasourceProvider provider)
-            throw new InvalidOperationException(entry.Name);
+            throw new InvalidOperationException(errorName);
         return provider;
     }
 }

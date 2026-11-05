@@ -46,5 +46,12 @@ public sealed class SqlDriverTests
             ["SELECT GOING;\nGOING\nSELECT 2;"],
             DbExecute.SplitOnGo("SELECT GOING;\nGOING\nSELECT 2;")
         );
+        Assert.Empty(DbExecute.SplitOnGo("GO\n\nGO"));
+        Assert.Equal(["SELECT 1;"], DbExecute.SplitOnGo("SELECT 1;\nGO 2026-10-29"));
+        Assert.Equal(["SELECT 1;\nGO not-a-date\nSELECT 2;"], DbExecute.SplitOnGo("SELECT 1;\nGO not-a-date\nSELECT 2;"));
+        Assert.False(DbExecute.IsBatchSeparatorLine("", "GO"));
+        Assert.False(DbExecute.IsBatchSeparatorLine("SELECT 1", "GO"));
+        Assert.True(DbExecute.IsBatchSeparatorLine("GO 2026-10-29", "GO"));
+        Assert.False(DbExecute.IsBatchSeparatorLine("GO 2026-10-29 extra", "GO"));
     }
 }

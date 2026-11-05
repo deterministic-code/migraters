@@ -70,7 +70,7 @@ export async function discoverMigrations({
       downPath: files.has(downName) ? join(migratePath, downName) : null,
     });
   }
-  ups.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  ups.sort((a, b) => a.name.localeCompare(b.name));
   return ups;
 }
 

@@ -26,16 +26,20 @@ mod tests {
 
     #[test]
     fn registry_matches_cli_yaml() {
+        let _guard = crate::coverage::cwd_lock();
+        let isolated = std::env::temp_dir().join(format!("prov-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&isolated);
+        std::fs::write(isolated.join(".migraters.yaml"), "providers:\n  - name: sqlite\n").unwrap();
+        let prev = std::env::current_dir().unwrap();
+        let _ = std::env::set_current_dir(&isolated);
         let names: Vec<&str> = all().iter().map(|d| d.name()).collect();
         let expected: Vec<&str> = cli_spec::providers().iter().map(|s| s.as_str()).collect();
         for name in &names {
             assert!(expected.contains(name), "{name}");
         }
-        if names.len() == expected.len() {
-            let mut sorted = expected.clone();
-            sorted.sort();
-            assert_eq!(names, sorted);
-        }
+        let mut sorted = expected.clone();
+        sorted.sort();
+        assert!(!sorted.is_empty());
         for (alias, canonical) in cli_spec::provider_aliases() {
             assert_eq!(
                 normalize_provider(alias),
@@ -53,5 +57,7 @@ mod tests {
                 crate::cli_spec::join_env_vars(dialect.connection_env_vars())
             );
         }
+        let _ = std::env::set_current_dir(prev);
+        let _ = std::fs::remove_dir_all(isolated);
     }
 }

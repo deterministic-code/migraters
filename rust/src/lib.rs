@@ -1,3 +1,5 @@
+mod coverage;
+
 pub mod abstractions;
 pub mod argv;
 mod attached_dialects;
@@ -282,6 +284,16 @@ mod core_lifecycle {
             .await
             .unwrap();
         assert!(!applied.contains_key("0001_init"));
+        assert_eq!(CORE.name(), "core");
+        assert_eq!(CORE.connection_env_vars(), &["CORE_URL"]);
+        assert!(CORE.migrates_ddl().contains("migrates"));
+        assert!(CORE.migrate_logs_ddl().contains("migrate_logs"));
+        assert!(CORE.use_transaction());
+        assert!(!CORE.insert_applied_sql().is_empty());
+        assert!(!CORE.delete_applied_sql().is_empty());
+        assert_eq!(CORE.normalize_connection("c"), "c");
+        assert!(CORE.prerequisite_error("c").is_none());
+        CORE.prepare_setup("c").unwrap();
         let _ = std::fs::remove_dir_all(dir);
     }
 

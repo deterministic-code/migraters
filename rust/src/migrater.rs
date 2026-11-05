@@ -84,11 +84,10 @@ impl IMigrater for Migrater {
 
     async fn up(&self, args: UpArg<'_>) -> Result<Vec<String>, BoxError> {
         let files = discover_up_files(args.migrations_path)?;
-        let mut applied = self
-            .provider
-            .applied(args.connection)
-            .await
-            .map_err(|err| err.to_string())?;
+        let mut applied = match self.provider.applied(args.connection).await {
+            Ok(map) => map,
+            Err(err) => return Err(err.to_string().into()),
+        };
         assert_no_checksum_drift(&files, &applied)?;
         let mut names = Vec::new();
         loop {
@@ -152,11 +151,10 @@ impl IMigrater for Migrater {
 
     async fn down(&self, args: DownArg<'_>) -> Result<Option<String>, BoxError> {
         let files = discover_up_files(args.migrations_path)?;
-        let applied = self
-            .provider
-            .applied(args.connection)
-            .await
-            .map_err(|err| err.to_string())?;
+        let applied = match self.provider.applied(args.connection).await {
+            Ok(map) => map,
+            Err(err) => return Err(err.to_string().into()),
+        };
         if applied.is_empty() {
             return Ok(None);
         }
@@ -222,26 +220,21 @@ impl IMigrater for Migrater {
         }
         let dir = PathBuf::from(args.migrations_path);
         fs::create_dir_all(&dir)?;
-        let seq = if dir.is_dir() {
-            let mut names = Vec::new();
-            for entry in fs::read_dir(&dir)? {
-                let entry = entry?;
-                if let Ok(file_name) = entry.file_name().into_string() {
-                    names.push(file_name);
-                }
-            }
-            next_sequence(names)
-        } else {
-            1
+        let mut names = Vec::new();
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(err) => return Err(err.into()),
         };
+        for entry in entries.flatten() {
+            names.push(entry.file_name().to_string_lossy().into_owned());
+        }
+        let seq = next_sequence(names);
         let prefix = format!("{seq:04}");
         let up_name = format!("{prefix}_{}_up.sql", args.name);
         let down_name = format!("{prefix}_{}_down.sql", args.name);
         fs::write(dir.join(&up_name), scaffold("up", &[("name", args.name)]))?;
-        fs::write(
-            dir.join(&down_name),
-            scaffold("down", &[("name", args.name)]),
-        )?;
+        let down_path = dir.join(&down_name);
+        fs::write(&down_path, scaffold("down", &[("name", args.name)]))?;
         Ok(CreateResponse { up_name, down_name })
     }
 }

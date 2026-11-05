@@ -46,7 +46,7 @@
     "typecheck": "tsc -p orchestrator/tsconfig.json --noEmit && npm run typecheck --prefix typescript",
     "test": "npm run test:orchestrator && npm run test --prefix typescript && npm run test:rust && npm run test:csharp",
     "test:orchestrator": "vitest run --config orchestrator/vitest.config.ts",
-    "test:rust": "node orchestrator/attach-sqlite.js rust-core && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/Cargo.toml --lib",
+    "test:rust": "node orchestrator/attach-sqlite.js rust-core && CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/Cargo.toml --lib --ignore-filename-regex 'coverage\\.rs' --fail-under-lines 100 --fail-under-regions 100 && CARGO_TARGET_DIR=rust/target cargo llvm-cov --manifest-path rust/api/Cargo.toml --lib --fail-under-lines 100 --fail-under-regions 100",
     "test:csharp": "node orchestrator/attach-sqlite.js csharp && dotnet test csharp/MigrateRunner.Tests/MigrateRunner.Tests.csproj",
     "integration": "npm run prepare && npm run integration --prefix typescript && npm run integration:rust && npm run integration:csharp",
     "integration:rust": "CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/postgres/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/mysql/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/sqlserver/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/oracle/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/sqlite/Cargo.toml --lib",

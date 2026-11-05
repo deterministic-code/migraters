@@ -50,7 +50,7 @@ export const migrateCommand = (verb: MigrateVerb): string =>
   cliSpec.command.replace('{verb}', verb);
 
 const providers = cliSpec.providers.join('|');
-const languages = (cliSpec.languages ?? []).join('|');
+const languages = cliSpec.languages.join('|');
 
 const argUsage = (arg: CliArg): string => {
   const ph =

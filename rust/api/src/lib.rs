@@ -192,3 +192,202 @@ pub fn assert_dialect_surface(d: &dyn IDatasourceProvider) {
         .to_ascii_lowercase()
         .contains("migrates"));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU8, Ordering};
+    use std::sync::Mutex;
+
+    const OK: u8 = 0;
+    const FAIL_CONNECT: u8 = 1;
+    const FAIL_OPS: u8 = 2;
+    const FAIL_CLOSE: u8 = 3;
+
+    struct Driver {
+        mode: u8,
+    }
+
+    #[async_trait::async_trait]
+    impl MigrationDriver for Driver {
+        async fn setup(&self) -> Result<(), BoxError> {
+            if self.mode == FAIL_OPS {
+                return Err("setup".into());
+            }
+            Ok(())
+        }
+        async fn applied(&self) -> Result<HashMap<String, Option<String>>, BoxError> {
+            if self.mode == FAIL_OPS {
+                return Err("applied".into());
+            }
+            Ok(HashMap::new())
+        }
+        async fn migrate_up(
+            &self,
+            _name: &str,
+            _body: &str,
+            _checksum: &str,
+            _batch_separator: &str,
+        ) -> Result<(), BoxError> {
+            if self.mode == FAIL_OPS {
+                return Err("up".into());
+            }
+            Ok(())
+        }
+        async fn migrate_down(
+            &self,
+            _name: &str,
+            _body: &str,
+            _batch_separator: &str,
+        ) -> Result<(), BoxError> {
+            if self.mode == FAIL_OPS {
+                return Err("down".into());
+            }
+            Ok(())
+        }
+        async fn log_started(&self, _name: &str, _direction: &str) -> Result<i64, BoxError> {
+            if self.mode == FAIL_OPS {
+                return Err("log".into());
+            }
+            Ok(7)
+        }
+        async fn log_finished(
+            &self,
+            _id: i64,
+            _status: &str,
+            _duration_ms: i64,
+            _error: Option<&str>,
+        ) -> Result<(), BoxError> {
+            if self.mode == FAIL_OPS {
+                return Err("logf".into());
+            }
+            Ok(())
+        }
+        async fn close(&self) -> Result<(), BoxError> {
+            if self.mode == FAIL_CLOSE {
+                return Err("close".into());
+            }
+            Ok(())
+        }
+    }
+
+    struct Fake {
+        mode: AtomicU8,
+    }
+
+    impl Fake {
+        fn set(&self, mode: u8) {
+            self.mode.store(mode, Ordering::SeqCst);
+        }
+    }
+
+    impl IDatasourceProvider for Fake {
+        fn name(&self) -> &'static str {
+            "fake"
+        }
+        fn connection_env_vars(&self) -> &'static [&'static str] {
+            &["FAKE_URL"]
+        }
+        fn normalize_connection(&self, connection: &str) -> String {
+            connection.to_string()
+        }
+        fn prerequisite_error(&self, _connection: &str) -> Option<String> {
+            None
+        }
+        fn prepare_setup(&self, _connection: &str) -> std::io::Result<()> {
+            Ok(())
+        }
+        fn migrates_ddl(&self) -> &'static str {
+            "CREATE TABLE migrates (name TEXT)"
+        }
+        fn migrate_logs_ddl(&self) -> &'static str {
+            "CREATE TABLE migrate_logs (id INTEGER)"
+        }
+        fn use_transaction(&self) -> bool {
+            true
+        }
+        fn insert_applied_sql(&self) -> &'static str {
+            "INSERT"
+        }
+        fn delete_applied_sql(&self) -> &'static str {
+            "DELETE"
+        }
+        fn connect<'a>(
+            &'a self,
+            _connection: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MigrationDriver>, BoxError>> + Send + 'a>>
+        {
+            let mode = self.mode.load(Ordering::SeqCst);
+            Box::pin(async move {
+                if mode == FAIL_CONNECT {
+                    return Err("nope".into());
+                }
+                Ok(Box::new(Driver { mode }) as Box<dyn MigrationDriver>)
+            })
+        }
+    }
+
+    static FAKE: Fake = Fake {
+        mode: AtomicU8::new(OK),
+    };
+
+    #[test]
+    fn catalog_name_strips_suffix() {
+        assert_eq!(catalog_name("0001_init_up.sql"), "0001_init");
+        assert_eq!(catalog_name("0001_init"), "0001_init");
+    }
+
+    #[test]
+    fn surface_and_registered_plugins() {
+        assert_dialect_surface(&FAKE);
+        assert_eq!(FAKE.normalize_connection("c"), "c");
+        assert!(FAKE.prerequisite_error("c").is_none());
+        FAKE.prepare_setup("c").unwrap();
+        assert!(FAKE.use_transaction());
+        let _ = registered_dialects();
+        let _ = Mutex::new(DialectPlugin { dialect: &FAKE });
+    }
+
+    #[tokio::test]
+    async fn default_trait_methods() {
+        FAKE.set(OK);
+        FAKE.setup("c").await.unwrap();
+        assert!(FAKE.applied("c").await.unwrap().is_empty());
+        FAKE.migrate_up("c", "n", "sql", "sum", "GO").await.unwrap();
+        FAKE.migrate_down("c", "n", "sql", "GO").await.unwrap();
+        assert_eq!(FAKE.log("c", None, "n", "up", None, 0, None).await.unwrap(), 7);
+        assert_eq!(
+            FAKE.log("c", Some(3), "n", "up", None, 1, Some("e"))
+                .await
+                .unwrap(),
+            3
+        );
+        FAKE.create_database("c").await.unwrap();
+        assert_eq!(
+            FAKE.log("c", Some(1), "n", "up", None, 0, None).await.unwrap(),
+            1
+        );
+        FAKE.set(FAIL_CONNECT);
+        assert!(FAKE.setup("c").await.is_err());
+        assert!(FAKE.applied("c").await.is_err());
+        assert!(FAKE.migrate_up("c", "n", "s", "h", "GO").await.is_err());
+        assert!(FAKE.migrate_down("c", "n", "s", "GO").await.is_err());
+        assert!(FAKE.log("c", None, "n", "up", None, 0, None).await.is_err());
+        assert!(FAKE.log("c", Some(1), "n", "up", Some("e"), 0, None).await.is_err());
+        FAKE.set(FAIL_OPS);
+        assert!(FAKE.setup("c").await.is_err());
+        assert!(FAKE.applied("c").await.is_err());
+        assert!(FAKE.migrate_up("c", "n", "s", "h", "GO").await.is_err());
+        assert!(FAKE.migrate_down("c", "n", "s", "GO").await.is_err());
+        assert!(FAKE.log("c", None, "n", "up", None, 0, None).await.is_err());
+        assert!(FAKE.log("c", Some(1), "n", "up", Some("e"), 0, None).await.is_err());
+        FAKE.set(FAIL_CLOSE);
+        assert!(FAKE.setup("c").await.is_err());
+        assert!(FAKE.applied("c").await.is_err());
+        assert!(FAKE.migrate_up("c", "n", "s", "h", "GO").await.is_err());
+        assert!(FAKE.migrate_down("c", "n", "s", "GO").await.is_err());
+        assert!(FAKE.log("c", None, "n", "up", None, 0, None).await.is_err());
+        assert!(FAKE.log("c", Some(1), "n", "up", Some("e"), 0, None).await.is_err());
+        FAKE.set(OK);
+    }
+}

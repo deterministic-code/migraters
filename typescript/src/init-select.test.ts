@@ -1,9 +1,20 @@
-import { describe, expect, it } from 'vitest';
-import { loadSelectedPackages, resolveInitDialects } from './init-select.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, existsSync: vi.fn(actual.existsSync) };
+});
+
+import * as fs from 'node:fs';
+import { bundleYamlPath, loadSelectedPackages, resolveInitDialects } from './init-select.ts';
 
 describe('init dialect selection', () => {
   it('accepts aliases and keeps cli.yaml order', () => {
-    expect(resolveInitDialects(['ora', 'pg'], false)).toEqual(['postgres', 'oracle']);
+    expect(resolveInitDialects(['sqlite', 'ora', 'pg'], false)).toEqual([
+      'sqlite',
+      'postgres',
+      'oracle',
+    ]);
   });
 
   it('restores every provider for --all', () => {
@@ -30,5 +41,32 @@ describe('init dialect selection', () => {
       { name: 'Microsoft.Data.Sqlite', version: '9.0.0' },
       { name: 'Microsoft.Data.SqlClient', version: '6.0.2' },
     ]);
+  });
+
+  it('rejects an empty dialect list and an unknown provider', () => {
+    expect(() => resolveInitDialects([], false)).toThrow(/pass --dialect/);
+    expect(() => resolveInitDialects(['dbase'], false)).toThrow(/unsupported provider: dbase/);
+  });
+
+  it('returns an empty package list for rust dialects and unknown languages', async () => {
+    const rust = await loadSelectedPackages(['sqlite'], 'rust');
+    expect(rust.names).toEqual(['sqlite']);
+    expect(rust.packages).toEqual([]);
+    expect(rust.allDriverPackages).toEqual([]);
+    const selected = await loadSelectedPackages(['sqlite'], 'nope');
+    expect(selected.packages).toEqual([]);
+    expect(selected.allDriverPackages).toEqual([]);
+  });
+});
+
+describe('bundleYamlPath', () => {
+  afterEach(() => {
+    vi.mocked(fs.existsSync).mockRestore();
+  });
+
+  it('finds bundle.yaml in the repo and throws when every candidate is missing', () => {
+    expect(fs.existsSync(bundleYamlPath())).toBe(true);
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    expect(() => bundleYamlPath()).toThrow(/bundle.yaml not found/);
   });
 });

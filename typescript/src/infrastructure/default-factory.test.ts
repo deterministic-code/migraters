@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { defaultDialectFactory } from './default-factory.ts';
+import { SqlDialectFactory } from '../abstractions/sql-dialect-factory.ts';
+import {
+  defaultDialectFactory,
+  loadDialectModule,
+  loadInstalledProviders,
+} from './default-factory.ts';
 import { parseProviders } from './migraters-config.ts';
+import { SqliteProvider } from '../../providers/sqlite/src/sqlite-provider.ts';
 
 describe('defaultDialectFactory', () => {
   it('registers every dialect name and alias', () => {
@@ -27,6 +33,7 @@ describe('defaultDialectFactory', () => {
     }
     expect(defaultDialectFactory.tryGet('nope')).toBeUndefined();
     expect(() => defaultDialectFactory.get('nope')).toThrow(/Unknown SQL dialect/);
+    expect(new SqlDialectFactory([]).tryGet('sqlite')).toBeUndefined();
   });
 
   it('reads the providers list migrate-init writes', () => {
@@ -42,5 +49,32 @@ binDir: typescript/dist/src/bin
       ).map((p) => p.name),
     ).toEqual(['sqlite', 'postgres']);
     expect(parseProviders('language: rust\nproviders: []\nbinDir: rust/target/debug\n')).toEqual([]);
+  });
+
+  it('loads a dialect package through provider or createProvider', async () => {
+    const viaProvider = await loadDialectModule('sqlite', async () => ({
+      provider: () => new SqliteProvider(),
+    }));
+    expect(viaProvider.name).toBe('sqlite');
+    const viaCreate = await loadDialectModule('sqlite', async () => ({
+      createProvider: () => new SqliteProvider(),
+    }));
+    expect(viaCreate.name).toBe('sqlite');
+    await expect(loadDialectModule('ghost', async () => ({}))).rejects.toThrow('ghost');
+    await expect(loadDialectModule('sqlite')).resolves.toMatchObject({ name: 'sqlite' });
+  });
+
+  it('wraps unexpected load errors with the dialect name', async () => {
+    await expect(
+      loadInstalledProviders(async () => {
+        throw new Error('network');
+      }),
+    ).rejects.toThrow('sqlite');
+    await expect(
+      loadInstalledProviders(async () => {
+        throw 'boom';
+      }),
+    ).rejects.toThrow('sqlite');
+    await expect(loadInstalledProviders(async () => ({}))).rejects.toThrow('sqlite');
   });
 });

@@ -14,7 +14,7 @@ fn strip_legacy_header(sql: &str) -> &str {
     if !is_legacy_header(first.trim_end_matches(['\r', '\n'])) {
         return sql;
     }
-    sql.get(first.len()..).unwrap_or("")
+    &sql[first.len()..]
 }
 
 fn is_legacy_header(line: &str) -> bool {
