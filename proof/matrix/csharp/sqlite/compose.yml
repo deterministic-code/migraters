@@ -1,5 +1,8 @@
 services:
   e2e:
-    build: .
+    build:
+      context: .
+      args:
+        MIGRATERS_SOURCE: ${MIGRATERS_SOURCE:-published}
     tmpfs:
       - /dev/shm

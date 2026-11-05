@@ -12,7 +12,10 @@ services:
       timeout: 5s
       retries: 30
   e2e:
-    build: .
+    build:
+      context: .
+      args:
+        MIGRATERS_SOURCE: ${MIGRATERS_SOURCE:-published}
     depends_on:
       mysql:
         condition: service_healthy

@@ -2,19 +2,41 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
-cd "$root"
-tarball="$(npm pack --silent)"
-pack_path="$root/$tarball"
-workdir="$(mktemp -d)"
+local=0
+for arg in "$@"; do
+  case "$arg" in
+    --local) local=1 ;;
+    *)
+      echo "unknown arg: $arg" >&2
+      exit 2
+      ;;
+  esac
+done
+
+tmp="$(mktemp -d)"
+workdir="$tmp/typescript"
+mkdir -p "$workdir"
+pack_path=""
 cleanup() {
-  rm -rf "$workdir"
-  rm -f "$pack_path"
+  rm -rf "$tmp"
+  if [[ -n "$pack_path" ]]; then
+    rm -f "$pack_path"
+  fi
 }
 trap cleanup EXIT
 
+if [[ "$local" -eq 1 ]]; then
+  cd "$root"
+  tarball="$(npm pack --silent)"
+  pack_path="$root/$tarball"
+  install_spec="$pack_path"
+else
+  install_spec="@deterministic-code/migraters"
+fi
+
 cd "$workdir"
 npm init -y >/dev/null
-npm install "$pack_path"
+npm install "$install_spec"
 npx migrate-init --language typescript --dialect sqlite
 npx migrate-setup --provider sqlite --connection sqlite:///./app.sqlite
 test -f app.sqlite

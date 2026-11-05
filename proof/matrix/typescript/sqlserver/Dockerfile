@@ -6,6 +6,7 @@ RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] http
 RUN apt-get update && ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev && rm -rf /var/lib/apt/lists/*
 ENV PATH="/opt/mssql-tools18/bin:$PATH"
 COPY . .
-RUN npm install ./packs/deterministic-code-migraters-*.tgz
+ARG MIGRATERS_SOURCE=published
+RUN if [ "$MIGRATERS_SOURCE" = local ]; then npm install ./packs/deterministic-code-migraters-*.tgz; else npm install @deterministic-code/migraters; fi
 RUN npx migrate-init --language typescript --dialect sqlserver
 CMD ["./e2e.sh"]
