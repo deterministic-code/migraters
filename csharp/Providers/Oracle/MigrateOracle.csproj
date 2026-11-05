@@ -5,7 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Deterministic.MigrateRunner</RootNamespace>
     <AssemblyName>MigrateOracle</AssemblyName>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
+    <PackageId>Deterministic.Migraters.Oracle</PackageId>
+    <Version>0.0.1</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />

@@ -8,50 +8,28 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [typescript, rust, csharp]
+        dialect: [sqlite, postgres, mysql, sqlserver, oracle]
     steps:
-      - name: Increase swap
-        run: |
-          sudo swapoff -a || true
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Skip if no pushes in the last 24 hours
-        id: recent
-        run: |
-          if [ -z "$(git log --since='24 hours ago' --pretty=%H)" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "No pushes in the last 24 hours"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - uses: actions/setup-node@v4
-        if: steps.recent.outputs.skip != 'true'
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            typescript/package-lock.json
-
-      - uses: dtolnay/rust-toolchain@stable
-        if: steps.recent.outputs.skip != 'true'
-
-      - uses: actions/setup-dotnet@v4
-        if: steps.recent.outputs.skip != 'true'
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Install root deps
-        if: steps.recent.outputs.skip != 'true'
-        run: npm ci
 
       - name: Proof e2e
-        if: steps.recent.outputs.skip != 'true'
-        run: npm run e2e
+        run: |
+          bash proof/stage-cell.sh "${{ matrix.language }}" "${{ matrix.dialect }}"
+          project="migraters-e2e-${{ matrix.language }}-${{ matrix.dialect }}"
+          compose="proof/matrix/${{ matrix.language }}/${{ matrix.dialect }}/compose.yml"
+          docker compose -p "$project" -f "$compose" up --build --abort-on-container-exit --exit-code-from e2e
+
+      - name: Remove containers
+        if: always()
+        run: |
+          project="migraters-e2e-${{ matrix.language }}-${{ matrix.dialect }}"
+          compose="proof/matrix/${{ matrix.language }}/${{ matrix.dialect }}/compose.yml"
+          docker compose -p "$project" -f "$compose" down -v --remove-orphans

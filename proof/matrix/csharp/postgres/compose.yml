@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    tmpfs:
+      - /var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: proof
+      POSTGRES_PASSWORD: proof
+      POSTGRES_DB: proof
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U proof -d proof']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  e2e:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy

@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { stringify, parse } from 'yaml';
 import { binDirFor, normalizeLanguage, type Language } from './languages.ts';
 import { providerEntries, type ProviderEntry } from './provider-location.ts';
@@ -82,17 +82,11 @@ const parseProviders = (doc: {
 };
 
 export const findConfigPath = (start: string, fallbackRoot?: string): string | undefined => {
-  let dir = start;
-  while (true) {
-    const candidate = join(dir, CONFIG_NAME);
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
+  const here = join(start, CONFIG_NAME);
+  if (existsSync(here)) return here;
   if (fallbackRoot) {
-    const candidate = join(fallbackRoot, CONFIG_NAME);
-    if (existsSync(candidate)) return candidate;
+    const fallback = join(fallbackRoot, CONFIG_NAME);
+    if (existsSync(fallback)) return fallback;
   }
   return undefined;
 };

@@ -84,7 +84,8 @@ mod tests {
             ["sqlite", "postgres"]
         );
         assert!(
-            parse_providers("language: rust\nproviders: []\nbinDir: rust/target/debug\n").is_empty()
+            parse_providers("language: rust\nproviders: []\nbinDir: rust/target/debug\n")
+                .is_empty()
         );
     }
 }
