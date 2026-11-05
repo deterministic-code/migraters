@@ -8,7 +8,7 @@ export const normalizeDialect = (raw: string | null | undefined): SqlDialect | n
   if (!raw) return null;
   const key = stripKey(raw);
   if ((cliSpec.providers as string[]).includes(key)) return key as SqlDialect;
-  for (const [alias, canonical] of Object.entries(cliSpec.provider_aliases ?? {})) {
+  for (const [alias, canonical] of Object.entries(cliSpec.provider_aliases)) {
     if (stripKey(alias) === key) return canonical as SqlDialect;
   }
   return null;

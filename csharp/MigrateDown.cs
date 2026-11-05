@@ -37,7 +37,10 @@ internal sealed class MigrateDown(IProviderFactory providers, IConnectionResolve
         }
     }
 
-    private static bool ConfirmOrAbort(string dialect, bool confirm)
+    internal static bool ConfirmOrAbort(string dialect, bool confirm) =>
+        ConfirmOrAbort(dialect, confirm, Console.IsInputRedirected, Console.In);
+
+    internal static bool ConfirmOrAbort(string dialect, bool confirm, bool inputRedirected, TextReader input)
     {
         Console.Error.Write(
             HelpTemplates.Message(
@@ -47,14 +50,14 @@ internal sealed class MigrateDown(IProviderFactory providers, IConnectionResolve
         );
         if (confirm)
             return true;
-        if (Console.IsInputRedirected)
+        if (inputRedirected)
         {
             Console.Error.WriteLine(HelpTemplates.Message("down/confirm-tty-required"));
             return false;
         }
         Console.Error.Write(HelpTemplates.Message("down/confirm-prompt"));
         Console.Error.Flush();
-        var line = Console.In.ReadLine()?.Trim();
+        var line = input.ReadLine()?.Trim();
         if (line == "confirm")
             return true;
         Console.Error.WriteLine(

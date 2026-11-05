@@ -33,9 +33,6 @@ pub fn parse_sequence(filename: &str) -> Option<u32> {
     if end >= bytes.len() || bytes[end] != b'_' {
         return None;
     }
-    if end == 4 && bytes.len() > 4 && bytes[4].is_ascii_digit() {
-        return None;
-    }
     filename[..end].parse::<u32>().ok()
 }
 
@@ -63,8 +60,7 @@ pub fn discover_up_files(
         return Err(message("errors/migrate-path-not-dir", &[("path", migrate_path)]).into());
     }
     let mut out: Vec<(String, PathBuf)> = Vec::new();
-    for entry in fs::read_dir(&dir)? {
-        let entry = entry?;
+    for entry in fs::read_dir(&dir)?.flatten() {
         let path = entry.path();
         if !path.is_file() {
             continue;

@@ -15,9 +15,7 @@ pub fn is_batch_separator_line(line: &str, separator: &str) -> bool {
         return false;
     }
     let mut tokens = trimmed.split_whitespace();
-    let Some(first) = tokens.next() else {
-        return false;
-    };
+    let first = tokens.next().expect("non-empty line has a token");
     if !first.eq_ignore_ascii_case(separator) {
         return false;
     }

@@ -4,9 +4,11 @@ internal static class MigrateCli
 {
     internal static readonly string[] Verbs = ["setup", "up", "down", "create"];
 
-    internal static string? VerbFromHost()
+    internal static string? VerbFromHost() =>
+        VerbFromCandidates([Environment.ProcessPath, Environment.GetCommandLineArgs()[0]]);
+
+    internal static string? VerbFromCandidates(IEnumerable<string?> candidates)
     {
-        string?[] candidates = [Environment.ProcessPath, Environment.GetCommandLineArgs()[0]];
         foreach (var raw in candidates)
         {
             if (string.IsNullOrEmpty(raw))

@@ -27,7 +27,7 @@ struct CliSpec {
 
 fn spec() -> &'static CliSpec {
     static SPEC: OnceLock<CliSpec> = OnceLock::new();
-    SPEC.get_or_init(parse_cli_yaml)
+    SPEC.get_or_init(|| parse_cli_from(RAW))
 }
 
 fn parse_arg_flow(line: &str) -> CliArg {
@@ -65,7 +65,12 @@ fn unquote(value: &str) -> String {
     }
 }
 
-fn parse_cli_yaml() -> CliSpec {
+#[cfg(test)]
+pub(crate) fn parse_cli_from_for_test(raw: &str) -> usize {
+    parse_cli_from(raw).commands.len()
+}
+
+fn parse_cli_from(raw: &str) -> CliSpec {
     let mut command = String::from("migrate-{verb}");
     let mut providers = Vec::new();
     let mut languages = Vec::new();
@@ -79,7 +84,7 @@ fn parse_cli_yaml() -> CliSpec {
     let mut current: Option<CliCommand> = None;
     let mut in_args = false;
 
-    for raw in RAW.lines() {
+    for raw in raw.lines() {
         let line = raw.trim_end();
         if line.is_empty() || line.starts_with('#') {
             continue;

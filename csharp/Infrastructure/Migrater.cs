@@ -148,9 +148,7 @@ internal sealed class Migrater(IDatasourceProvider provider, string batchSeparat
     }
 
     private static int NextSequenceFromDir(string dir) =>
-        !Directory.Exists(dir)
-            ? 1
-            : Migrations.NextSequence(
-                Directory.EnumerateFiles(dir).Select(Path.GetFileName).OfType<string>()
-            );
+        Migrations.NextSequence(
+            Directory.EnumerateFiles(dir).Select(Path.GetFileName).OfType<string>()
+        );
 }

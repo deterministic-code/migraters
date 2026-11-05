@@ -31,7 +31,9 @@ describe('IMigrater.up / IMigrater.down against sqlite', () => {
       const migrater = getMigrater('sqlite');
       await migrater.setup({ connection, migrationsPath });
       await pair(migrationsPath, '0001_init', 'CREATE TABLE t (id INTEGER);\n', 'DROP TABLE t;\n');
-      expect(await migrater.up({ connection, migrationsPath })).toEqual(['0001_init']);
+      await pair(migrationsPath, '0002_next', 'CREATE TABLE u (id INTEGER);\n', 'DROP TABLE u;\n');
+      expect(await migrater.up({ connection, migrationsPath, one: true })).toEqual(['0001_init']);
+      expect(await migrater.up({ connection, migrationsPath })).toEqual(['0002_next']);
       expect(await migrater.up({ connection, migrationsPath })).toEqual([]);
     });
   });

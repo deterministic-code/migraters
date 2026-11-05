@@ -7,9 +7,7 @@ internal static class HelpTemplates
     public static string Read(string verb)
     {
         var command = ToCommand(verb);
-        var verbName = command.StartsWith("migrate-", StringComparison.Ordinal)
-            ? command["migrate-".Length..]
-            : command;
+        var verbName = command["migrate-".Length..];
         return Fill(
             ReadRaw("help", verbName),
             new Dictionary<string, string> { ["command"] = command, ["usage"] = CliSpec.UsageLine(verbName) }

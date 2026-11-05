@@ -63,8 +63,8 @@ internal static class Migrations
                         new Dictionary<string, string>
                         {
                             ["name"] = file.Name,
-                            ["stored"] = stored.Length <= 12 ? stored : stored[..12],
-                            ["current"] = current.Length <= 12 ? current : current[..12],
+                            ["stored"] = stored[..Math.Min(12, stored.Length)],
+                            ["current"] = current[..Math.Min(12, current.Length)],
                         }
                     )
                     .TrimEnd()

@@ -49,13 +49,16 @@ internal static class CliSpec
         return arg.Required ? body : $"[{body}]";
     }
 
-    private static string SpecPath()
-    {
-        var nextToApp = Path.Combine(AppContext.BaseDirectory, "cli.yaml");
-        if (File.Exists(nextToApp))
-            return nextToApp;
-        return Path.Combine(AppContext.BaseDirectory, "templates", "cli.yaml");
-    }
+    private static string SpecPath() =>
+        ExistingPath(
+            Path.Combine(AppContext.BaseDirectory, "cli.yaml"),
+            Path.Combine(AppContext.BaseDirectory, "templates", "cli.yaml")
+        );
+
+    internal static string ExistingPath(string preferred, string fallback) =>
+        File.Exists(preferred) ? preferred : fallback;
+
+    internal static int CommandCountFor(string raw) => Parse(raw).Commands.Length;
 
     private static Spec Parse(string raw)
     {
@@ -90,7 +93,7 @@ internal static class CliSpec
             var line = rawLine.TrimEnd('\r');
             if (line.Length == 0 || line.StartsWith('#'))
                 continue;
-            if (line.Length > 0 && line[0] is not ' ' and not '-')
+            if (line[0] is not ' ' and not '-')
             {
                 inProviders = false;
                 inLanguages = false;
@@ -157,10 +160,7 @@ internal static class CliSpec
                 var colon = aliasLine.IndexOf(':');
                 if (colon > 0)
                 {
-                    var alias = StripKey(aliasLine[..colon].Trim());
-                    var canonical = aliasLine[(colon + 1)..].Trim();
-                    if (alias.Length > 0 && canonical.Length > 0)
-                        providerAliases[alias] = canonical;
+                    AddAlias(providerAliases, StripKey(aliasLine[..colon].Trim()), aliasLine[(colon + 1)..].Trim());
                 }
                 continue;
             }
@@ -217,6 +217,13 @@ internal static class CliSpec
             envVarListSeparator,
             [.. commands]
         );
+    }
+
+    internal static void AddAlias(Dictionary<string, string> aliases, string alias, string canonical)
+    {
+        if (alias.Length == 0 || canonical.Length == 0)
+            return;
+        aliases[alias] = canonical;
     }
 
     internal static string StripKey(string raw) =>

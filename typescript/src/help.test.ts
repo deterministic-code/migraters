@@ -12,6 +12,10 @@ const VERBS: MigrateVerb[] = ['setup', 'up', 'down', 'create'];
 describe('unified help loader', () => {
   it('maps migrate-<verb> onto the shared template file', () => {
     expect(verbFromCommand('migrate-create')).toBe('create');
+    expect(verbFromCommand('migrate-init')).toBe('init');
+    expect(verbFromCommand('migrate-setup')).toBe('setup');
+    expect(verbFromCommand('migrate-up')).toBe('up');
+    expect(verbFromCommand('migrate-down')).toBe('down');
     expect(migrateCommand('create')).toBe('migrate-create');
     expect(() => verbFromCommand('MigrateRunner')).toThrow(/Unknown migrate command/);
   });
