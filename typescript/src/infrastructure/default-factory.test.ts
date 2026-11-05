@@ -35,7 +35,6 @@ describe('defaultDialectFactory', () => {
         `language: typescript
 providers:
   - name: sqlite
-    location: typescript/providers/sqlite/src/index.ts
   - name: postgres
     location: typescript/providers/postgres/src/index.ts
 binDir: typescript/dist/src/bin

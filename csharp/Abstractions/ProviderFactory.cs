@@ -32,17 +32,23 @@ internal sealed class ProviderFactory : IProviderFactory
     private static IEnumerable<IDatasourceProvider> LoadEnabled() =>
         MigratersConfig.EnabledProviders().Select(LoadNamed);
 
+    private static readonly Dictionary<string, (string Dll, string Type)> Types = new(StringComparer.Ordinal)
+    {
+        ["sqlite"] = ("MigrateSqlite.dll", "Deterministic.MigrateRunner.SqliteProvider"),
+        ["postgres"] = ("MigratePostgres.dll", "Deterministic.MigrateRunner.PostgresProvider"),
+        ["mysql"] = ("MigrateMysql.dll", "Deterministic.MigrateRunner.MysqlProvider"),
+        ["sqlserver"] = ("MigrateSqlServer.dll", "Deterministic.MigrateRunner.SqlServerProvider"),
+        ["oracle"] = ("MigrateOracle.dll", "Deterministic.MigrateRunner.OracleProvider"),
+    };
+
     private static IDatasourceProvider LoadNamed(ProviderEntry entry)
     {
-        var bang = entry.Location.IndexOf('!');
-        if (bang <= 0)
+        if (!Types.TryGetValue(entry.Name, out var mapped))
             throw new InvalidOperationException(entry.Name);
-        var dll = entry.Location[..bang];
-        var typeName = entry.Location[(bang + 1)..];
-        var path = Path.Combine(AppContext.BaseDirectory, dll);
+        var path = Path.Combine(AppContext.BaseDirectory, mapped.Dll);
         if (!File.Exists(path))
             throw new InvalidOperationException(entry.Name);
-        var type = Assembly.LoadFrom(path).GetType(typeName);
+        var type = Assembly.LoadFrom(path).GetType(mapped.Type);
         if (type is null || Activator.CreateInstance(type) is not IDatasourceProvider provider)
             throw new InvalidOperationException(entry.Name);
         return provider;

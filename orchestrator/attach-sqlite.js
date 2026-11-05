@@ -13,18 +13,6 @@ const requireStatus = (result) => {
   if ((result.status ?? 1) !== 0) process.exit(result.status ?? 1);
 };
 
-const locations = {
-  typescript: {
-    sqlite: 'typescript/providers/sqlite/src/index.ts',
-  },
-  csharp: {
-    sqlite: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider',
-  },
-  rust: {
-    sqlite: 'providers/sqlite',
-  },
-};
-
 const writeConfig = (lang, dialects, binDir) => {
   const lines = [`language: ${lang}`, 'providers:'];
   if (dialects.length === 0) {
@@ -32,7 +20,6 @@ const writeConfig = (lang, dialects, binDir) => {
   } else {
     for (const name of dialects) {
       lines.push(`  - name: ${name}`);
-      lines.push(`    location: ${locations[lang][name]}`);
     }
   }
   lines.push(`binDir: ${binDir}`, '');
@@ -41,6 +28,14 @@ const writeConfig = (lang, dialects, binDir) => {
 
 if (language === 'typescript') {
   const tsRoot = join(root, 'typescript');
+  const sqlitePkg = join(tsRoot, 'providers', 'sqlite');
+  requireStatus(
+    spawnSync(
+      npmCmd,
+      ['install', '--no-save', '--no-audit', '--no-fund', '--loglevel=error', sqlitePkg],
+      { cwd: tsRoot, stdio: 'inherit' },
+    ),
+  );
   if (!existsSync(join(tsRoot, 'node_modules', 'better-sqlite3'))) {
     requireStatus(
       spawnSync(
@@ -53,14 +48,7 @@ if (language === 'typescript') {
   writeConfig('typescript', ['sqlite'], 'typescript/dist/src/bin');
   writeFileSync(
     join(tsRoot, '.migraters.yaml'),
-    [
-      'language: typescript',
-      'providers:',
-      '  - name: sqlite',
-      '    location: providers/sqlite/src/index.ts',
-      'binDir: dist/src/bin',
-      '',
-    ].join('\n'),
+    ['language: typescript', 'providers:', '  - name: sqlite', 'binDir: dist/src/bin', ''].join('\n'),
   );
   process.exit(0);
 }

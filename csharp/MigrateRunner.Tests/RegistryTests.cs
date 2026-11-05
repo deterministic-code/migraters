@@ -27,7 +27,6 @@ public sealed class RegistryTests
                 language: csharp
                 providers:
                   - name: sqlite
-                    location: MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider
                   - name: postgres
                     location: MigratePostgres.dll!Deterministic.MigrateRunner.PostgresProvider
                 binDir: csharp/bin/Debug/net9.0

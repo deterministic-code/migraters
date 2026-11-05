@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 
 export const CONFIG_NAME = '.migraters.yaml';
 
-export type ProviderEntry = { name: string; location: string };
+export type ProviderEntry = { name: string };
 
 export const findConfigPath = (start: string): string | undefined => {
   const candidate = join(resolve(start), CONFIG_NAME);
@@ -15,6 +15,10 @@ export const parseProviders = (raw: string): ProviderEntry[] => {
   const entries: ProviderEntry[] = [];
   let inProviders = false;
   let name: string | undefined;
+  const take = () => {
+    if (name && name.length > 0) entries.push({ name });
+    name = undefined;
+  };
   for (const line of raw.split('\n')) {
     const trimmed = line.replace(/\r$/, '');
     if (!inProviders) {
@@ -23,19 +27,16 @@ export const parseProviders = (raw: string): ProviderEntry[] => {
     }
     const item = trimmed.trim();
     if (item.startsWith('- name:')) {
+      take();
       name = item.slice('- name:'.length).trim();
       continue;
     }
-    if (item.startsWith('location:') && name) {
-      const location = item.slice('location:'.length).trim();
-      if (name.length > 0 && location.length > 0) entries.push({ name, location });
-      name = undefined;
-      continue;
-    }
+    if (item.startsWith('location:')) continue;
     if (item.length === 0) continue;
     if (item.startsWith('- ')) continue;
     break;
   }
+  take();
   return entries;
 };
 

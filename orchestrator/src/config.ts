@@ -15,14 +15,10 @@ export type MigratersConfig = {
 
 export const configPath = (dir: string): string => join(dir, CONFIG_NAME);
 
-export const renderConfig = (
-  language: Language,
-  dialects: string[],
-  configDir = '',
-): string =>
+export const renderConfig = (language: Language, dialects: string[]): string =>
   stringify({
     language,
-    providers: providerEntries(language, dialects, configDir),
+    providers: providerEntries(dialects),
     binDir: binDirFor(language),
   });
 
@@ -32,11 +28,12 @@ export const writeConfig = async (
   dialects: string[],
 ): Promise<string> => {
   const path = configPath(dir);
-  await writeFile(path, renderConfig(language, dialects, dir));
+  const rendered = renderConfig(language, dialects);
+  await writeFile(path, rendered);
   if (language === 'typescript') {
     const tsDir = join(dir, 'typescript');
     if (existsSync(tsDir)) {
-      await writeFile(configPath(tsDir), renderConfig(language, dialects, tsDir));
+      await writeFile(configPath(tsDir), rendered);
     }
   }
   return path;
@@ -67,13 +64,8 @@ const parseProviders = (doc: {
 }): ProviderEntry[] => {
   if (Array.isArray(doc.providers)) {
     return doc.providers.map((item) => {
-      if (
-        item &&
-        typeof item === 'object' &&
-        typeof (item as ProviderEntry).name === 'string' &&
-        typeof (item as ProviderEntry).location === 'string'
-      ) {
-        return { name: (item as ProviderEntry).name, location: (item as ProviderEntry).location };
+      if (item && typeof item === 'object' && typeof (item as ProviderEntry).name === 'string') {
+        return { name: (item as ProviderEntry).name };
       }
       throw new Error(`${CONFIG_NAME} is missing a providers list`);
     });

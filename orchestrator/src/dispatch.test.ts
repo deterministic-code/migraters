@@ -8,7 +8,7 @@ describe('orchestrator dispatch', () => {
         '/repo',
         {
           language: 'typescript',
-          providers: [{ name: 'sqlite', location: 'typescript/providers/sqlite/src/index.ts' }],
+          providers: [{ name: 'sqlite' }],
           binDir: 'typescript/dist/src/bin',
         },
         'up',
@@ -33,7 +33,7 @@ describe('orchestrator dispatch', () => {
       {
         language: 'csharp',
         providers: [
-          { name: 'sqlite', location: 'MigrateSqlite.dll!Deterministic.MigrateRunner.SqliteProvider' },
+          { name: 'sqlite' },
         ],
         binDir: 'csharp/bin/Debug/net9.0',
       },
