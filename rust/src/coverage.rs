@@ -28,6 +28,11 @@ pub(crate) fn cwd_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
+
+fn drift_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
 use migraters_api::DialectPlugin;
 
 struct StaticSqlite;
@@ -426,10 +431,14 @@ fn migrations_and_checksum_edges() {
     applied.insert("0001_init".into(), None);
     assert_no_checksum_drift(&found, &applied).unwrap();
     applied.insert("0001_init".into(), Some("short".into()));
-    assert!(assert_no_checksum_drift(&found, &applied).is_err());
-    std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
-    assert_no_checksum_drift(&found, &applied).unwrap();
-    std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+    {
+        let _drift = drift_lock();
+        std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+        assert!(assert_no_checksum_drift(&found, &applied).is_err());
+        std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
+        assert_no_checksum_drift(&found, &applied).unwrap();
+        std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+    }
     let headed = format!(
         "// deterministic-content-hash: {}\nSELECT 1;\n",
         "b".repeat(64)
@@ -590,15 +599,18 @@ async fn migrater_and_pool_paths() {
         .lock()
         .unwrap()
         .insert("0001_init".into(), Some("x".into()));
-    std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
-    assert!(migrater
-        .down(DownArg {
-            connection: "c",
-            migrations_path: ghost.to_str().unwrap(),
-        })
-        .await
-        .is_err());
-    std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+    {
+        let _drift = drift_lock();
+        std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
+        assert!(migrater
+            .down(DownArg {
+                connection: "c",
+                migrations_path: ghost.to_str().unwrap(),
+            })
+            .await
+            .is_err());
+        std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+    }
     let pool = MigrationPool::connect(dialect, "c").await.unwrap();
     pool.setup().await.unwrap();
     pool.execute("SELECT 1").await.unwrap();
@@ -790,21 +802,25 @@ async fn migrater_applied_and_log_errors() {
         .lock()
         .unwrap()
         .insert("0001_init".into(), Some("drifted".repeat(8)));
-    assert!(migrater
-        .up(UpArg {
-            connection: "c",
-            migrations_path: dir.to_str().unwrap(),
-            one: false,
-        })
-        .await
-        .is_err());
-    assert!(migrater
-        .down(DownArg {
-            connection: "c",
-            migrations_path: dir.to_str().unwrap(),
-        })
-        .await
-        .is_err());
+    {
+        let _drift = drift_lock();
+        std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+        assert!(migrater
+            .up(UpArg {
+                connection: "c",
+                migrations_path: dir.to_str().unwrap(),
+                one: false,
+            })
+            .await
+            .is_err());
+        assert!(migrater
+            .down(DownArg {
+                connection: "c",
+                migrations_path: dir.to_str().unwrap(),
+            })
+            .await
+            .is_err());
+    }
     store.applied.lock().unwrap().clear();
     store.fail_log.store(true, std::sync::atomic::Ordering::SeqCst);
     assert!(migrater
@@ -820,21 +836,28 @@ async fn migrater_applied_and_log_errors() {
         .lock()
         .unwrap()
         .insert("0001_init".into(), Some("x".into()));
-    std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
-    assert!(migrater
-        .down(DownArg {
-            connection: "c",
-            migrations_path: dir.to_str().unwrap(),
-        })
-        .await
-        .is_err());
-    std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+    {
+        let _drift = drift_lock();
+        std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
+        assert!(migrater
+            .down(DownArg {
+                connection: "c",
+                migrations_path: dir.to_str().unwrap(),
+            })
+            .await
+            .is_err());
+        std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+    }
     store.fail_log.store(false, std::sync::atomic::Ordering::SeqCst);
     let mut files = discover_up_files(dir.to_str().unwrap()).unwrap();
     let mut applied = HashMap::new();
     applied.insert("0001_init".into(), Some("x".repeat(64)));
     std::fs::remove_file(dir.join("0001_init_up.sql")).unwrap();
-    assert!(assert_no_checksum_drift(&files, &applied).is_err());
+    {
+        let _drift = drift_lock();
+        std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+        assert!(assert_no_checksum_drift(&files, &applied).is_err());
+    }
     files.clear();
     assert_no_checksum_drift(&files, &applied).unwrap();
     assert!(parse_sequence("12ok_up.sql").is_none());
@@ -1002,17 +1025,20 @@ async fn io_error_branches() {
             .lock()
             .unwrap()
             .insert("0001_init".into(), Some("x".into()));
-        std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
-        std::fs::set_permissions(dir.join("0001_init_down.sql"), std::fs::Permissions::from_mode(0o000)).unwrap();
-        assert!(migrater
-            .down(DownArg {
-                connection: "c",
-                migrations_path: dir.to_str().unwrap(),
-            })
-            .await
-            .is_err());
-        std::fs::set_permissions(dir.join("0001_init_down.sql"), std::fs::Permissions::from_mode(0o644)).unwrap();
-        std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+        {
+            let _drift = drift_lock();
+            std::env::set_var("MIGRATE_ALLOW_CHECKSUM_DRIFT", "1");
+            std::fs::set_permissions(dir.join("0001_init_down.sql"), std::fs::Permissions::from_mode(0o000)).unwrap();
+            assert!(migrater
+                .down(DownArg {
+                    connection: "c",
+                    migrations_path: dir.to_str().unwrap(),
+                })
+                .await
+                .is_err());
+            std::fs::set_permissions(dir.join("0001_init_down.sql"), std::fs::Permissions::from_mode(0o644)).unwrap();
+            std::env::remove_var("MIGRATE_ALLOW_CHECKSUM_DRIFT");
+        }
         let locked = tmp("locked");
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
         assert!(migrater
