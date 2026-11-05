@@ -38,6 +38,7 @@ coverage/
 # Proof Instant Client cache
 proof/.instantclient/
 proof/report.md
+proof/matrix/**/packs/
 .e2e-bin/
 .migraters.yaml
 /app.sqlite

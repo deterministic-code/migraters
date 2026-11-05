@@ -7,7 +7,9 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
+    <PackageId>Deterministic.Migraters</PackageId>
+    <Version>0.0.1</Version>
     <NoWarn>$(NoWarn);CA1031;CA1303;CA1812;CA1848;CA2007</NoWarn>
   </PropertyGroup>
 
@@ -41,26 +43,41 @@
       Include="..\cli.yaml"
       Link="cli.yaml"
       CopyToOutputDirectory="PreserveNewest"
+      Pack="true"
+      PackageCopyToOutput="true"
+      PackagePath="contentFiles/any/net9.0/cli.yaml"
     />
     <Content
       Include="..\shared\templates\sql\**\*.sql"
       Link="templates\sql\%(RecursiveDir)%(Filename)%(Extension)"
       CopyToOutputDirectory="PreserveNewest"
+      Pack="true"
+      PackageCopyToOutput="true"
+      PackagePath="contentFiles/any/net9.0/templates/sql/%(RecursiveDir)%(Filename)%(Extension)"
     />
     <Content
       Include="..\shared\templates\help\*.txt"
       Link="templates\help\%(Filename)%(Extension)"
       CopyToOutputDirectory="PreserveNewest"
+      Pack="true"
+      PackageCopyToOutput="true"
+      PackagePath="contentFiles/any/net9.0/templates/help/%(Filename)%(Extension)"
     />
     <Content
       Include="..\shared\templates\messages\**\*.txt"
       Link="templates\messages\%(RecursiveDir)%(Filename)%(Extension)"
       CopyToOutputDirectory="PreserveNewest"
+      Pack="true"
+      PackageCopyToOutput="true"
+      PackagePath="contentFiles/any/net9.0/templates/messages/%(RecursiveDir)%(Filename)%(Extension)"
     />
     <Content
       Include="..\shared\templates\scaffold\*.sql"
       Link="templates\scaffold\%(Filename)%(Extension)"
       CopyToOutputDirectory="PreserveNewest"
+      Pack="true"
+      PackageCopyToOutput="true"
+      PackagePath="contentFiles/any/net9.0/templates/scaffold/%(Filename)%(Extension)"
     />
   </ItemGroup>
 

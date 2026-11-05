@@ -1,0 +1,18 @@
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    tmpfs:
+      - /opt/oracle/oradata
+    environment:
+      ORACLE_PASSWORD: proof
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh']
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 90s
+  e2e:
+    build: .
+    depends_on:
+      oracle:
+        condition: service_healthy

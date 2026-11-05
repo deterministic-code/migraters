@@ -6,14 +6,9 @@ export const CONFIG_NAME = '.migraters.yaml';
 export type ProviderEntry = { name: string; location: string };
 
 export const findConfigPath = (start: string): string | undefined => {
-  let dir = resolve(start);
-  while (true) {
-    const candidate = join(dir, CONFIG_NAME);
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) return undefined;
-    dir = parent;
-  }
+  const candidate = join(resolve(start), CONFIG_NAME);
+  if (existsSync(candidate)) return candidate;
+  return undefined;
 };
 
 export const parseProviders = (raw: string): ProviderEntry[] => {
