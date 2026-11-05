@@ -1,8 +1,7 @@
 services:
   oracle:
     image: gvenzl/oracle-free:23-slim
-    tmpfs:
-      - /opt/oracle/oradata
+    platform: linux/amd64
     environment:
       ORACLE_PASSWORD: proof
     healthcheck:
@@ -12,6 +11,7 @@ services:
       retries: 40
       start_period: 90s
   e2e:
+    platform: linux/amd64
     build:
       context: .
       args:
