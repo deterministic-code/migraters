@@ -7,7 +7,6 @@ pub const FILE_NAME: &str = ".migraters.yaml";
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProviderEntry {
     pub name: String,
-    pub location: String,
 }
 
 pub fn enabled_providers() -> Vec<ProviderEntry> {
@@ -41,6 +40,13 @@ pub fn parse_providers(raw: &str) -> Vec<ProviderEntry> {
     let mut entries = Vec::new();
     let mut in_providers = false;
     let mut name: Option<String> = None;
+    let mut take = |name: &mut Option<String>| {
+        if let Some(n) = name.take() {
+            if !n.is_empty() {
+                entries.push(ProviderEntry { name: n });
+            }
+        }
+    };
     for line in raw.lines() {
         if !in_providers {
             if line.trim() == "providers:" {
@@ -50,16 +56,11 @@ pub fn parse_providers(raw: &str) -> Vec<ProviderEntry> {
         }
         let item = line.trim();
         if let Some(rest) = item.strip_prefix("- name:") {
+            take(&mut name);
             name = Some(rest.trim().to_string());
             continue;
         }
-        if let Some(rest) = item.strip_prefix("location:") {
-            if let Some(n) = name.take() {
-                let location = rest.trim().to_string();
-                if !n.is_empty() && !location.is_empty() {
-                    entries.push(ProviderEntry { name: n, location });
-                }
-            }
+        if item.starts_with("location:") {
             continue;
         }
         if item.is_empty() || item.starts_with("- ") {
@@ -67,6 +68,7 @@ pub fn parse_providers(raw: &str) -> Vec<ProviderEntry> {
         }
         break;
     }
+    take(&mut name);
     entries
 }
 
@@ -77,7 +79,7 @@ mod tests {
     #[test]
     fn reads_block_list() {
         let names = parse_providers(
-            "language: rust\nproviders:\n  - name: sqlite\n    location: providers/sqlite\n  - name: postgres\n    location: providers/postgres\nbinDir: rust/target/debug\n",
+            "language: rust\nproviders:\n  - name: sqlite\n    location: providers/sqlite\n  - name: postgres\nbinDir: rust/target/debug\n",
         );
         assert_eq!(
             names.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),

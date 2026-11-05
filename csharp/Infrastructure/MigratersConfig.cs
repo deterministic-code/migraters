@@ -1,6 +1,6 @@
 namespace Deterministic.MigrateRunner;
 
-internal sealed record ProviderEntry(string Name, string Location);
+internal sealed record ProviderEntry(string Name);
 
 internal static class MigratersConfig
 {
@@ -32,6 +32,12 @@ internal static class MigratersConfig
         var entries = new List<ProviderEntry>();
         var inProviders = false;
         string? name = null;
+        void Take()
+        {
+            if (name is { Length: > 0 })
+                entries.Add(new ProviderEntry(name));
+            name = null;
+        }
         foreach (var line in raw.Split('\n'))
         {
             var trimmed = line.TrimEnd('\r');
@@ -44,23 +50,19 @@ internal static class MigratersConfig
             var item = trimmed.Trim();
             if (item.StartsWith("- name:", StringComparison.Ordinal))
             {
+                Take();
                 name = item["- name:".Length..].Trim();
                 continue;
             }
-            if (item.StartsWith("location:", StringComparison.Ordinal) && name is not null)
-            {
-                var location = item["location:".Length..].Trim();
-                if (name.Length > 0 && location.Length > 0)
-                    entries.Add(new ProviderEntry(name, location));
-                name = null;
+            if (item.StartsWith("location:", StringComparison.Ordinal))
                 continue;
-            }
             if (item.Length == 0)
                 continue;
             if (item.StartsWith("- ", StringComparison.Ordinal))
                 continue;
             break;
         }
+        Take();
         return entries;
     }
 }

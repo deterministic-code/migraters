@@ -3,9 +3,10 @@ import type { IDatasourceProvider } from '../abstractions/datasource-provider.ts
 import { ConnectionResolver } from './connection-resolver.ts';
 import { enabledProviders } from './migraters-config.ts';
 
+const dialectPackage = (name: string): string => `@deterministic-code/migraters-${name}`;
+
 const loadModule = async (name: string): Promise<IDatasourceProvider> => {
-  const ext = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
-  const mod = (await import(`../../providers/${name}/src/index.${ext}`)) as {
+  const mod = (await import(dialectPackage(name))) as {
     provider?: () => IDatasourceProvider;
     createProvider?: () => IDatasourceProvider;
   };

@@ -1,6 +1,6 @@
 {
   "name": "@deterministic-code/migraters",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Migrate executables for deterministic-code (typescript, rust, csharp).",
   "type": "module",
   "publishConfig": {
@@ -19,6 +19,7 @@
     "orchestrator/tsconfig.json",
     "typescript/package.json",
     "typescript/tsconfig.build.json",
+    "typescript/link-dialects.js",
     "typescript/src",
     "typescript/providers",
     "rust/Cargo.toml",
@@ -51,6 +52,7 @@
     "integration:rust": "CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/postgres/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/mysql/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/sqlserver/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/oracle/Cargo.toml --lib && CARGO_TARGET_DIR=rust/target cargo test --manifest-path rust/providers/sqlite/Cargo.toml --lib",
     "integration:csharp": "node orchestrator/dist/migrate-init.js --language csharp --all && dotnet test csharp/MigrateRunner.ProviderTests/MigrateRunner.ProviderTests.csproj",
     "e2e:consumer": "bash proof/e2e-consumer.sh",
+    "e2e:consumer:local": "bash proof/e2e-consumer.sh --local",
     "e2e": "bash proof/e2e.sh",
     "test:e2e": "bash proof/e2e.sh",
     "generate:help": "npm run generate:help --prefix typescript",
