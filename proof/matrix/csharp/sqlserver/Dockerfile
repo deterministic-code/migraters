@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:9.0
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl apt-transport-https gnupg && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \

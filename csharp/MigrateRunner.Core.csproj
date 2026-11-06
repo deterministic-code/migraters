@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <RootNamespace>Deterministic.MigrateRunner</RootNamespace>
     <AssemblyName>MigrateCore</AssemblyName>
@@ -45,7 +45,7 @@
       CopyToOutputDirectory="PreserveNewest"
       Pack="true"
       PackageCopyToOutput="true"
-      PackagePath="contentFiles/any/net9.0/cli.yaml"
+      PackagePath="contentFiles/any/net10.0/cli.yaml"
     />
     <Content
       Include="..\shared\templates\sql\**\*.sql"
@@ -53,7 +53,7 @@
       CopyToOutputDirectory="PreserveNewest"
       Pack="true"
       PackageCopyToOutput="true"
-      PackagePath="contentFiles/any/net9.0/templates/sql/%(RecursiveDir)%(Filename)%(Extension)"
+      PackagePath="contentFiles/any/net10.0/templates/sql/%(RecursiveDir)%(Filename)%(Extension)"
     />
     <Content
       Include="..\shared\templates\help\*.txt"
@@ -61,7 +61,7 @@
       CopyToOutputDirectory="PreserveNewest"
       Pack="true"
       PackageCopyToOutput="true"
-      PackagePath="contentFiles/any/net9.0/templates/help/%(Filename)%(Extension)"
+      PackagePath="contentFiles/any/net10.0/templates/help/%(Filename)%(Extension)"
     />
     <Content
       Include="..\shared\templates\messages\**\*.txt"
@@ -69,7 +69,7 @@
       CopyToOutputDirectory="PreserveNewest"
       Pack="true"
       PackageCopyToOutput="true"
-      PackagePath="contentFiles/any/net9.0/templates/messages/%(RecursiveDir)%(Filename)%(Extension)"
+      PackagePath="contentFiles/any/net10.0/templates/messages/%(RecursiveDir)%(Filename)%(Extension)"
     />
     <Content
       Include="..\shared\templates\scaffold\*.sql"
@@ -77,12 +77,12 @@
       CopyToOutputDirectory="PreserveNewest"
       Pack="true"
       PackageCopyToOutput="true"
-      PackagePath="contentFiles/any/net9.0/templates/scaffold/%(Filename)%(Extension)"
+      PackagePath="contentFiles/any/net10.0/templates/scaffold/%(Filename)%(Extension)"
     />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
   </ItemGroup>
 </Project>

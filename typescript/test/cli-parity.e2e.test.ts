@@ -48,11 +48,11 @@ const discover = async (): Promise<Proc[]> => {
   if (rust) {
     out.push({ lang: 'rust', file: join(MIGRATERS, 'rust', 'target', 'debug'), prefix: [] });
   }
-  const cs = await hostPath(join(MIGRATERS, 'csharp', 'bin', 'Debug', 'net9.0'), 'migrate-setup');
+  const cs = await hostPath(join(MIGRATERS, 'csharp', 'bin', 'Debug', 'net10.0'), 'migrate-setup');
   if (cs) {
     out.push({
       lang: 'csharp',
-      file: join(MIGRATERS, 'csharp', 'bin', 'Debug', 'net9.0'),
+      file: join(MIGRATERS, 'csharp', 'bin', 'Debug', 'net10.0'),
       prefix: [],
     });
   }
