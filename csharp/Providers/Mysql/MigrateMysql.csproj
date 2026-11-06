@@ -13,6 +13,6 @@
     <ProjectReference Include="..\..\MigrateRunner.Core.csproj" />
     <InternalsVisibleTo Include="MigrateRunner.Tests" />
     <InternalsVisibleTo Include="MigrateRunner.ProviderTests" />
-    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
   </ItemGroup>
 </Project>
