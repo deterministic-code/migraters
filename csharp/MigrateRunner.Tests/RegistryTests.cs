@@ -29,7 +29,7 @@ public sealed class RegistryTests
                   - name: sqlite
                   - name: postgres
                     location: MigratePostgres.dll!Deterministic.MigrateRunner.PostgresProvider
-                binDir: csharp/bin/Debug/net9.0
+                binDir: csharp/bin/Debug/net10.0
                 """
             ).Select(p => p.Name)
         );

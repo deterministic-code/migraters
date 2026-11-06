@@ -38,7 +38,7 @@ describe('init dialect selection', () => {
   it('reads csharp packages and versions from bundle.yaml', async () => {
     const selected = await loadSelectedPackages(['sqlite', 'sqlserver'], 'csharp');
     expect(selected.packages).toEqual([
-      { name: 'Microsoft.Data.Sqlite', version: '9.0.0' },
+      { name: 'Microsoft.Data.Sqlite', version: '10.0.14' },
       { name: 'Microsoft.Data.SqlClient', version: '6.0.2' },
     ]);
   });

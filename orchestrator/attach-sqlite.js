@@ -81,7 +81,7 @@ if (language === 'csharp') {
       '',
     ].join('\n'),
   );
-  writeConfig('csharp', ['sqlite'], 'csharp/bin/Debug/net9.0');
+  writeConfig('csharp', ['sqlite'], 'csharp/bin/Debug/net10.0');
   process.exit(0);
 }
 

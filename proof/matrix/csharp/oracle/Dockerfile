@@ -1,6 +1,8 @@
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:9.0
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libaio1 unzip && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libaio1t64 unzip \
+ && ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 \
+ && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*

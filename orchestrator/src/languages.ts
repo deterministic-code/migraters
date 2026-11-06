@@ -9,6 +9,6 @@ export const normalizeLanguage = (raw: string): Language | undefined => {
 
 export const binDirFor = (language: Language): string => {
   if (language === 'typescript') return 'typescript/dist/src/bin';
-  if (language === 'csharp') return 'csharp/bin/Debug/net9.0';
+  if (language === 'csharp') return 'csharp/bin/Debug/net10.0';
   return 'rust/target/debug';
 };

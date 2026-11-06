@@ -35,13 +35,13 @@ describe('orchestrator dispatch', () => {
         providers: [
           { name: 'sqlite' },
         ],
-        binDir: 'csharp/bin/Debug/net9.0',
+        binDir: 'csharp/bin/Debug/net10.0',
       },
       'setup',
       ['--provider', 'sqlite'],
     );
     expect(plan.args).toEqual(['--provider', 'sqlite']);
-    expect(plan.command).toContain('csharp/bin/Debug/net9.0');
+    expect(plan.command).toContain('csharp/bin/Debug/net10.0');
     expect(plan.command).toContain('migrate-setup');
   });
 });
